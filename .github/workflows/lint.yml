@@ -18,6 +18,7 @@ jobs:
       - name: Install lint tools
         run: |
           apt-get update
+          apt-get install -y python3-pip
           pip3 install flake8 ament-flake8 ament-pep8
 
       - name: Run ament_flake8
