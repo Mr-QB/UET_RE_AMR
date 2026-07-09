@@ -1,0 +1,80 @@
+# ROS2 Build / devel
+ros2/build/
+ros2/install/
+ros2/log/
+ros2/.colcon_build_cache/
+ros2/**/__pycache__/
+ros2/**/*.pyc
+
+# Colcon
+COLCON_IGNORE
+
+# Catkin (legacy)
+devel/
+.catkin_workspace
+
+# Firmware build artifacts
+firmware/**/build/
+firmware/**/.pio/
+firmware/**/.pioenvs/
+firmware/**/.piolibdeps/
+firmware/**/*.hex
+firmware/**/*.bin
+firmware/**/*.elf
+firmware/**/*.map
+
+# IDE & editors
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
+
+# Logs
+*.log
+logs/
+
+# Generated docs
+docs/_build/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+dist/
+*.egg-info/
+venv/
+.venv/
+
+# C/C++
+*.o
+*.a
+*.so
+*.out
+
+# Rosbag
+*.bag
+*.db3
+
+# Map files (keep .pgm and .yaml in version control only if small)
+# *.pgm
+# *.yaml
+
+# Hardware (large binary files — commit via Git LFS)
+hardware/**/*.step
+hardware/**/*.stp
+
+# Docker
+docker/.env

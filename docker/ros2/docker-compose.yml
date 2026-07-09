@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  ros2:
+    build:
+      context: ../..
+      dockerfile: docker/ros2/Dockerfile
+    image: uet_amr_ros2:humble
+    container_name: uet_amr_ros2
+    network_mode: host
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ROS_DOMAIN_ID=0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./ros2:/ros2_ws/src:rw
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    stdin_open: true
+    tty: true
+    command: bash
+
+  micro_ros_agent:
+    image: microros/micro-ros-agent:humble
+    network_mode: host
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    command: serial --dev /dev/ttyUSB0 --baudrate 115200
+    restart: unless-stopped

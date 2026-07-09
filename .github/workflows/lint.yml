@@ -1,0 +1,33 @@
+name: Code Lint & Style
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-ros2:
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:humble
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lint tools
+        run: |
+          apt-get update
+          pip3 install flake8 ament-flake8 ament-pep8
+
+      - name: Run ament_flake8
+        run: |
+          cd ros2
+          . /opt/ros/humble/setup.sh
+          find src -name "*.py" | xargs flake8 --max-line-length=100 || true
+
+      - name: Check clang-format (C++)
+        run: |
+          apt-get install -y clang-format
+          find ros2/src -name "*.cpp" -o -name "*.hpp" | \
+            xargs clang-format --dry-run --Werror --style=file || true

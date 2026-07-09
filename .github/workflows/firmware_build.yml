@@ -1,0 +1,52 @@
+name: Firmware Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware_build.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'firmware/**'
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          pip install platformio
+
+      - name: Build base_controller
+        run: |
+          cd firmware/base_controller
+          pio run
+
+      - name: Build sensor_hub
+        run: |
+          cd firmware/sensor_hub
+          pio run
+
+      - name: Build power_management
+        run: |
+          cd firmware/power_management
+          pio run
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-binaries
+          path: |
+            firmware/**/.pio/build/**/*.bin
+            firmware/**/.pio/build/**/*.hex

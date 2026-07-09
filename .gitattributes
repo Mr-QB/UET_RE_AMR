@@ -1,0 +1,32 @@
+# Git LFS tracking for large binary files
+# Install: git lfs install
+
+# Hardware design files
+*.step filter=lfs diff=lfs merge=lfs -text
+*.stp  filter=lfs diff=lfs merge=lfs -text
+*.f3d  filter=lfs diff=lfs merge=lfs -text
+*.dwg  filter=lfs diff=lfs merge=lfs -text
+*.dxf  filter=lfs diff=lfs merge=lfs -text
+
+# PCB files (KiCad)
+*.kicad_pcb filter=lfs diff=lfs merge=lfs -text
+*.kicad_sch filter=lfs diff=lfs merge=lfs -text
+
+# 3D meshes
+*.stl  filter=lfs diff=lfs merge=lfs -text
+*.dae  filter=lfs diff=lfs merge=lfs -text
+*.obj  filter=lfs diff=lfs merge=lfs -text
+
+# Images/Media
+*.png  filter=lfs diff=lfs merge=lfs -text
+*.jpg  filter=lfs diff=lfs merge=lfs -text
+*.mp4  filter=lfs diff=lfs merge=lfs -text
+
+# Rosbag
+*.bag  filter=lfs diff=lfs merge=lfs -text
+*.db3  filter=lfs diff=lfs merge=lfs -text
+
+# Firmware binaries
+*.hex  filter=lfs diff=lfs merge=lfs -text
+*.bin  filter=lfs diff=lfs merge=lfs -text
+*.elf  filter=lfs diff=lfs merge=lfs -text

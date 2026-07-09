@@ -1,0 +1,10 @@
+# SetVelocity Service
+# Used to command wheel velocities directly
+
+# Request
+float64 left_velocity    # [m/s]
+float64 right_velocity   # [m/s]
+---
+# Response
+bool success
+string message

@@ -1,0 +1,50 @@
+name: ROS2 Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'ros2/**'
+      - '.github/workflows/ros2_build.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'ros2/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    container:
+      image: ros:humble
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          rosdep update
+          cd ros2
+          rosdep install --from-paths src --ignore-src -r -y
+
+      - name: Build with colcon
+        run: |
+          cd ros2
+          . /opt/ros/humble/setup.sh
+          colcon build --symlink-install \
+            --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+      - name: Run tests
+        run: |
+          cd ros2
+          . /opt/ros/humble/setup.sh
+          . install/setup.sh
+          colcon test --return-code-on-test-failure
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ros2/log/

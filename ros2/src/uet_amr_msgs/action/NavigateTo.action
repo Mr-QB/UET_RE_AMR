@@ -1,0 +1,17 @@
+# NavigateTo Action
+# Navigate AMR to a goal pose
+
+# Goal
+geometry_msgs/PoseStamped target_pose
+float64 tolerance_position    # [m], default 0.1
+float64 tolerance_orientation # [rad], default 0.1
+---
+# Result
+bool success
+string message
+float64 total_distance  # [m] distance traveled
+---
+# Feedback
+geometry_msgs/PoseStamped current_pose
+float64 distance_remaining  # [m]
+float64 estimated_time_remaining  # [s]
