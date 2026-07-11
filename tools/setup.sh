@@ -23,7 +23,8 @@ sudo apt-get install -y -q \
   ros-humble-diff-drive-controller \
   ros-humble-joint-state-broadcaster \
   ros-humble-gazebo-ros-pkgs \
-  ros-humble-gazebo-ros2-control
+  ros-humble-gazebo-ros2-control \
+  ros-humble-realsense2-camera
 
 # ----------- ROS2 workspace -----------
 echo -e "${YELLOW}[2/5] Installing ROS2 workspace dependencies...${NC}"
