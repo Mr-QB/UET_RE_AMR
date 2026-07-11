@@ -14,7 +14,6 @@ NC='\033[0m'
 
 # ----------- ROS2 Humble -----------
 echo -e "${YELLOW}[1/5] Installing ROS2 Humble dependencies...${NC}"
-sudo apt-get update -q
 sudo apt-get install -y -q \
   ros-humble-nav2-bringup \
   ros-humble-ros2-control \
@@ -23,7 +22,8 @@ sudo apt-get install -y -q \
   ros-humble-diff-drive-controller \
   ros-humble-joint-state-broadcaster \
   ros-humble-gazebo-ros-pkgs \
-  ros-humble-gazebo-ros2-control
+  ros-humble-gazebo-ros2-control \
+  ros-humble-realsense2-camera
 
 # ----------- ROS2 workspace -----------
 echo -e "${YELLOW}[2/5] Installing ROS2 workspace dependencies...${NC}"
