@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-joint-state-broadcaster \
     ros-humble-gazebo-ros-pkgs \
     ros-humble-gazebo-ros2-control \
+    ros-humble-realsense2-camera \
     python3-colcon-common-extensions \
     python3-rosdep \
     && rm -rf /var/lib/apt/lists/*
