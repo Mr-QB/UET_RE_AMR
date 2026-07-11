@@ -19,18 +19,24 @@ Whether you are running natively on Ubuntu/Fedora or inside a container environm
 ```bash
 # Install the official Intel RealSense SDK and tools
 sudo apt-get update
-sudo apt-get install librealsense2-dkms librealsense2-utils librealsense2-dev -y
+sudo apt-get install librealsense2-dkms librealsense2-utils librealsense2-dev 
 
 # Install the ROS2 Wrapper for RealSense (Humble)
-sudo apt-get install ros-humble-realsense2-camera -y
+sudo apt-get install ros-humble-realsense2-camera 
 
 # Install the RTAB-Map SLAM packages for Humble
-sudo apt-get install ros-humble-rtabmap-ros -y
+sudo apt-get install ros-humble-rtabmap-ros 
 ```
 
 ---
 
-## 3. Step by step Mapping Execution
+## 3. IMU Calibration for Intel RealSense D435i
+
+For accurate 3D mapping and to prevent tracking drift, ensure the camera's internal IMU is properly calibrated. Detailed step-by-step instructions and the official calibration script (`rs-imu-calibration.py`) are available directly in the [Intel RealSense SDK Repository](https://github.com/IntelRealSense/librealsense/tree/master/tools/rs-imu-calibration).
+
+---
+
+## 4. Step by step Mapping Execution
 
 ### Step 1: Launch the Camera
 
@@ -53,13 +59,13 @@ ros2 launch realsense2_camera rs_launch.py \
 
 ### Step 2: Verify the Data Frequency (Recommended)
 
-Before starting the slam node, open a new terminal and verify that the camera is publishing data properly at healthy framerate:
+Before starting the slam node, open a new terminal and verify that the camera is publishing data properly at decent framerate:
 
 ```bash 
 ros2 topic hz /camera/camera/aligned_depth_to_color/image_raw
 ```
 
-*Requirement: The rate should be stable between 15 - 30 FPS. If it is significantly lower (e.g., ~5 FPS), the SLAM tracking will time out.*
+*Requirement: The rate should be stable between 15 - 30 FPS. If it is significantly lower (e.g., ~5 FPS), the SLAM tracking will be time out.*
 
 ### Step 3: Start RTAB-Map SLAM
 
