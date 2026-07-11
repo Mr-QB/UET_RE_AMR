@@ -14,7 +14,7 @@ This guide provides step-by-step instructions for installing drivers, optimizing
 
 ## 2. Driver and ROS2 Humble Wrapper Installation
 
-Whether you are running natively on Ubuntu/Fedora or inside a container environment (such as Distrobox/Docker), ensure the following packages are installed:
+For Ubuntu 22.04 users, ensure the following packages are installed:
 
 ```bash
 # Install the official Intel RealSense SDK and tools
