@@ -26,24 +26,29 @@ sudo apt-get install -y -q \
   ros-humble-gazebo-ros2-control \
   ros-humble-realsense2-camera
 
+# ----------- Third-party modules -----------
+echo -e "${YELLOW}[2/6] Initializing third-party submodules...${NC}"
+cd "$(dirname "$0")/.."
+git submodule update --init --recursive ros2/third_party
+
 # ----------- ROS2 workspace -----------
-echo -e "${YELLOW}[2/5] Installing ROS2 workspace dependencies...${NC}"
-cd "$(dirname "$0")/../ros2"
+echo -e "${YELLOW}[3/6] Installing ROS2 workspace dependencies...${NC}"
+cd ros2
 source /opt/ros/humble/setup.bash
 rosdep update --rosdistro=humble
-rosdep install --from-paths src --ignore-src -r -y
+rosdep install --from-paths src third_party --ignore-src -r -y
 
 # ----------- Build -----------
-echo -e "${YELLOW}[3/5] Building ROS2 workspace...${NC}"
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+echo -e "${YELLOW}[4/6] Building ROS2 workspace...${NC}"
+colcon build --symlink-install --base-paths src third_party --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 
 # ----------- PlatformIO -----------
-echo -e "${YELLOW}[4/5] Installing PlatformIO...${NC}"
+echo -e "${YELLOW}[5/6] Installing PlatformIO...${NC}"
 pip install --quiet platformio
 
 # ----------- micro-ROS agent -----------
-echo -e "${YELLOW}[5/5] Installing micro-ROS agent...${NC}"
+echo -e "${YELLOW}[6/6] Installing micro-ROS agent...${NC}"
 pip install --quiet micro-ros-agent 2>/dev/null || \
   echo "  (Optional: install micro-ROS agent manually if needed)"
 

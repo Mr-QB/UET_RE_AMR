@@ -23,12 +23,13 @@ RUN apt-get update && apt-get install -y \
 # Setup workspace
 WORKDIR /ros2_ws
 COPY ros2/src ./src
+COPY ros2/third_party ./third_party
 
 # Install deps and build
 RUN . /opt/ros/humble/setup.sh && \
     rosdep update && \
-    rosdep install --from-paths src --ignore-src -r -y && \
-    colcon build --symlink-install
+    rosdep install --from-paths src third_party --ignore-src -r -y && \
+    colcon build --symlink-install --base-paths src third_party
 
 # Entrypoint
 COPY docker/ros2/entrypoint.sh /entrypoint.sh
