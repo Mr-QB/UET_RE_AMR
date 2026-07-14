@@ -7,55 +7,33 @@
 
 #include <Arduino.h>
 
-class MotorController
-{
-public:
-  /**
-   * @param pwm_pin   PWM output pin to motor driver
-   * @param dir_pin1  Direction pin 1
-   * @param dir_pin2  Direction pin 2
-   */
-  MotorController(uint8_t pwm_pin, uint8_t dir_pin1, uint8_t dir_pin2);
 
-  void begin();
-
-  /**
-   * @brief Set target velocity
-   * @param velocity_ms Target velocity in [m/s], positive = forward
-   */
-  void setVelocity(double velocity_ms);
-
-  /**
-   * @brief Update PID loop — call at CONTROL_LOOP_HZ
-   */
-  void update();
-
-  /**
-   * @brief Get current measured velocity [m/s]
-   */
-  double getVelocity() const;
-
-  /**
-   * @brief Emergency stop
-   */
-  void stop();
-
-  // PID gains — tune these for your hardware
-  double kp = 1.5;
-  double ki = 0.8;
-  double kd = 0.05;
-
+class ControlMotor {
 private:
-  uint8_t pwm_pin_;
-  uint8_t dir_pin1_;
-  uint8_t dir_pin2_;
+    uint8_t dirPin; // Direction pin for motor direction control
+    uint8_t addr; // I2C address for motor controller
+    uint8_t stopPin; // Pin to stop the motor (if applicable)
+    uint16_t offset_dac = 900;
+    uint16_t deadband_dac = 60; // Deadband for motor speed control
+    bool cw = true;
+    int16_t lastSpeed = 0; // Last speed set for the motor
 
-  double target_velocity_ = 0.0;
-  double current_velocity_ = 0.0;
-  double integral_ = 0.0;
-  double prev_error_ = 0.0;
+    float Kp = 1.0; // Proportional gain for velocity control
+    float Ki = 0.1; // Integral gain for velocity control
+    float Kd = 0.01; // Derivative gain for velocity control
+    float integral = 0; // Integral term for PID control
+    float prevError = 0; // Previous error for PID control
+    float prevDerivative = 0; // Previous derivative for PID control
 
-  unsigned long last_update_ms_ = 0;
-
-  void setPWM(int pwm);  // -255 to 255
+    float dt = 0.002; // Time step for PID control (in seconds)
+public:
+    void Init(uint8_t dirPin, uint8_t addr, uint8_t stopPin); // Initialize motor control with direction pin and I2C address
+    void setSpeed(int speed); // Set motor speed (-200 to 200)
+    void setVelocity(float velocity); // Set motor velocity (alternative to setSpeed)
+    void smoothVelocity(float targetVelocity, float currentVelocity, float acceleration); // Smoothly adjust motor velocity to the target value
+    void start(); // Start the motor
+    void stop(); // Stop the motor
 };
+
+void setDAC(uint8_t addr, uint16_t value); // Set DAC value for motor speed control
+
