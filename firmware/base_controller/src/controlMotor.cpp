@@ -1,4 +1,4 @@
-#include "control_Motor.h"
+#include "controlMotor.h"
 #include <Wire.h>
 
 // This project uses MCP4725 DAC 12bit to control speed of motor.
@@ -16,6 +16,7 @@ void ControlMotor::Init(uint8_t dirPin, uint8_t addr, uint8_t stopPin) {
     if(stopPin != 255){  // Assuming 255 is used to indicate no stop pin
         pinMode(stopPin, OUTPUT);
         digitalWrite(stopPin, HIGH); // Assuming HIGH is the default state for stop pin
+        delay(200);
     }
 }
 
@@ -60,8 +61,8 @@ void ControlMotor::setSpeed(int speed) {
     lastSpeed = speed;
 }
 
-void ControlMotor::setVelocity(float velocity) {
-    float error = velocity - lastSpeed;
+void ControlMotor::setVelocity(float velocity, float currentVelocity) {
+    float error = velocity - currentVelocity;
     integral += error * dt;
     float derivative = (error - prevError) / dt;
     prevError = error;

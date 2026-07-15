@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief UET AMR Base Controller Firmware
+ * @brief UET AGV Base Controller Firmware
  *
  * Main firmware for the differential drive base controller.
  */
@@ -26,21 +26,21 @@
 #define EN_R_C 7
 
 #define STEPS_PER_ROTATION 90 // encoder steps per rotation
-#define WHEEL_RADIUS 0.08 // wheel radius in meters
+#define WHEEL_RADIUS 35.0 // wheel radius in meters
 
 #define LEFT_MOTOR_CW true // left motor clockwise
-#define RIGHT_MOTOR_CW true // right motor clockwise
+#define RIGHT_MOTOR_CW false // right motor clockwise
 
 #define LEFT_MOTOR_ADDR 0x60 // I2C address for left motor controller
 #define RIGHT_MOTOR_ADDR 0x61 // I2C address for right motor controller
 
-#define LEFT_MOTOR_DIR_PIN 8 // direction pin for left motor
-#define RIGHT_MOTOR_DIR_PIN 9 // direction pin for right motor
+#define LEFT_MOTOR_DIR_PIN 9 // direction pin for left motor
+#define RIGHT_MOTOR_DIR_PIN 10 // direction pin for right motor
 
-#define LEFT_MOTOR_STOP_PIN 10 // stop pin for left motor
-#define RIGHT_MOTOR_STOP_PIN 11 // stop pin for right motor
+#define LEFT_MOTOR_STOP_PIN 12 // stop pin for left motor
+#define RIGHT_MOTOR_STOP_PIN 13 // stop pin for right motor
 
-#define LOOP_FREQUENCY 500 // loop frequency in Hz
+#define LOOP_FREQUENCY 800 // loop frequency in Hz
 
 Encoder left;
 Encoder right;
@@ -49,9 +49,10 @@ ControlMotor leftMotor;
 ControlMotor rightMotor;
 
 void setup() {
-    delay(1000); // wait for 1 second to allow the system to stabilize
+    
+    delay(1000);
     Serial.begin(115200);
-    delay(100); // wait for 100 milliseconds to allow the serial port to initialize
+    delay(100);
     Wire.begin(); // initialize I2C communication
 
     left.Init(EN_L_A, EN_L_B, EN_L_C, STEPS_PER_ROTATION, WHEEL_RADIUS, LEFT_MOTOR_CW);
@@ -94,13 +95,13 @@ void loop() {
             if (str.length() > 0) {
                 int control = str.toInt();
 
-                if (control >= -200 && control <= 200) {
-                    leftMotorSpeed = control;
-                    rightMotorSpeed = control;
+                if (control >= 0 && control <= 40) {
+                    leftMotorSpeed = (control - 20) * 10;
+                    rightMotorSpeed = (control - 20) * 10;
                     leftMotor.setSpeed(leftMotorSpeed);
                     rightMotor.setSpeed(rightMotorSpeed);
                 } else {
-                    Serial.println("Invalid input. Please enter a value between -200 and 200.");
+                    Serial.println("Invalid input");
                 }
 
                 // leftSpeed = control;
@@ -115,23 +116,25 @@ void loop() {
         leftMotor.setSpeed(leftMotorSpeed);
         rightMotor.setSpeed(rightMotorSpeed);
 
-        // leftMotor.setVelocity(leftSpeed);
-        // rightMotor.setVelocity(rightSpeed);
+        // leftMotor.setVelocity(leftSpeed, leftVelocity);
+        // rightMotor.setVelocity(rightSpeed, rightVelocity);
 
-        // leftMotor.smoothVelocity(leftSpeed, leftVelocity, 1.0f);
-        // rightMotor.smoothVelocity(rightSpeed, rightVelocity, 1.0f);
-        
+        // leftMotor.smoothVelocity(leftSpeed, leftVelocity, 0.1f);
+        // rightMotor.smoothVelocity(rightSpeed, rightVelocity, 0.1f);
         if(left_prev_pos != leftPos || right_prev_pos != rightPos){
-            Serial.print("Left Position: ");
-            Serial.print(leftPos);
-            Serial.print("|| Right Position: ");
-            Serial.print(rightPos);
-            Serial.print("|| Left Velocity: ");
+            // Serial.print("Left Position: ");
+            // Serial.print(leftPos);
+            // Serial.print("|| Right Position: ");
+            // Serial.print(rightPos);
+            // Serial.print("|| Left Velocity: ");
             Serial.print(leftVelocity);
-            Serial.print("|| Right Velocity: ");
+            Serial.print(" ");
+            // Serial.print("|| Right Velocity: ");
             Serial.println(rightVelocity);
         }
         left_prev_pos = leftPos;
         right_prev_pos = rightPos;
+
     }
+    
 }
