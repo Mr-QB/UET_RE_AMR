@@ -15,6 +15,7 @@ find_package(sensor_msgs REQUIRED)
 install(
   DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
 )
 
 if(BUILD_TESTING)
