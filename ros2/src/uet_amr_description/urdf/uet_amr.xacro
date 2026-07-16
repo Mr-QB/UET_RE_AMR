@@ -2,24 +2,24 @@
 <robot name="uet_amr" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
 <xacro:include filename="$(find uet_amr_description)/urdf/materials.xacro" />
-<xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.trans" />
+<xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.ros2control" />
 <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.gazebo" />
 
 <link name="base_link">
   <inertial>
-    <origin xyz="0.00090860894185851 -9.962260545167594e-05 0.15815402081981028" rpy="0 0 0"/>
+    <origin xyz="0.00090860894185851 -9.962260545167594e-05 0.00815402081981028" rpy="0 0 0"/>
     <mass value="9.278155760715826"/>
     <inertia ixx="0.375602" iyy="0.23114" izz="0.56136" ixy="0.000644" iyz="0.000485" ixz="-0.001482"/>
   </inertial>
   <visual>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0 0 -0.15" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find uet_amr_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0 0 -0.15" rpy="0 0 0"/>
     <geometry>
       <mesh filename="file://$(find uet_amr_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
     </geometry>
@@ -237,21 +237,21 @@
 </link>
 
 <joint name="Revolute 17" type="continuous">
-  <origin xyz="0.151679 0.000357 0.088358" rpy="0 0 0"/>
+  <origin xyz="0.151679 0.000357 -0.061642" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="left_wheel_1"/>
-  <axis xyz="0.999992 0.00281 0.002891"/>
+  <axis xyz="-1 0 0"/>
 </joint>
 
 <joint name="Revolute 18" type="continuous">
-  <origin xyz="-0.152318 -0.000498 0.08748" rpy="0 0 0"/>
+  <origin xyz="-0.152318 -0.000498 -0.06252" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="right_wheel_1"/>
-  <axis xyz="-0.999992 -0.00281 -0.002891"/>
+  <axis xyz="-1 0 0"/>
 </joint>
 
 <joint name="Revolute 19" type="continuous">
-  <origin xyz="0.141287 0.21585 0.100966" rpy="0 0 0"/>
+  <origin xyz="0.141287 0.21585 -0.049034" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="bl_caster_1"/>
   <axis xyz="0.002895 -0.001681 -0.999994"/>
@@ -265,7 +265,7 @@
 </joint>
 
 <joint name="Revolute 21" type="continuous">
-  <origin xyz="-0.143211 0.21505 0.100144" rpy="0 0 0"/>
+  <origin xyz="-0.143211 0.21505 -0.049856" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="br_caster_1"/>
   <axis xyz="0.002895 -0.001681 -0.999994"/>
@@ -279,7 +279,7 @@
 </joint>
 
 <joint name="Revolute 23" type="continuous">
-  <origin xyz="0.142496 -0.215148 0.101694" rpy="0 0 0"/>
+  <origin xyz="0.142496 -0.215148 -0.048306" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="fl_caster_1"/>
   <axis xyz="0.002895 -0.001681 -0.999994"/>
@@ -293,7 +293,7 @@
 </joint>
 
 <joint name="Revolute 25" type="continuous">
-  <origin xyz="-0.142002 -0.215947 0.100872" rpy="0 0 0"/>
+  <origin xyz="-0.142002 -0.215947 -0.049128" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="fr_caster_1"/>
   <axis xyz="0.002895 -0.001681 -0.999994"/>
@@ -329,7 +329,7 @@
 <joint name="lidar_joint" type="fixed">
   <parent link="base_link"/>
   <child  link="lidar_link_1"/>
-  <origin xyz="0.15 0.23 0.255" rpy="0 0 0"/>
+  <origin xyz="0.15 0.23 0.105" rpy="0 0 0"/>
 </joint>
 
 <!-- <link name="lidar_link_2">
@@ -355,7 +355,7 @@
 <joint name="lidar_joint_2" type="fixed">
   <parent link="base_link"/>
   <child link="lidar_link_2"/>
-  <origin xyz="-0.15 -0.23 0.255" rpy="0 0 3.14159"/>
+  <origin xyz="-0.15 -0.23 0.105" rpy="0 0 3.14159"/>
 </joint> -->
 
 <link name="imu_link">
@@ -375,7 +375,7 @@
 <joint name="imu_joint" type="fixed">
   <parent link="base_link"/>
   <child  link="imu_link"/>
-  <origin xyz="0.02 0.255 0.246" rpy="0 0 0"/>
+  <origin xyz="0.02 0.255 0.096" rpy="0 0 0"/>
 </joint>
 
 <link name="camera_link">
@@ -420,7 +420,7 @@
 <joint name="camera_joint" type="fixed">
   <parent link="base_link"/>
   <child link="camera_link"/>
-  <origin xyz="0.0 0.25 0.246" rpy="0 0 1.570796"/>
+  <origin xyz="0.0 0.25 0.096" rpy="0 0 1.570796"/>
 </joint>
 
 <link name="camera_depth_frame"></link>

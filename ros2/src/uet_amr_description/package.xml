@@ -3,7 +3,7 @@
 <package format="3">
 <name>uet_amr_description</name>
   <version>0.0.0</version>
-<description>The AGV_Robot_Model_description package</description>
+<description>The uet_amr_description package</description>
   <maintainer email="todo@todo.com">author</maintainer>
   <license>TODO: License declaration</license>
 

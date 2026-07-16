@@ -15,7 +15,9 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
         (os.path.join('share', package_name, 'meshes'), glob('meshes/*')),
-        (os.path.join('share', package_name, 'config'), glob('config/*'))
+        (os.path.join('share', package_name, 'worlds'), glob('worlds/*.sdf')),
+        (os.path.join('share', package_name, 'config'), glob('config/*')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -23,6 +25,7 @@ setup(
     maintainer_email='todo@todo.com',
     description='The ' + package_name + ' package',
     license='TODO: License declaration',
+    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
         ],

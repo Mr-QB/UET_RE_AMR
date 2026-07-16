@@ -3,9 +3,6 @@
 
 <xacro:property name="body_color" value="Gazebo/Silver" />
 
-<gazebo>
-  <plugin name="control" filename="libgazebo_ros_control.so"/>
-</gazebo> 
 <gazebo reference="base_link">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
@@ -84,41 +81,40 @@
   <self_collide>true</self_collide>
 </gazebo>
 
+<!-- RPLIDAR A3 -->
 <gazebo reference="lidar_link_1">
-  <sensor name="lidar_1" type="ray">
+  <sensor name="lidar_1" type="gpu_lidar">
     <always_on>true</always_on>
     <visualize>true</visualize>
-    <update_rate>10</update_rate>
+    <update_rate>15</update_rate>
+    <topic>scan</topic>
+    <ignition_frame_id>lidar_link_1</ignition_frame_id>
     <ray>
       <scan>
         <horizontal>
-          <samples>360</samples>
+          <samples>800</samples>
           <resolution>1</resolution>
           <min_angle>-3.14159</min_angle>
           <max_angle>3.14159</max_angle>
         </horizontal>
       </scan>
       <range>
-        <min>0.12</min>
-        <max>12.0</max>
-        <resolution>0.01</resolution>
+        <min>0.15</min>
+        <max>25.0</max>
+        <resolution>0.001</resolution>
       </range>
     </ray>
-    <plugin name="laser_controller_1" filename="libgazebo_ros_ray_sensor.so">
-      <ros>
-        <remapping>~/out:=scan</remapping>
-      </ros>
-      <output_type>sensor_msgs/LaserScan</output_type>
-      <frame_name>lidar_link_1</frame_name>
-    </plugin>
   </sensor>
 </gazebo>
 
+<!-- Lidar 2  -->
 <!-- <gazebo reference="lidar_link_2">
-  <sensor name="lidar_2" type="ray">
+  <sensor name="lidar_2" type="gpu_lidar">
     <always_on>true</always_on>
     <visualize>true</visualize>
     <update_rate>10</update_rate>
+    <topic>scan_2</topic>
+    <ignition_frame_id>lidar_link_2</ignition_frame_id>
     <ray>
       <scan>
         <horizontal>
@@ -134,13 +130,6 @@
         <resolution>0.01</resolution>
       </range>
     </ray>
-    <plugin name="laser_controller_2" filename="libgazebo_ros_ray_sensor.so">
-      <ros>
-        <remapping>~/out:=scan_2</remapping>
-      </ros>
-      <output_type>sensor_msgs/LaserScan</output_type>
-      <frame_name>lidar_link_2</frame_name>
-    </plugin>
   </sensor>
 </gazebo> -->
 
@@ -149,40 +138,39 @@
     <always_on>true</always_on>
     <update_rate>100</update_rate>
     <visualize>false</visualize>
-
-    <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
-      <ros>
-        <remapping>~/out:=imu/data</remapping>
-      </ros>
-
-      <frame_name>imu_link</frame_name>
-    </plugin>
+    <topic>imu/data</topic>
+    <ignition_frame_id>imu_link</ignition_frame_id> 
   </sensor>
 </gazebo>
 
+<!-- RealSense D435i camera -->
 <gazebo reference="camera_link">
-        <material>Gazebo/Red</material>
-
-        <sensor name="camera" type="camera">
-            <pose> 0 0 0 0 0 0 </pose>
-            <visualize>true</visualize>
-            <update_rate>10</update_rate>
-            <camera>
-                <horizontal_fov>1.089</horizontal_fov>
-                <image>
-                    <format>R8G8B8</format>
-                    <width>640</width>
-                    <height>480</height>
-                </image>
-                <clip>
-                    <near>0.05</near>
-                    <far>8.0</far>
-                </clip>
-            </camera>
-            <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
-                <frame_name>camera_link_optical</frame_name>
-            </plugin>
-        </sensor>
-    </gazebo>
+  <material>Gazebo/Red</material>
+  <sensor name="camera" type="rgbd_camera">
+      <pose> 0 0 0 0 0 0 </pose>
+      <visualize>true</visualize>
+      <update_rate>30</update_rate>
+      <topic>camera</topic> 
+      <ignition_frame_id>camera_link_optical</ignition_frame_id> 
+      
+      <camera>
+          <horizontal_fov>1.518</horizontal_fov>
+          <image>
+              <format>R8G8B8</format>
+              <width>848</width>
+              <height>480</height>
+          </image>
+          <clip>
+              <near>0.1</near>
+              <far>10.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+      </camera>
+  </sensor>
+</gazebo>
 
 </robot>
