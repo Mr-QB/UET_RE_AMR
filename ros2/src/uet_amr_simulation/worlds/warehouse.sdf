@@ -5,6 +5,8 @@
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1.0</real_time_factor>
     </physics>
+    
+    <!-- Các Plugin hệ thống của Ignition Gazebo -->
     <plugin filename="libignition-gazebo-physics-system.so" name="ignition::gazebo::systems::Physics"></plugin>
     <plugin filename="libignition-gazebo-user-commands-system.so" name="ignition::gazebo::systems::UserCommands"></plugin>
     <plugin filename="libignition-gazebo-scene-broadcaster-system.so" name="ignition::gazebo::systems::SceneBroadcaster"></plugin>
@@ -13,6 +15,7 @@
     </plugin>
     <plugin filename="libignition-gazebo-imu-system.so" name="ignition::gazebo::systems::Imu"></plugin>
     
+    <!-- Ánh sáng mặt trời -->
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>
@@ -27,6 +30,7 @@
       <direction>-0.5 0.1 -0.9</direction>
     </light>
 
+    <!-- Mặt sàn -->
     <model name="ground_plane">
       <static>true</static>
       <link name="link">
@@ -53,5 +57,51 @@
         </visual>
       </link>
     </model>
+
+    <!-- HỆ THỐNG TƯỜNG (Ghép từ warehouse) -->
+    <model name="warehouse_walls">
+      <static>true</static>
+      <!-- North wall -->
+      <link name="north_wall">
+        <pose>0 5 1 0 0 0</pose>
+        <visual name="visual">
+          <geometry>
+            <box><size>10 0.2 2</size></box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.5 0.5 1</ambient>
+            <diffuse>0.5 0.5 0.5 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>10 0.2 2</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+    <!-- KỆ ĐỂ ĐỒ (Ghép từ warehouse) -->
+    <model name="shelf_1">
+      <static>true</static>
+      <pose>2 2 0 0 0 0</pose>
+      <link name="shelf">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.5 2.0 1.5</size></box>
+          </geometry>
+          <material>
+            <ambient>0.6 0.4 0.2 1</ambient>
+            <diffuse>0.6 0.4 0.2 1</diffuse>
+          </material>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.5 2.0 1.5</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
   </world>
 </sdf>
