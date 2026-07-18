@@ -21,75 +21,161 @@ void ControlMotor::Init(uint8_t dirPin, uint8_t addr, uint8_t stopPin) {
 }
 
 void ControlMotor::setSpeed(int speed) {
-    int16_t dacValue = 0;
     if (speed > 200) {
         speed = 200;
     } else if (speed < -200) {
         speed = -200;
     }
 
-    if (speed < 0) {
-        if (cw) {
-            if(lastSpeed == 0) {
-                digitalWrite(dirPin, LOW);
-                cw = false;
-                delay(50); // wait for 50 milliseconds to allow the motor to change direction
-            }else{
-                speed = 0;
-            } 
-        }
-        dacValue = map(-speed, 1, 200, offset_dac, offset_dac + 1000);
+    unsigned long now = millis();
 
-    }else if (speed > 0) {
-        if (!cw) {         
-            if(lastSpeed == 0) {
-                digitalWrite(dirPin, HIGH);
-                cw = true;
-                delay(50); // wait for 50 milliseconds to allow the motor to change direction
-            }else{
-                speed = 0;
-            } 
+    if (changingDirection) {
+        if (now - dirChangeStartTime < dirChangeDelay) {
+            setDAC(addr, offset_dac - deadband_dac);
+            return;
         }
-        dacValue = map(speed, 1, 200, offset_dac, offset_dac + 1000);
+        changingDirection = false; // delay elapsed, dir pin already flipped, continue below
+    }
 
+    bool wantCW = (speed > 0) ? true : (speed < 0 ? false : cw);
+    if (speed != 0 && wantCW != cw) {
+        if (lastSpeed == 0) {
+            // Motor is at rest, safe to flip direction now.
+            digitalWrite(dirPin, wantCW ? HIGH : LOW);
+            cw = wantCW;
+            changingDirection = true;
+            dirChangeStartTime = now;
+            isRunning = false;  // motor is at rest during the turnaround
+            kickstarting = false;
+            integral = 0;    // reset PID: motor was at 0 before reversing, no reason to carry old accumulation
+            prevError = 0;
+            setDAC(addr, offset_dac - deadband_dac);
+            lastSpeed = 0;
+            return; // wait for dirChangeDelay to elapse on subsequent calls
+        } else {
+            // Motor still spinning the other way: refuse the flip for safety, command stop instead.
+            speed = 0;
+        }
     }
-    
-    if(abs(speed) == 0) {
-        dacValue = offset_dac - deadband_dac; // Set to offset if within deadband
+
+    if (speed == 0) {
+        setDAC(addr, offset_dac - deadband_dac);
+        lastSpeed = 0;
+        isRunning = false;
+        kickstarting = false;
+        integral = 0; // motor at rest: no reason to carry PID accumulation forward
+        prevError = 0;
+        return;
     }
+
+    if (kickstarting) {
+        if (now - kickstartStartTime < kickstartDuration) {
+            int16_t kickSpeed = (speed > 0) ? startThreshold : -startThreshold;
+            uint16_t dacValue = map(abs(kickSpeed), 1, 200, offset_dac, offset_dac + 1000);
+            setDAC(addr, dacValue);
+            lastSpeed = speed; // report the real target so callers see progress
+            return;
+        }
+        kickstarting = false;
+        isRunning = true;
+    }
+
+    if (!isRunning && abs(speed) < startThreshold) {
+        kickstarting = true;
+        kickstartStartTime = now;
+        kickstartTargetSpeed = speed;
+        int16_t kickSpeed = (speed > 0) ? startThreshold : -startThreshold;
+        uint16_t dacValue = map(abs(kickSpeed), 1, 200, offset_dac, offset_dac + 1000);
+        setDAC(addr, dacValue);
+        lastSpeed = speed;
+        return;
+    }
+
+    // --- 6) Normal operation ---
+    uint16_t dacValue = map(abs(speed), 1, 200, offset_dac, offset_dac + 1000);
     setDAC(addr, dacValue);
     lastSpeed = speed;
+    isRunning = true;
 }
 
 void ControlMotor::setVelocity(float velocity, float currentVelocity) {
+    if(abs(velocity) < 20) {
+        setSpeed(0);
+        integral = 0;
+        prevError = 0;
+        prevMeasurement = 0;
+        return;
+    }
+    computeDt(); // measure real elapsed time since the last call instead of assuming a fixed dt
+
     float error = velocity - currentVelocity;
     integral += error * dt;
-    float derivative = (error - prevError) / dt;
+    if (integral > integralLimit) integral = integralLimit;
+    else if (integral < -integralLimit) integral = -integralLimit;
+
+    float derivative = -(currentVelocity - prevMeasurement) / dt;
+    prevMeasurement = currentVelocity;
     prevError = error;
-    float output = Kp * error + Ki * integral + Kd * derivative;
+
+    float base = getBaseSpeed(velocity); // feed-forward term per target speed
+
+    float output = base + Kp * error + Ki * integral + Kd * derivative;
     setSpeed((int)output);
 }
 
-void ControlMotor::smoothVelocity(float targetVelocity, float currentVelocity, float acceleration) {
-    float step = acceleration * dt;
-    const float tolerance = step * 1.0f;
+float ControlMotor::computeDt() {
+    unsigned long now = micros();
 
-    bool reached =
-        (currentVelocity >= lastSpeed - tolerance) &&(currentVelocity <= lastSpeed + tolerance);
-
-    if (reached){
-        if (lastSpeed < targetVelocity){
-            lastSpeed += step;
-            if (lastSpeed > targetVelocity)
-                lastSpeed = targetVelocity;
-        }else if (lastSpeed > targetVelocity){
-            lastSpeed -= step;
-            if (lastSpeed < targetVelocity)
-                lastSpeed = targetVelocity;
-        }
+    if (lastUpdateMicros == 0) {
+        lastUpdateMicros = now;
+        return dt;
     }
 
-    setSpeed(lastSpeed);
+    unsigned long elapsed = now - lastUpdateMicros;
+    lastUpdateMicros = now;
+
+    float measuredDt = elapsed / 1000000.0f;
+
+    if (measuredDt <= 0.0f || measuredDt > 0.5f) {
+        measuredDt = dt;
+    }
+
+    dt = measuredDt;
+    return dt;
+}
+
+float ControlMotor::getBaseSpeed(float targetVelocity) {
+    const float inMin = 53.6f, inMax = 81.8f, outMin = 40.0f, outMax = 60.0f;
+    float sign = (targetVelocity < 0) ? -1.0f : 1.0f;
+    float v = fabsf(targetVelocity);
+    if (v < inMin) v = inMin;
+    if (v > inMax) v = inMax;
+    float base = outMin + (v - inMin) * (outMax - outMin) / (inMax - inMin);
+    return sign * base;
+}
+
+void ControlMotor::smoothVelocity(float targetVelocity, float currentVelocity, float acceleration) {
+    if(abs(targetVelocity) < 20) {
+        setSpeed(0);
+        smoothedSpeed = 0;
+        integral = 0;
+        prevError = 0;
+        prevMeasurement = 0;
+        return;
+    }
+
+    float step = acceleration * dt;
+
+
+    if (smoothedSpeed < targetVelocity) {
+        smoothedSpeed += step;
+        if (smoothedSpeed > targetVelocity) smoothedSpeed = targetVelocity;
+    } else if (smoothedSpeed > targetVelocity) {
+        smoothedSpeed -= step;
+        if (smoothedSpeed < targetVelocity) smoothedSpeed = targetVelocity;
+    }
+
+    setVelocity(smoothedSpeed, currentVelocity);
 }
 
 void ControlMotor::start() {
@@ -99,6 +185,11 @@ void ControlMotor::start() {
 void ControlMotor::stop() {
     setSpeed(0);
     digitalWrite(stopPin, LOW); // Assuming LOW stops the motor
+    changingDirection = false;
+    kickstarting = false;
+    isRunning = false;
+    smoothedSpeed = 0;     // otherwise the next smoothVelocity() call ramps from the old value
+    prevMeasurement = 0;   // keep derivative term consistent with the reset integral/prevError
 }
 
 void setDAC(uint8_t addr, uint16_t value) {
