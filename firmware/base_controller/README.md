@@ -1,6 +1,6 @@
 # UET AMR Base Controller Firmware
 
-Low-level base controller firmware for the UET AMR differential drive robot. This firmware runs on an ARM Cortex-M microcontroller (e.g., STM32) or ESP32 and communicates with the ROS2 host via micro-ROS over a serial interface.
+Low-level base controller firmware for the UET AMR differential drive robot. This firmware runs on an Arduino Nano, Arduino Mega or ESP32 and communicates with a ROS2 node via a serial interface.
 
 ---
 
@@ -16,12 +16,12 @@ Low-level base controller firmware for the UET AMR differential drive robot. Thi
 
 ## Hardware Requirements
 
-| Component | Recommendation |
-|---|---|
-| Microcontroller (MCU) | STM32F446RE (Nucleo-64) or ESP32-WROOM-32D |
-| Motor Driver | TB6612FNG, Cytron MD10C, or ODrive (depending on motor power) |
-| Encoder | Quadrature optical or magnetic encoder, >= 500 CPR |
-| Communications | High-speed UART interface (via USB-to-UART bridge) |
+| Component             | Recommendation                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| Microcontroller (MCU) | Arduino Nano, Arduino Mega or ESP32-WROOM-32D                                             |
+| Motor Driver          | TB6612FNG, Cytron MD10C, or ODrive (depending on motor power), Brushless Motor Controller |
+| Encoder               | Three-phase magnetic encoder                                                              |
+| Communications        | High-speed UART interface (via USB-to-UART bridge)                                        |
 
 ---
 
@@ -49,6 +49,7 @@ pio device monitor
 ### Configuration (platformio.ini)
 
 Modify the `platformio.ini` configuration file to match your hardware:
+
 - `board`: Update to your targeted MCU board (e.g., `nucleo_f446re`, `esp32dev`).
 - `upload_port`: Specify the serial port assigned to the connected MCU (e.g., `COM3`, `/dev/ttyUSB0`).
 
@@ -74,7 +75,7 @@ ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 --baudrate 11
 
 ## PID Tuning
 
-PID coefficients can be adjusted in the `include/motor_controller.h` header file:
+PID coefficients can be adjusted in the `include/controlMotor.h` header file:
 
 ```cpp
 double kp = 1.5;   // Proportional gain (adjusts responsiveness)
@@ -102,10 +103,12 @@ Update the GPIO mappings in `src/main.cpp` to match your custom controller board
 #define RIGHT_DIR_PIN2 PB8
 
 // Left Encoder Pins
-#define LEFT_ENC_A     PC0
-#define LEFT_ENC_B     PC1
+#define LEFT_ENC_A     2
+#define LEFT_ENC_B     3
+#define LEFT_ENC_C     4
 
 // Right Encoder Pins
-#define RIGHT_ENC_A    PC2
-#define RIGHT_ENC_B    PC3
+#define RIGHT_ENC_A    5
+#define RIGHT_ENC_B    6
+#define RIGHT_ENC_C    7
 ```
