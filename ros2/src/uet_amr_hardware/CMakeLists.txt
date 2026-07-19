@@ -14,7 +14,6 @@ find_package(uet_amr_msgs REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/amr_hardware_interface.cpp
-  src/serial_comm.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -53,6 +52,7 @@ install(
 install(
   DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
 )
 
 if(BUILD_TESTING)

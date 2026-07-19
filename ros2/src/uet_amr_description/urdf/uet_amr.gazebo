@@ -1,0 +1,176 @@
+<?xml version="1.0" ?>
+<robot name="uet_amr" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<xacro:property name="body_color" value="Gazebo/Silver" />
+
+<gazebo reference="base_link">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+  <gravity>true</gravity>
+</gazebo>
+
+<gazebo reference="left_wheel_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="right_wheel_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="bl_caster_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="bl_caster_wheel_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="br_caster_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="br_caster_wheel_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="fl_caster_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="fl_caster_wheel__1__1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="fr_caster_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<gazebo reference="fr_caster_wheel_1">
+  <material>${body_color}</material>
+  <mu1>0.2</mu1>
+  <mu2>0.2</mu2>
+  <self_collide>true</self_collide>
+</gazebo>
+
+<!-- RPLIDAR A3 -->
+<gazebo reference="lidar_link_1">
+  <sensor name="lidar_1" type="gpu_lidar">
+    <always_on>true</always_on>
+    <visualize>true</visualize>
+    <update_rate>15</update_rate>
+    <topic>scan</topic>
+    <ignition_frame_id>lidar_link_1</ignition_frame_id>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>800</samples>
+          <resolution>1</resolution>
+          <min_angle>-3.14159</min_angle>
+          <max_angle>3.14159</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.15</min>
+        <max>25.0</max>
+        <resolution>0.001</resolution>
+      </range>
+    </ray>
+  </sensor>
+</gazebo>
+
+<!-- Lidar 2  -->
+<!-- <gazebo reference="lidar_link_2">
+  <sensor name="lidar_2" type="gpu_lidar">
+    <always_on>true</always_on>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <topic>scan_2</topic>
+    <ignition_frame_id>lidar_link_2</ignition_frame_id>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>360</samples>
+          <resolution>1</resolution>
+          <min_angle>-3.14159</min_angle>
+          <max_angle>3.14159</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.12</min>
+        <max>12.0</max>
+        <resolution>0.01</resolution>
+      </range>
+    </ray>
+  </sensor>
+</gazebo> -->
+
+<gazebo reference="imu_link">
+  <sensor name="imu_sensor" type="imu">
+    <always_on>true</always_on>
+    <update_rate>100</update_rate>
+    <visualize>false</visualize>
+    <topic>imu/data</topic>
+    <ignition_frame_id>imu_link</ignition_frame_id> 
+  </sensor>
+</gazebo>
+
+<!-- RealSense D435i camera -->
+<gazebo reference="camera_link">
+  <material>Gazebo/Red</material>
+  <sensor name="camera" type="rgbd_camera">
+      <pose> 0 0 0 0 0 0 </pose>
+      <visualize>true</visualize>
+      <update_rate>30</update_rate>
+      <topic>camera</topic> 
+      <ignition_frame_id>camera_link_optical</ignition_frame_id> 
+      
+      <camera>
+          <horizontal_fov>1.518</horizontal_fov>
+          <image>
+              <format>R8G8B8</format>
+              <width>848</width>
+              <height>480</height>
+          </image>
+          <clip>
+              <near>0.1</near>
+              <far>10.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+      </camera>
+  </sensor>
+</gazebo>
+
+</robot>

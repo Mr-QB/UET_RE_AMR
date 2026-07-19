@@ -1,0 +1,25 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 30
+    use_sim_time: true
+
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+diff_drive_controller:
+  ros__parameters:
+    left_wheel_names: ["Revolute 18"]
+    right_wheel_names: ["Revolute 17"]
+
+    wheel_separation: 0.371 
+    wheel_radius: 0.17     
+
+    use_stamped_vel: false
+    
+    linear.x.has_velocity_limits: true
+    linear.x.max_velocity: 1.0
+    angular.z.has_velocity_limits: true
+    angular.z.max_velocity: 1.0
