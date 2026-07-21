@@ -29,18 +29,18 @@ sudo apt-get install -y -q \
 # ----------- Third-party modules -----------
 echo -e "${YELLOW}[2/6] Initializing third-party submodules...${NC}"
 cd "$(dirname "$0")/.."
-git submodule update --init --recursive ros2/third_party
+git submodule update --init --recursive ros2/src/third_party
 
 # ----------- ROS2 workspace -----------
 echo -e "${YELLOW}[3/6] Installing ROS2 workspace dependencies...${NC}"
-cd ros2
+cd "$(dirname "$0")/../ros2"
 source /opt/ros/humble/setup.bash
 rosdep update --rosdistro=humble
-rosdep install --from-paths src third_party --ignore-src -r -y
+rosdep install --from-paths src --ignore-src -r -y
 
 # ----------- Build -----------
 echo -e "${YELLOW}[4/6] Building ROS2 workspace...${NC}"
-colcon build --symlink-install --base-paths src third_party --cmake-args -DCMAKE_BUILD_TYPE=Release
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 
 # ----------- PlatformIO -----------

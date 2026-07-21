@@ -28,8 +28,8 @@ COPY ros2/third_party ./third_party
 # Install deps and build
 RUN . /opt/ros/humble/setup.sh && \
     rosdep update && \
-    rosdep install --from-paths src third_party --ignore-src -r -y && \
-    colcon build --symlink-install --base-paths src third_party
+    rosdep install --from-paths src --ignore-src -r -y && \
+    colcon build --symlink-install
 
 # Entrypoint
 COPY docker/ros2/entrypoint.sh /entrypoint.sh
