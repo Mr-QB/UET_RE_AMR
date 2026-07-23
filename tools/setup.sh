@@ -16,6 +16,7 @@ NC='\033[0m'
 echo -e "${YELLOW}[1/5] Installing ROS2 Humble dependencies...${NC}"
 sudo apt-get update -q
 sudo apt-get install -y -q \
+  python3-pip \
   ros-humble-nav2-bringup \
   ros-humble-ros2-control \
   ros-humble-ros2-controllers \
