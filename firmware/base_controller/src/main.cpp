@@ -1,226 +1,155 @@
-/**
- * @file main.cpp
- * @brief UET AGV Base Controller Firmware
- *
- * Main firmware for the differential drive base controller.
- */
-
 #include <Arduino.h>
-#include <Wire.h>
-#include <string.h>
- 
-#include "encoder.h"
-#include "controlMotor.h"
-#include "odometry.h"
-#include "protocol.h"
- 
- 
-//declare encoder pin with encoder in brushless motor
-//ENCODER A ==> YELLOW WIRE
-//ENCODER B ==> GREEN WIRE
-//ENCODER C ==> BLUE WIRE
- 
-#define EN_L_A 2 // encoder motor left
-#define EN_L_B 3
-#define EN_L_C 4
- 
-#define EN_R_A 5 // encoder motor right
-#define EN_R_B 6
-#define EN_R_C 7
- 
-#define STEPS_PER_ROTATION 90 // encoder steps per rotation
-#define WHEEL_RADIUS 8.75 // wheel radius in centimeters
-#define WHEEL_BASE 45.0 // TODO: measure the actual distance between the 2 wheels (same unit as WHEEL_RADIUS) and update this
- 
-#define LEFT_MOTOR_CW true // left motor clockwise
-#define RIGHT_MOTOR_CW false // right motor clockwise
- 
-#define LEFT_MOTOR_ADDR 0x60 // I2C address for left motor controller
-#define RIGHT_MOTOR_ADDR 0x61 // I2C address for right motor controller
- 
-#define LEFT_MOTOR_DIR_PIN 9 // direction pin for left motor
-#define RIGHT_MOTOR_DIR_PIN 10 // direction pin for right motor
- 
-#define LEFT_MOTOR_STOP_PIN 12 // stop pin for left motor
-#define RIGHT_MOTOR_STOP_PIN 13 // stop pin for right motor
- 
-#define LOOP_FREQUENCY 800 // loop frequency in Hz
+#include <HardwareSerial.h>
 
-#define SMOOTH_ACCEL 200.0f
 
-Encoder left;
-Encoder right;
- 
-ControlMotor leftMotor;
-ControlMotor rightMotor;
- 
-Odometry odom;
+#define HOVER_SERIAL_BAUD   115200      
+#define SERIAL_BAUD         115200      
+#define START_FRAME         0xABCD      
+#define TIME_SEND           100         
 
-Protocol proto; 
-bool running = false;
-bool useSmoothVelocity = false;
-float batteryVoltage = 0.0f;
-float currentDraw = 0.0f;
-void onProtocolCommand(uint8_t cmd, const uint8_t* data, uint8_t len);
+#include "odom.h"
+
+Odom odom(8.5f, 45.0f, 90, 9000);
+
+HardwareSerial HoverSerial(1);
+
+typedef struct __attribute__((packed)) { // do not touch here
+   uint16_t start;
+   int16_t  steer;
+   int16_t  speed;
+   uint16_t checksum;
+} SerialCommand;
+SerialCommand Command;
+
+typedef struct __attribute__((packed)) { // do not touch here
+   uint16_t start;
+   int16_t  speedR_meas;
+   int16_t  speedL_meas;
+   int16_t   wheelR_cnt;
+   int16_t   wheelL_cnt;
+   int16_t  batVoltage;
+   int16_t  boardTemp;
+   uint16_t checksum;
+} SerialFeedback;
+SerialFeedback Feedback;
+SerialFeedback NewFeedback;
+
+
+uint8_t idx = 0;
+byte incomingByte;
+byte incomingBytePrev;
 
 void setup() {
-    delay(1000); // wait for 1 second to allow the system to stabilize
-    Serial.begin(115200);
-    delay(100); // wait for 100 milliseconds to allow the serial port to initialize
-    Wire.begin(); // initialize I2C communication
- 
-    left.Init(EN_L_A, EN_L_B, EN_L_C, STEPS_PER_ROTATION, WHEEL_RADIUS, LEFT_MOTOR_CW);
-    right.Init(EN_R_A, EN_R_B, EN_R_C, STEPS_PER_ROTATION, WHEEL_RADIUS, RIGHT_MOTOR_CW);
- 
-    leftMotor.Init(LEFT_MOTOR_DIR_PIN, LEFT_MOTOR_ADDR, LEFT_MOTOR_STOP_PIN);
-    rightMotor.Init(RIGHT_MOTOR_DIR_PIN, RIGHT_MOTOR_ADDR, RIGHT_MOTOR_STOP_PIN);
- 
-    leftMotor.stop();
-    rightMotor.stop();
- 
-    odom.Init(WHEEL_RADIUS, WHEEL_BASE, STEPS_PER_ROTATION);
-    proto.begin(Serial);
-    proto.onCommand(onProtocolCommand);
-    proto.resetWatchdog(); // don't let the watchdog fire before the first packet arrives
+  Serial.begin(SERIAL_BAUD);
+  HoverSerial.begin(HOVER_SERIAL_BAUD, SERIAL_8N1, 16, 17);
+  odom.reset(0, 0, 0);
+  
 }
- 
- 
- 
-float leftSpeed = 0.0;
-float rightSpeed = 0.0;
- 
-float leftMotorSpeed = 0.0;
-float rightMotorSpeed = 0.0;
- 
-double leftVelocity = 0.0;
-double rightVelocity = 0.0;
-int32_t leftPos = 0;
-int32_t rightPos = 0;
- 
-long long lastLoopTime = 0;
- 
-int32_t left_prev_pos = 0;
-int32_t right_prev_pos = 0;
- 
-double poseX = 0.0;
-double poseY = 0.0;
-double poseTheta = 0.0;
 
+// ########################## SEND ##########################
+void Send(int16_t uSteer, int16_t uSpeed){ // do not touch here
+  Command.start    = (uint16_t)START_FRAME;
+  Command.steer    = uSteer;
+  Command.speed    = uSpeed;
+  Command.checksum = (uint16_t)(Command.start ^ Command.steer ^ Command.speed);
 
-void onProtocolCommand(uint8_t cmd, const uint8_t* data, uint8_t len) {
-    switch (cmd) {
-        case CMD_PING:
-            proto.sendAckPing();
-            break;
-
-        case CMD_START:
-            running = true;
-            leftMotor.start();
-            rightMotor.start();
-            proto.sendAckControl();
-            break;
-
-        case CMD_STOP:
-            running = false;
-            leftSpeed = 0;
-            rightSpeed = 0;
-            leftMotor.stop();
-            rightMotor.stop();
-            proto.sendAckControl();
-            break;
-
-        case CMD_RESET_ENCODER:
-            left.reset();
-            right.reset();
-            proto.sendAckControl();
-            break;
-
-        case CMD_RESET_ODOMETRY:
-            odom.reset();
-            proto.sendAckControl();
-            break;
-
-        case CMD_SET_VELOCITY: {
-            if (len < 8) break; // malformed payload, ignore
-            float l, r;
-            memcpy(&l, data + 0, 4);
-            memcpy(&r, data + 4, 4);
-            useSmoothVelocity = false;
-            if (running) { leftSpeed = l; rightSpeed = r; }
-            proto.sendAckControl();
-            break;
-        }
-
-        case CMD_SET_SMOOTH_VELOCITY: {
-            if (len < 8) break;
-            float l, r;
-            memcpy(&l, data + 0, 4);
-            memcpy(&r, data + 4, 4);
-            useSmoothVelocity = true;
-            if (running) { leftSpeed = l; rightSpeed = r; }
-            proto.sendAckControl();
-            break;
-        }
-
-        // These arrive with len==0: master is asking for the current value.
-        case CMD_ODOMETRY:
-            proto.sendOdometry((float)poseX, (float)poseY, (float)poseTheta);
-            break;
-
-        case CMD_VELOCITY:
-            proto.sendVelocity((float)leftVelocity, (float)rightVelocity);
-            break;
-
-        case CMD_ENCODER_POS:
-            proto.sendEncoderPos(leftPos, rightPos);
-            break;
-
-        case CMD_STATUS:
-            // TODO: replace with real battery/current sensing (e.g. analogRead + your divider/shunt math).
-            proto.sendStatus(batteryVoltage, currentDraw);
-            break;
-    }
+  HoverSerial.write((uint8_t *)&Command, sizeof(Command)); 
 }
- 
 
-void loop() {
-    // Parse any bytes waiting from master. Without this call, incoming packets
-    // are never read off Serial and onProtocolCommand() never fires -- this was
-    // the missing piece causing "connected but nothing responds to commands".
-    proto.update();
+int pre = 0;
+float x_odom = 0.0f;
+float y_odom = 0.0f;
+float theta  = 0.0f;
 
-    if (proto.checkWatchdog(PROTOCOL_DEFAULT_WATCHDOG_MS)) {
-        running = false;
-        leftSpeed = 0;
-        rightSpeed = 0;
-        leftMotor.stop();
-        rightMotor.stop();
-        proto.sendWatchdogTriggered();
-    }
 
-    long long currentTime = micros();
-    if (currentTime - lastLoopTime >= 1000000 / LOOP_FREQUENCY) {
-        lastLoopTime = currentTime;
- 
-        left.readEncoder(&leftPos, &leftVelocity);
-        right.readEncoder(&rightPos, &rightVelocity);
- 
-        odom.update(leftPos, rightPos);
-        odom.getPose(&poseX, &poseY, &poseTheta);
- 
- 
-        if (!running) {
-            leftSpeed = 0;
-            rightSpeed = 0;
-        }
+// ########################## RECEIVE ##########################
+void Receive(){
+  while (HoverSerial.available()) {
+    incomingByte = HoverSerial.read();
+    uint16_t bufStartFrame = ((uint16_t)incomingByte << 8) | incomingBytePrev;
+    if (bufStartFrame == START_FRAME) { 
+      byte *p = (byte *)&NewFeedback;
+      *p++ = incomingBytePrev;
+      *p++ = incomingByte;
+      idx = 2; 
+    } 
+    else if (idx >= 2 && idx < sizeof(SerialFeedback)) { 
+      byte *p = (byte *)&NewFeedback;
+      p[idx] = incomingByte;
+      idx++;
+      if (idx == sizeof(SerialFeedback)) {
+        idx = 0;
 
-        if (useSmoothVelocity) {
-            leftMotor.smoothVelocity(leftSpeed, leftVelocity, SMOOTH_ACCEL);
-            rightMotor.smoothVelocity(rightSpeed, rightVelocity, SMOOTH_ACCEL);
+        // cal Checksum
+        uint16_t checksum = (uint16_t)(NewFeedback.start ^ NewFeedback.speedR_meas ^ NewFeedback.speedL_meas ^ NewFeedback.wheelR_cnt ^ NewFeedback.wheelL_cnt ^  NewFeedback.batVoltage ^ NewFeedback.boardTemp);
+
+        //Check Checksum
+        if (checksum == NewFeedback.checksum) {
+          memcpy(&Feedback, &NewFeedback, sizeof(SerialFeedback));
+
+          // here for your logic
+
+          odom.updateFromEncoder(Feedback.wheelL_cnt, Feedback.wheelR_cnt);
+          x_odom = odom.getX();
+          y_odom = odom.getY();
+          theta = odom.getTheta();
+          // if(pre != Feedback.wheelL_cnt){
+          //   Serial.println(Feedback.wheelL_cnt);
+          //   pre = Feedback.wheelL_cnt;
+          // }
+
+          // debug
+          // Serial.print("1: "); Serial.print(Feedback.cmd1);
+          // Serial.print(" | 2: "); Serial.print(Feedback.cmd2);
+          // Serial.print(" | R_Spd: "); Serial.print(Feedback.speedR_meas);
+          // Serial.print(" | L_Spd: "); Serial.print(Feedback.speedL_meas);
+          // Serial.print(" | L_Odom: "); 
+          
+          // Serial.print(" | Bat: "); Serial.print(Feedback.batVoltage);
+          // Serial.print(" | Temp: "); Serial.print(Feedback.boardTemp);
+          // Serial.print(" | Led: "); Serial.println(Feedback.cmdLed);
+
+
         } else {
-            leftMotor.setVelocity(leftSpeed, leftVelocity);
-            rightMotor.setVelocity(rightSpeed, rightVelocity);
+          Serial.println("Checksum err!");
         }
+      }
     }
-    
+    incomingBytePrev = incomingByte;
+  }
+}
+
+// ########################## LOOP ##########################
+unsigned long iTimeSend = 0;
+
+int control = 500;
+
+void loop(void){ 
+  unsigned long timeNow = millis();
+  Receive();
+
+  if (Serial.available() > 0) { // debug
+    String str = Serial.readStringUntil('\n');
+    str.trim();
+    if (str.length() > 0) {
+      control = str.toInt();
+
+      if (control < 0) control = 0;
+      if (control > 1000) control = 1000;
+    }
+  }
+
+  if (timeNow - iTimeSend >= TIME_SEND) { // keep freq
+    iTimeSend = timeNow;
+
+    Send(0, control - 500);
+
+    Serial.print(x_odom, 2);
+    Serial.print(" ");
+    Serial.print(y_odom, 2);
+    Serial.print(" ");
+    Serial.println(theta * 180 / PI, 2);
+
+  }
+
 }
