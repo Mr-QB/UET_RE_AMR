@@ -67,7 +67,7 @@ def generate_launch_description():
     )
 
     ros_gz_bridge = Node(
-        package='ros_gz_bridge', # Nếu gặp lỗi package có thể đổi thành 'ros_ign_bridge'
+        package='ros_gz_bridge', 
         executable='parameter_bridge',
         arguments=[
             '/scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan',
