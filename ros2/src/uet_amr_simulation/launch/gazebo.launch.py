@@ -67,9 +67,15 @@ def generate_launch_description():
     )
 
     ros_gz_bridge = Node(
-        package='ros_gz_bridge',
+        package='ros_gz_bridge', # Nếu gặp lỗi package có thể đổi thành 'ros_ign_bridge'
         executable='parameter_bridge',
-        parameters=[{'config_file': ros_gz_bridge_config}],
+        arguments=[
+            '/scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan',
+            '/camera/image@sensor_msgs/msg/Image[ignition.msgs.Image',
+            '/imu/data@sensor_msgs/msg/Imu[ignition.msgs.IMU',
+            '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock',
+        ],
+        parameters=[{'use_sim_time': True}],
         output='screen'
     )
 
