@@ -26,6 +26,15 @@
   </collision>
 </link>
 
+<joint name="base_footprint_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_footprint"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+</joint>
+
+<link name="base_footprint">
+</link>
+
 <link name="left_wheel_1">
   <inertial>
     <origin xyz="0.06626336710358052 0.000190571908891459 0.0001966883827906052" rpy="0 0 0"/>

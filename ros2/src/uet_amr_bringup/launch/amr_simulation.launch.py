@@ -16,8 +16,8 @@ def generate_launch_description():
     gazebo_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
-                FindPackageShare('uet_amr_bringup'),
-                'launch', 'amr_bringup.launch.py'
+                FindPackageShare('uet_amr_simulation'),
+                'launch', 'gazebo.launch.py'
             ])
         ]),
         launch_arguments={'use_sim_time': use_sim_time}.items()
