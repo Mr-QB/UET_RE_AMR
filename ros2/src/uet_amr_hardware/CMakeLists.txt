@@ -14,6 +14,7 @@ find_package(uet_amr_msgs REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/amr_hardware_interface.cpp
+  src/protocol.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

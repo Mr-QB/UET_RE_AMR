@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="serial_port" default="/dev/ttyUSB0"/>
+  <xacro:arg name="baud_rate" default="115200"/>
+
+  <ros2_control name="AmrRealHardware" type="system">
+
+    <hardware>
+      <plugin>uet_amr_hardware/AmrHardwareInterface</plugin>
+      <param name="serial_port">$(arg serial_port)</param>
+      <param name="baud_rate">$(arg baud_rate)</param>
+      <param name="wheel_radius">0.085</param>
+      <param name="wheel_separation">0.45</param>
+      <!-- Raw hoverboard speed units per rad/s of wheel rotation. This is an
+           UNCALIBRATED placeholder: the firmware's Send()/Command.speed
+           range has no documented physical scale, so this must be tuned
+           empirically against the real robot before trusting closed-loop
+           velocity commands. -->
+      <param name="motor_command_scale">100.0</param>
+    </hardware>
+
+    <joint name="Revolute 17">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <joint name="Revolute 18">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max">10</param>
+      </command_interface>
+
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+  </ros2_control>
+
+</robot>
