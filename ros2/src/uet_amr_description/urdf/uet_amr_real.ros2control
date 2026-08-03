@@ -10,9 +10,14 @@
       <plugin>uet_amr_hardware/AmrHardwareInterface</plugin>
       <param name="serial_port">$(arg serial_port)</param>
       <param name="baud_rate">$(arg baud_rate)</param>
-      <param name="wheel_radius">0.0875</param>
+      <param name="wheel_radius">0.085</param>
       <param name="wheel_separation">0.45</param>
-      <param name="encoder_ticks_per_rev">90</param>
+      <!-- Raw hoverboard speed units per rad/s of wheel rotation. This is an
+           UNCALIBRATED placeholder: the firmware's Send()/Command.speed
+           range has no documented physical scale, so this must be tuned
+           empirically against the real robot before trusting closed-loop
+           velocity commands. -->
+      <param name="motor_command_scale">100.0</param>
     </hardware>
 
     <joint name="Revolute 17">

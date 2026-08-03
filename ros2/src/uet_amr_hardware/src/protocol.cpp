@@ -3,91 +3,84 @@
 
 #include "uet_amr_hardware/protocol.hpp"
 
+#include <cstring>
+
 namespace uet_amr_hardware
 {
 namespace protocol
 {
 
-namespace
+uint16_t checksum16(const uint8_t * data, size_t len)
 {
-uint8_t crc8Update(uint8_t crc, uint8_t b)
-{
-  crc ^= b;
-  for (uint8_t i = 0; i < 8; i++) {
-    if (crc & 0x80) {
-      crc = static_cast<uint8_t>((crc << 1) ^ 0x07);
-    } else {
-      crc = static_cast<uint8_t>(crc << 1);
-    }
+  uint16_t checksum = 0;
+  for (size_t i = 0; i < len; i++) {
+    checksum ^= data[i];
   }
-  return crc;
-}
-}  // namespace
-
-uint8_t crc8(uint8_t cmd, uint8_t len, const uint8_t * data)
-{
-  uint8_t crc = 0;
-  crc = crc8Update(crc, cmd);
-  crc = crc8Update(crc, len);
-  for (uint8_t i = 0; i < len; i++) {
-    crc = crc8Update(crc, data[i]);
-  }
-  return crc;
+  return checksum;
 }
 
-std::vector<uint8_t> encodeFrame(Cmd cmd, const uint8_t * data, uint8_t len)
+CommandFrame encodeCommandFrame(Cmd cmd, int16_t speed_left, int16_t speed_right)
 {
-  std::vector<uint8_t> frame;
-  frame.reserve(4u + len);
-  frame.push_back(kHeaderMasterToSlave);
-  frame.push_back(static_cast<uint8_t>(cmd));
-  frame.push_back(len);
-  if (len > 0 && data != nullptr) {
-    frame.insert(frame.end(), data, data + len);
-  }
-  frame.push_back(crc8(static_cast<uint8_t>(cmd), len, data));
+  CommandFrame frame{};
+  frame.bytes[0] = kHeaderMasterToSlave;
+  frame.bytes[1] = static_cast<uint8_t>(cmd);
+  std::memcpy(frame.bytes + 2, &speed_left, 2);
+  std::memcpy(frame.bytes + 4, &speed_right, 2);
+  uint16_t crc = checksum16(frame.bytes, 6);
+  std::memcpy(frame.bytes + 6, &crc, 2);
   return frame;
 }
 
 bool FrameParser::feed(uint8_t b)
 {
   switch (state_) {
-    case ParseState::WaitHeader:
+    case State::WaitHeader:
       if (b == kHeaderSlaveToMaster) {
-        state_ = ParseState::WaitCmd;
+        state_ = State::WaitCmd;
       }
       break;
 
-    case ParseState::WaitCmd:
-      rx_cmd_ = b;
-      state_ = ParseState::WaitLen;
-      break;
-
-    case ParseState::WaitLen:
-      rx_len_ = b;
-      if (rx_len_ > kMaxDataLen) {
-        state_ = ParseState::WaitHeader;
+    case State::WaitCmd: {
+        cmd_ = b;
+        switch (static_cast<Cmd>(cmd_)) {
+          case Cmd::RequestVelocity:
+          case Cmd::RequestStatus:
+            payload_len_ = 4;
+            break;
+          case Cmd::RequestOdometry:
+            payload_len_ = 10;
+            break;
+          default:
+            // Unrecognized cmd for a slave->master frame -- resync.
+            state_ = State::WaitHeader;
+            return false;
+        }
+        body_len_ = static_cast<uint8_t>(payload_len_ + 2);
+        body_index_ = 0;
+        state_ = State::WaitBody;
         break;
       }
-      rx_index_ = 0;
-      state_ = (rx_len_ == 0) ? ParseState::WaitCrc : ParseState::WaitData;
-      break;
 
-    case ParseState::WaitData:
-      rx_data_[rx_index_++] = b;
-      if (rx_index_ >= rx_len_) {
-        state_ = ParseState::WaitCrc;
-      }
-      break;
+    case State::WaitBody:
+      body_[body_index_++] = b;
+      if (body_index_ >= body_len_) {
+        state_ = State::WaitHeader;
 
-    case ParseState::WaitCrc: {
-        uint8_t expected = crc8(rx_cmd_, rx_len_, rx_data_);
-        state_ = ParseState::WaitHeader;
-        if (b == expected) {
+        uint8_t header_and_payload[2 + kMaxPayloadLen];
+        header_and_payload[0] = kHeaderSlaveToMaster;
+        header_and_payload[1] = cmd_;
+        std::memcpy(header_and_payload + 2, body_, payload_len_);
+
+        uint16_t expected = checksum16(header_and_payload, 2u + payload_len_);
+        uint16_t received;
+        std::memcpy(&received, body_ + payload_len_, 2);
+
+        if (received == expected) {
           return true;
         }
-        break;
+        // else: checksum mismatch, silently drop (already resynced above).
       }
+      break;
   }
   return false;
 }

@@ -22,9 +22,12 @@ namespace uet_amr_hardware
 /**
  * @brief Hardware interface for UET AMR differential drive robot.
  *
- * Communicates with base controller firmware via serial (UART) using
- * a lightweight binary protocol. Exposes wheel position/velocity state
- * and velocity command interfaces to ros2_control.
+ * Communicates with the ESP32 base controller firmware via serial (UART)
+ * using the fixed-size binary protocol in serial_protocol.h/.cpp. The
+ * firmware exposes measured wheel speed and onboard (x, y, theta) odometry,
+ * but no per-wheel encoder ticks -- wheel position is recovered by inverting
+ * the same differential-drive kinematics the firmware used to build that
+ * odometry from encoder deltas in the first place (see read()).
  *
  * Topics exposed (via hardware interface):
  *   - /joint_states (via ros2_control)
@@ -66,17 +69,16 @@ private:
   bool openSerial();
   void closeSerial();
 
-  // Sends a frame and returns immediately without waiting for a reply.
-  bool sendFrame(protocol::Cmd cmd, const uint8_t * data, uint8_t len);
+  // Sends a command frame and returns immediately without waiting for a
+  // reply (used for SetVelocity, which the firmware never acknowledges).
+  bool sendCommand(protocol::Cmd cmd, int16_t speed_left, int16_t speed_right);
 
-  // Sends a request frame, then blocks (up to timeout) reading/parsing
-  // replies until one with cmd == expect_reply_cmd arrives. Any other
-  // valid frame seen in the meantime (e.g. a stray ACK or an unsolicited
-  // CMD_WATCHDOG) is discarded and waiting continues.
+  // Sends a request frame (RequestVelocity/RequestOdometry/RequestStatus),
+  // then blocks (up to timeout) reading/parsing replies until one with
+  // cmd == expect_reply_cmd arrives.
   bool requestAndWait(
-    protocol::Cmd request_cmd, const uint8_t * payload, uint8_t payload_len,
-    protocol::Cmd expect_reply_cmd, std::vector<uint8_t> & out_data,
-    std::chrono::milliseconds timeout);
+    protocol::Cmd request_cmd, protocol::Cmd expect_reply_cmd,
+    std::vector<uint8_t> & out_payload, std::chrono::milliseconds timeout);
 
   // Serial communication
   std::string serial_port_;
@@ -87,6 +89,13 @@ private:
   int consecutive_comm_failures_{0};
   static constexpr int kMaxConsecutiveFailures = 20;  // ~200ms at 100Hz update rate
 
+  // Last onboard odometry sample, used to recover per-wheel position deltas
+  // (see read()). Firmware reports x/y in cm, theta in radians.
+  bool have_last_pose_{false};
+  double last_x_cm_{0.0};
+  double last_y_cm_{0.0};
+  double last_theta_rad_{0.0};
+
   // Wheel joint states
   std::vector<double> wheel_positions_;
   std::vector<double> wheel_velocities_;
@@ -95,9 +104,9 @@ private:
   std::vector<double> wheel_velocity_commands_;
 
   // Parameters
-  double wheel_radius_;
-  double wheel_separation_;
-  double encoder_ticks_per_rev_;
+  double wheel_radius_;         // meters; must match firmware's Odom wheel radius
+  double wheel_separation_;     // meters; must match firmware's Odom wheel base
+  double motor_command_scale_;  // raw hoverboard speed units per rad/s of wheel rotation
 };
 
 }  // namespace uet_amr_hardware
