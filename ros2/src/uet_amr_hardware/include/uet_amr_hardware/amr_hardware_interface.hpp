@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,8 @@
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+
+#include "uet_amr_hardware/protocol.hpp"
 
 namespace uet_amr_hardware
 {
@@ -38,6 +41,9 @@ public:
   hardware_interface::CallbackReturn on_configure(
     const rclcpp_lifecycle::State & previous_state) override;
 
+  hardware_interface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
+
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
 
@@ -57,10 +63,29 @@ public:
     const rclcpp::Duration & period) override;
 
 private:
+  bool openSerial();
+  void closeSerial();
+
+  // Sends a frame and returns immediately without waiting for a reply.
+  bool sendFrame(protocol::Cmd cmd, const uint8_t * data, uint8_t len);
+
+  // Sends a request frame, then blocks (up to timeout) reading/parsing
+  // replies until one with cmd == expect_reply_cmd arrives. Any other
+  // valid frame seen in the meantime (e.g. a stray ACK or an unsolicited
+  // CMD_WATCHDOG) is discarded and waiting continues.
+  bool requestAndWait(
+    protocol::Cmd request_cmd, const uint8_t * payload, uint8_t payload_len,
+    protocol::Cmd expect_reply_cmd, std::vector<uint8_t> & out_data,
+    std::chrono::milliseconds timeout);
+
   // Serial communication
   std::string serial_port_;
   int baud_rate_;
   int serial_fd_{-1};
+  protocol::FrameParser parser_;
+  rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
+  int consecutive_comm_failures_{0};
+  static constexpr int kMaxConsecutiveFailures = 20;  // ~200ms at 100Hz update rate
 
   // Wheel joint states
   std::vector<double> wheel_positions_;
