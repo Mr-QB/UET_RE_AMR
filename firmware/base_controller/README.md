@@ -1,6 +1,6 @@
 # UET AMR Base Controller Firmware
 
-Low-level base controller firmware for the UET AMR differential drive robot. This firmware runs on an Arduino Nano, Arduino Mega or ESP32 and communicates with a ROS2 node via a serial interface.
+Low-level base controller firmware for the UET AMR differential drive robot. This firmware runs on an Arduino Mega or ESP32 and communicates with a ROS2 node via a serial interface.
 
 ---
 
@@ -16,12 +16,14 @@ Low-level base controller firmware for the UET AMR differential drive robot. Thi
 
 ## Hardware Requirements
 
-| Component             | Recommendation                                                                            |
-| --------------------- | ----------------------------------------------------------------------------------------- |
-| Microcontroller (MCU) | Arduino Nano, Arduino Mega or ESP32-WROOM-32D                                             |
-| Motor Driver          | TB6612FNG, Cytron MD10C, or ODrive (depending on motor power), Brushless Motor Controller |
-| Encoder               | Three-phase magnetic encoder                                                              |
-| Communications        | High-speed UART interface (via USB-to-UART bridge)                                        |
+| Component             | Recommendation                                       |
+| --------------------- | ---------------------------------------------------- |
+| Microcontroller (MCU) | Arduino Mega or ESP32-WROOM-32D                      |
+| Motor Driver          | HoverBoard STM32F103RCTL, Brushless Motor Controller |
+| Control Driver Type   | Hardware - UART                                      |
+| FeedBack              | Hardware - UART                                      |
+| Encoder               | Three-phase magnetic encoder                         |
+| Communications        | High-speed UART interface (via USB-to-UART bridge)   |
 
 ---
 
@@ -92,23 +94,6 @@ Actual wheel RPM can be monitored on the `/motors/status` topic.
 Update the GPIO mappings in `src/main.cpp` to match your custom controller board layout:
 
 ```cpp
-// Left Motor Control Pins
-#define LEFT_PWM_PIN   PA8
-#define LEFT_DIR_PIN1  PA9
-#define LEFT_DIR_PIN2  PA10
-
-// Right Motor Control Pins
-#define RIGHT_PWM_PIN  PB6
-#define RIGHT_DIR_PIN1 PB7
-#define RIGHT_DIR_PIN2 PB8
-
-// Left Encoder Pins
-#define LEFT_ENC_A     2
-#define LEFT_ENC_B     3
-#define LEFT_ENC_C     4
-
-// Right Encoder Pins
-#define RIGHT_ENC_A    5
-#define RIGHT_ENC_B    6
-#define RIGHT_ENC_C    7
+// UART                               TX   RX
+HoverSerial.begin(115200, SERIAL_8N1, 16, 17);
 ```
