@@ -24,7 +24,7 @@ firmware/**/*.elf
 firmware/**/*.map
 
 # IDE & editors
-.vscode/settings.json
+**/.vscode/
 .idea/
 *.swp
 *.swo

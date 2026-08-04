@@ -38,7 +38,7 @@ source ~/.bashrc
 ## 3. Cloning and Setting Up the Workspace
 
 ```bash
-git clone https://github.com/UET-RE/UET_RE_AMR.git
+git clone --recurse-submodules https://github.com/UET-RE/UET_RE_AMR.git
 cd UET_RE_AMR
 
 # Run the automated setup script

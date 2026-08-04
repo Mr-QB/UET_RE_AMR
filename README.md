@@ -58,7 +58,7 @@ docker compose -f docker/ros2/docker-compose.yml up
 ### Cloning and Building
 
 ```bash
-git clone https://github.com/UET-RE/UET_RE_AMR.git
+git clone --recurse-submodules https://github.com/UET-RE/UET_RE_AMR.git
 cd UET_RE_AMR
 
 # Install ROS2 package dependencies
