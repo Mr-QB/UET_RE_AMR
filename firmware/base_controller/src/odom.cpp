@@ -70,7 +70,7 @@ void Odom::integrate(float dl, float dr)
  
     x_ += dc * cosf(theta_mid);
     y_ += dc * sinf(theta_mid);
-    theta_ = normalizeAngle(theta_ + dtheta);
+    theta_ = normalizeAngle(theta_ - dtheta);
  
     last_dc_ = dc;
     last_dtheta_ = dtheta;
@@ -118,7 +118,7 @@ float Odom::getX() const
  
 float Odom::getY() const
 {
-    return y_;
+    return -y_;
 }
  
 float Odom::getTheta() const
