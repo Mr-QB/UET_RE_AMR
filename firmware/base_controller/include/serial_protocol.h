@@ -40,7 +40,7 @@
 // =============================================================================
 #define FB_LEN 16
 
-struct SlaveToMasterPacket {
+struct __attribute__((packed)) SlaveToMasterPacket {
   uint32_t sys_status : 2;
   int32_t  speed_l    : 8;
   int32_t  speed_r    : 8;
