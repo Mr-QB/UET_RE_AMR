@@ -14,8 +14,8 @@ diff_drive_controller:
     left_wheel_names: ["Revolute 18"]
     right_wheel_names: ["Revolute 17"]
 
-    wheel_separation: 0.371 
-    wheel_radius: 0.17     
+    wheel_separation: 0.45 
+    wheel_radius: 0.085     
 
     use_stamped_vel: false
     
