@@ -10,7 +10,7 @@
 int16_t left, right;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   HoverSerial.begin(921600, SERIAL_8N1, 16, 17);
   odom.reset(0, 0, PI/2);
 }
