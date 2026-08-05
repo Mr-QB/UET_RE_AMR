@@ -7,53 +7,59 @@
 #include <cstdint>
 
 // =============================================================================
-// C++ port of firmware/base_controller/include/serial_protocol.h /.cpp --
-// must stay in sync with that file (and hoverboardSerial.h, whose
-// `Odom odom(wheel_radius_cm, wheel_base_cm, ...)` constants are baked into
-// the x/y odometry this protocol reports).
+// C++ port of firmware/base_controller/include/serial_protocol.h -- must
+// stay in sync with that file (and hoverboardSerial.h, whose
+// `Odom odom(wheel_radius_cm, wheel_base_cm, ticks_per_rev, encoder_max)`
+// constants determine how raw encoder ticks map to wheel angle below).
 //
-// Master (PC/ROS2) -> Slave (ESP32), fixed 8 bytes:
-//   [0]     header = 0xAA
-//   [1]     cmd
-//   [2..3]  speed_left  int16, little-endian (only meaningful for SetVelocity)
-//   [4..5]  speed_right int16, little-endian
-//   [6..7]  checksum    uint16, little-endian, XOR of bytes [0..5]
+// This is a push-style protocol: the firmware streams a telemetry packet
+// every time it gets a fresh reading from the hoverboard, unprompted. There
+// is no request/response -- the host just keeps the most recent command
+// frame flowing so the firmware's no-traffic watchdog stays fed.
 //
-// cmd values:
-//   0x00 RequestVelocity  -- ask for last measured wheel speed
-//   0x01 RequestOdometry  -- ask for onboard x/y/theta odometry
-//   0x02 RequestStatus    -- ask for battery/temperature
-//   0x03 EmergencyStop    -- stop immediately (firmware replies with the
-//                            RequestVelocity-shaped packet, no special case)
-//   anything else (this driver uses 0xFF) -- SetVelocity: speed_left/right
-//     are applied as the new commanded wheel speed. Firmware sends NO reply
-//     for this case.
+// Slave (ESP32) -> Master (ROS2) telemetry packet, 16 bytes / 128 bits,
+// bit-packed. TelemetryPacket below is a bitfield struct used only as the
+// *decoded value* representation (readable field names/widths) -- the wire
+// bytes are never reinterpreted as this struct directly, because C++
+// bitfield/struct memory layout (bit order, padding) is
+// implementation-defined and differs across compilers/architectures.
+// TelemetryParser decodes the wire bytes by hand with explicit shifts, the
+// same way the firmware's packPacket() encodes them.
 //
-// Slave -> Master reply, header 0xBB, cmd echoes the request cmd:
-//   RequestVelocity (0x00) reply, 8 bytes total:
-//     [2..3] measured speed_left  int16 LE
-//     [4..5] measured speed_right int16 LE
-//     [6..7] checksum uint16 LE (XOR of bytes [0..5])
-//   RequestOdometry (0x01) reply, 14 bytes total:
-//     [2..5]   x float32 LE, centimeters
-//     [6..9]   y float32 LE, centimeters
-//     [10..11] theta int16 LE, radians * 10 (firmware casts a possibly
-//              negative float into a uint16_t field; reading it back as a
-//              signed int16 recovers the value on every compiler observed
-//              so far, but this is worth re-checking against real hardware)
-//     [12..13] checksum uint16 LE (XOR of bytes [0..11])
-//   RequestStatus (0x02) reply, 8 bytes total:
-//     [2..3] battery uint16 LE
-//     [4..5] temperature int16 LE
-//     [6..7] checksum uint16 LE (XOR of bytes [0..5])
+//   Word 1 (bytes 0..3,   bits 0..31):
+//     header(8) sys_status(2) reserved1(6) speed_l(8) speed_r(8)
+//   Word 2 (bytes 4..7,   bits 32..63):
+//     en_tick_l(14) en_tick_r(14) reserved2(4)
+//   Word 3 (bytes 8..11,  bits 64..95):
+//     temp_c(7) current_a(11) battery(7) charging(1) optional_1(6)
+//   Word 4 (bytes 12..15, bits 96..127):
+//     optional_2(16) checksum(16)
 //
-// Checksum: 16-bit accumulator, XORed one byte at a time over all bytes
-// preceding the checksum field itself (matches SerialProtocol::calcChecksum).
+//   Each word is little-endian (LSB first). checksum is a 16-bit XOR fold
+//   (see checksum16()) over payload bytes [0..13].
 //
-// Note there is no per-wheel encoder tick feedback in this protocol (unlike
-// the older protocol.h it replaced) -- only measured speed and onboard
-// (x, y, theta) odometry. See amr_hardware_interface.cpp's read() for how
-// wheel position is recovered from odometry deltas.
+//   sys_status:  0=Idle, 1=Nav, 2=Manual, 3=Fault
+//   speed_l/r:   measured speed, signed, -100..100
+//   en_tick_l/r: wheel encoder ticks, 0..encoder_max (wraps)
+//   temp_c:      board temperature, 0..127 degC
+//   current_a:   raw; divide by 100.0f -> 0.00..20.47 A
+//   battery:     0..100 %
+//   charging:    0=discharging, 1=charging
+//   optional_1/2: expansion payload, currently unused
+//
+// Master (ROS2) -> Slave (ESP32) command frame, 6 bytes (byte-aligned, no
+// bit-packing needed):
+//   [0]    header   uint8  0xAA
+//   [1..2] left     int16  LE, commanded left speed (firmware clamps to
+//                          -100..100)
+//   [3..4] right    int16  LE, commanded right speed (firmware clamps to
+//                          -100..100)
+//   [5]    checksum uint8  XOR of bytes [0..4]
+//
+// Wheel encoder ticks wrap modulo encoder_max and must be turned into a
+// signed delta the same way the firmware's own Odom::wrapDelta() does
+// before being accumulated into a wheel angle -- see
+// AmrHardwareInterface::read().
 // =============================================================================
 
 namespace uet_amr_hardware
@@ -61,58 +67,61 @@ namespace uet_amr_hardware
 namespace protocol
 {
 
-constexpr uint8_t kHeaderMasterToSlave = 0xAA;
-constexpr uint8_t kHeaderSlaveToMaster = 0xBB;
+constexpr uint8_t kHeader = 0xAA;
+constexpr size_t kTelemetryPacketLen = 16;
+constexpr size_t kCommandFrameLen = 6;
 
-enum class Cmd : uint8_t
-{
-  RequestVelocity = 0x00,
-  RequestOdometry = 0x01,
-  RequestStatus = 0x02,
-  EmergencyStop = 0x03,
-  SetVelocity = 0xFF,
-};
-
-// XOR checksum over data[0..len-1], matches firmware's calcChecksum().
+// XOR-fold checksum matching the firmware's checksum16(): byte i is XORed
+// into the low half of the accumulator if i is even, the high half if odd.
 uint16_t checksum16(const uint8_t * data, size_t len);
 
-// Builds a master->slave command frame (8 bytes): header, cmd, speed_left,
-// speed_right, checksum. speed_left/right are ignored by the firmware for
-// request commands but must still be present for the checksum to line up.
+// Builds a master->slave command frame (6 bytes): header, left, right,
+// checksum. left/right are the raw command sent as-is; the firmware clamps
+// them to -100..100 on its side.
 struct CommandFrame
 {
-  uint8_t bytes[8];
+  uint8_t bytes[kCommandFrameLen];
 };
-CommandFrame encodeCommandFrame(Cmd cmd, int16_t speed_left, int16_t speed_right);
+CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right);
 
-// Byte-fed parser for slave->master reply frames (header 0xBB). The reply
-// length is determined entirely by the cmd byte (there is no explicit
-// length field in this protocol); an unrecognized cmd drops the frame and
-// resyncs on the next header byte, mirroring the firmware's own tolerant
-// behavior on its receive side.
-class FrameParser
+// Decoded slave->master telemetry packet. A bitfield struct purely for
+// readable field names/widths -- populated field-by-field from the manual
+// bit-unpack in TelemetryParser::feed(), never by reinterpreting raw bytes.
+struct TelemetryPacket
+{
+  uint32_t sys_status : 2;
+  int32_t speed_l : 8;
+  int32_t speed_r : 8;
+  uint32_t en_tick_l : 14;
+  uint32_t en_tick_r : 14;
+  uint32_t temp_c : 7;
+  uint32_t current_a : 11;  // raw; divide by 100.0f for Amps
+  uint32_t battery : 7;
+  uint32_t charging : 1;
+  uint32_t optional_1 : 6;
+  uint32_t optional_2 : 16;
+};
+
+// Byte-fed parser for slave->master telemetry packets (header 0xAA, fixed
+// length kTelemetryPacketLen). Resyncs on the next header byte whenever a
+// checksum fails, mirroring the firmware's own tolerant receive behavior.
+class TelemetryParser
 {
 public:
   // Feed one received byte. Returns true exactly when a full,
-  // checksum-valid reply frame has just been assembled; cmd()/payload()/
-  // payloadLen() are valid only immediately after a call that returned true.
+  // checksum-valid packet has just been assembled; packet() is valid only
+  // immediately after a call that returned true.
   bool feed(uint8_t byte);
 
-  Cmd cmd() const {return static_cast<Cmd>(cmd_);}
-  const uint8_t * payload() const {return body_;}
-  uint8_t payloadLen() const {return payload_len_;}
+  const TelemetryPacket & packet() const {return packet_;}
 
 private:
-  enum class State {WaitHeader, WaitCmd, WaitBody};
-
-  static constexpr uint8_t kMaxPayloadLen = 10;  // RequestOdometry reply is the largest
+  enum class State {WaitHeader, WaitBody};
 
   State state_{State::WaitHeader};
-  uint8_t cmd_{0};
-  uint8_t payload_len_{0};
-  uint8_t body_len_{0};  // payload_len_ + 2 (checksum bytes)
+  uint8_t body_[kTelemetryPacketLen]{};
   uint8_t body_index_{0};
-  uint8_t body_[kMaxPayloadLen + 2]{};
+  TelemetryPacket packet_{};
 };
 
 }  // namespace protocol

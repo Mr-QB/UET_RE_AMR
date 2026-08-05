@@ -1,81 +1,69 @@
 #ifndef SERIAL_PROTOCOL_H
 #define SERIAL_PROTOCOL_H
- 
+
 #include <Arduino.h>
 
 #define HEAD 0xAA
 
+// =============================================================================
+// Slave (ESP32) -> Master (ROS2) telemetry packet, 16 bytes / 128 bits,
+// bit-packed. SlaveToMasterPacket below is a bitfield struct used only as
+// the *local* in-code representation (readable field names/widths) -- it is
+// never memcpy'd onto the wire, because C++ bitfield/struct memory layout
+// (bit order, padding) is implementation-defined and differs across
+// compilers/architectures. packPacket() in serial_protocol.cpp packs each
+// field onto the wire by hand with explicit shifts, so the wire bytes are
+// fixed regardless of compiler. Must stay in sync with the C++ port in
+// ros2/src/uet_amr_hardware/include/uet_amr_hardware/protocol.hpp.
+//
+//   Word 1 (bytes 0..3,   bits 0..31):
+//     header(8) sys_status(2) reserved1(6) speed_l(8) speed_r(8)
+//   Word 2 (bytes 4..7,   bits 32..63):
+//     en_tick_l(14) en_tick_r(14) reserved2(4)
+//   Word 3 (bytes 8..11,  bits 64..95):
+//     temp_c(7) current_a(11) battery(7) charging(1) optional_1(6)
+//   Word 4 (bytes 12..15, bits 96..127):
+//     optional_2(16) checksum(16)
+//
+//   Each word is written little-endian (LSB first). checksum is a 16-bit
+//   XOR fold (see checksum16() in serial_protocol.cpp) over payload bytes
+//   [0..13].
+//
+//   sys_status:  0=Idle, 1=Nav, 2=Manual, 3=Fault
+//   speed_l/r:   measured speed, signed, -100..100
+//   en_tick_l/r: wheel encoder ticks, 0..encoder_max (wraps)
+//   temp_c:      board temperature, 0..127 degC
+//   current_a:   raw; divide by 100 on read -> 0.00..20.47 A
+//   battery:     0..100 %
+//   charging:    0=discharging, 1=charging
+//   optional_1/2: expansion payload, currently unused (0)
+// =============================================================================
+#define FB_LEN 16
 
-struct __attribute__((packed)) SlaveToMasterPacket16 {
-    // Word 1 (Bits 0..31): Header, Mode, Alignment, Signed Speeds (-100..100)
-    uint32_t header      : 8;  // Bits 0..7   (Sync byte 0xAA)
-    uint32_t sys_status  : 2;  // Bits 8..9   (0=Idle, 1=Nav, 2=Manual, 3=Fault)
-    uint32_t reserved1   : 6;  // Bits 10..15 (Spare alignment bits)
-    int32_t  speed_l     : 8;  // Bits 16..23 (Clamped -100 to +100)
-    int32_t  speed_r     : 8;  // Bits 24..31 (Clamped -100 to +100)
+struct SlaveToMasterPacket {
+  uint32_t sys_status : 2;
+  int32_t  speed_l    : 8;
+  int32_t  speed_r    : 8;
+  uint32_t en_tick_l  : 14;
+  uint32_t en_tick_r  : 14;
+  uint32_t temp_c     : 7;
+  uint32_t current_a  : 11;
+  uint32_t battery    : 7;
+  uint32_t charging   : 1;
+  uint32_t optional_1 : 6;
+  uint32_t optional_2 : 16;
+};
 
-    // Word 2 (Bits 32..63): Wheel Encoders & Spare Bits
-    uint32_t en_tick_l   : 14; // Bits 32..45 (0-9000 ticks)
-    uint32_t en_tick_r   : 14; // Bits 46..59 (0-9000 ticks)
-    uint32_t reserved2   : 4;  // Bits 60..63 (Spare alignment bits)
+void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_t temp, int16_t cur, uint8_t bat, bool charge);
 
-    // Word 3 (Bits 64..95): 7-bit Temp (0..127°C), 11-bit Current, Battery & Power
-    uint32_t temp_c      : 7;  // Bits 64..70 (0-127°C direct integer)
-    uint32_t current_a   : 11; // Bits 71..81 (0-2047 raw value, divide by 100 on read -> 0.00 to 20.47 A)
-    uint32_t battery     : 7;  // Bits 82..88 (0-100%)
-    uint32_t charging    : 1;  // Bit 89      (0=Discharging, 1=Charging)
-    uint32_t optional_1  : 6;  // Bits 90..95 (Expansion payload 1)
-
-    // Word 4 (Bits 96..127): Optional Expansion 2 & CRC Checksum
-    uint32_t optional_2  : 16; // Bits 96..111 (Expansion payload 2)
-    uint32_t crc         : 16; // Bits 112..127 (CRC-16 Checksum)
-};                             // EXACTLY 16 Bytes (128 Bits)
-
-SlaveToMasterPacket16 FB;
-
-void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, int8_t temp, int16_t cur, int8_t bat, bool charge){
-    FB.header = HEAD;
-    FB.sys_status = sys;
-    FB.speed_l = spL;
-    FB.speed_r = spR;
-    FB.en_tick_l = enL;
-    FB.en_tick_r = enR;
-    FB.temp_c = temp;
-    FB.current_a = cur;
-    FB.battery = bat * 100 / 255;
-    FB.charging = charge;
-
-
-
-    FB.crc = FB.header ^ FB.sys_status ^ FB.reserved1 ^ FB.speed_l ^ FB.speed_r ^
-             FB.en_tick_l ^ FB.en_tick_r ^ FB.reserved2 ^
-             FB.temp_c ^ FB.current_a ^ FB.battery ^ FB.charging ^ FB.optional_1 ^
-             FB.optional_2;
-    Serial.write((uint8_t *)&FB, sizeof(FB));
-}
-
-bool R_Receive(int16_t &left, int16_t &right){
-    while (Serial.available()){
-        uint8_t header = Serial.read();
-        if(header == HEAD){
-            uint8_t b0 = Serial.read();
-            uint8_t b1 = Serial.read();
-            left = (int16_t)((b1 << 8) | b0);
-
-            b0 = Serial.read();
-            b1 = Serial.read();
-            right = (int16_t)((b1 << 8) | b0);
-
-            uint8_t checksum = Serial.read();
-            if(HEAD ^ left ^ right == checksum){
-                left = constrain(left, -100, 100);
-                right = constrain(right, -100, 100);
-                return true;
-            }
-        }
-    }
-    
-    return false;
-}
+// =============================================================================
+// Master (ROS2) -> Slave (ESP32) command frame, 6 bytes, plain byte array
+// (no bit-packing needed -- every field is already byte-aligned):
+//   [0]    header   uint8  0xAA
+//   [1..2] left     int16  LE, commanded left speed (clamped to -100..100)
+//   [3..4] right    int16  LE, commanded right speed (clamped to -100..100)
+//   [5]    checksum uint8  XOR of bytes [0..4]
+// =============================================================================
+bool R_Receive(int16_t &left, int16_t &right);
 
 #endif // SERIAL_PROTOCOL_H
