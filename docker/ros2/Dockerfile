@@ -13,8 +13,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-slam-toolbox \
     ros-humble-diff-drive-controller \
     ros-humble-joint-state-broadcaster \
-    ros-humble-gazebo-ros-pkgs \
-    ros-humble-gazebo-ros2-control \
     ros-humble-realsense2-camera \
     python3-colcon-common-extensions \
     python3-rosdep \
@@ -23,6 +21,7 @@ RUN apt-get update && apt-get install -y \
 # Setup workspace
 WORKDIR /ros2_ws
 COPY ros2/src ./src
+COPY ros2/third_party ./third_party
 
 # Install deps and build
 RUN . /opt/ros/humble/setup.sh && \

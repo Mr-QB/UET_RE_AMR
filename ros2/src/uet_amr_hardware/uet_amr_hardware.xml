@@ -1,0 +1,9 @@
+<library path="uet_amr_hardware">
+  <class name="uet_amr_hardware/AmrHardwareInterface"
+         type="uet_amr_hardware::AmrHardwareInterface"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      UET AMR differential drive robot hardware interface.
+    </description>
+  </class>
+</library>

@@ -1,64 +1,35 @@
 // Copyright (c) 2024 UET Robotics & Electronics Club
 // Licensed under the MIT License
- 
+
 #include "uet_amr_hardware/amr_hardware_interface.hpp"
- 
+
 #include <fcntl.h>
+#include <poll.h>
 #include <termios.h>
 #include <unistd.h>
- 
+
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstring>
-#include <thread>
 #include <vector>
- 
+
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
- 
+
 namespace uet_amr_hardware
 {
- 
+
+using namespace std::chrono_literals;
+
 namespace
 {
-speed_t baudToTermios(int baud)
+rclcpp::Logger logger()
 {
-  switch (baud) {
-    case 9600: return B9600;
-    case 19200: return B19200;
-    case 38400: return B38400;
-    case 57600: return B57600;
-    case 115200: return B115200;
-    case 230400: return B230400;
-    default: return B115200;  // fall back to the firmware's default (Serial.begin(115200))
-  }
+  return rclcpp::get_logger("AmrHardwareInterface");
 }
 }  // namespace
- 
-// ---------------------------------------------------------------------------
-// CRC8 -- identical polynomial/init to Protocol::crc8Update() in protocol.cpp.
-// Both sides MUST compute the exact same value or every packet gets silently
-// dropped (protocol.cpp's WAIT_CRC state resyncs on any mismatch without
-// reporting an error).
-// ---------------------------------------------------------------------------
-uint8_t AmrHardwareInterface::crc8(uint8_t cmd, uint8_t len, const uint8_t * data)
-{
-  auto update = [](uint8_t crc, uint8_t b) -> uint8_t {
-    crc ^= b;
-    for (int i = 0; i < 8; i++) {
-      crc = (crc & 0x80) ? static_cast<uint8_t>((crc << 1) ^ 0x07) : static_cast<uint8_t>(crc << 1);
-    }
-    return crc;
-  };
-  uint8_t crc = 0;
-  crc = update(crc, cmd);
-  crc = update(crc, len);
-  for (uint8_t i = 0; i < len; i++) {
-    crc = update(crc, data[i]);
-  }
-  return crc;
-}
- 
+
 hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
   const hardware_interface::HardwareInfo & info)
 {
@@ -67,210 +38,207 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
   {
     return hardware_interface::CallbackReturn::ERROR;
   }
- 
+
   // Read parameters from URDF ros2_control tag
   serial_port_  = info_.hardware_parameters.at("serial_port");
   baud_rate_    = std::stoi(info_.hardware_parameters.at("baud_rate"));
   wheel_radius_ = std::stod(info_.hardware_parameters.at("wheel_radius"));
   wheel_separation_ = std::stod(info_.hardware_parameters.at("wheel_separation"));
-  encoder_ticks_per_rev_ = std::stod(info_.hardware_parameters.at("encoder_ticks_per_rev"));
- 
+  motor_command_scale_ = std::stod(info_.hardware_parameters.at("motor_command_scale"));
+  ticks_per_rev_ = std::stoi(info_.hardware_parameters.at("ticks_per_rev"));
+  encoder_max_ = std::stoi(info_.hardware_parameters.at("encoder_max"));
+
   // Initialize state and command vectors (left, right)
   wheel_positions_.assign(2, 0.0);
   wheel_velocities_.assign(2, 0.0);
   wheel_velocity_commands_.assign(2, 0.0);
-  last_sent_commands_.assign(2, std::nan(""));  // force the first write() to always send
- 
-  RCLCPP_INFO(rclcpp::get_logger("AmrHardwareInterface"),
+
+  RCLCPP_INFO(logger(),
     "Initialized: port=%s, baud=%d", serial_port_.c_str(), baud_rate_);
- 
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
- 
-bool AmrHardwareInterface::openSerialPort()
+
+bool AmrHardwareInterface::openSerial()
 {
   serial_fd_ = ::open(serial_port_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (serial_fd_ < 0) {
-    RCLCPP_ERROR(rclcpp::get_logger("AmrHardwareInterface"),
-      "Failed to open %s: %s", serial_port_.c_str(), std::strerror(errno));
+    RCLCPP_ERROR(
+      logger(), "Failed to open serial port '%s': %s",
+      serial_port_.c_str(), std::strerror(errno));
     return false;
   }
- 
+
+  if (baud_rate_ != 115200) {
+    RCLCPP_WARN(
+      logger(),
+      "Requested baud_rate=%d but firmware protocol is fixed at 115200; using 115200 anyway.",
+      baud_rate_);
+  }
+
   termios tty{};
   if (tcgetattr(serial_fd_, &tty) != 0) {
-    RCLCPP_ERROR(rclcpp::get_logger("AmrHardwareInterface"),
-      "tcgetattr failed: %s", std::strerror(errno));
+    RCLCPP_ERROR(logger(), "tcgetattr failed on '%s': %s", serial_port_.c_str(),
+      std::strerror(errno));
+    closeSerial();
     return false;
   }
- 
-  speed_t speed = baudToTermios(baud_rate_);
-  cfsetispeed(&tty, speed);
-  cfsetospeed(&tty, speed);
- 
-  tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;   // 8 data bits
-  tty.c_cflag &= ~PARENB;                       // no parity
-  tty.c_cflag &= ~CSTOPB;                       // 1 stop bit
-  tty.c_cflag &= ~CRTSCTS;                      // no hw flow control
-  tty.c_cflag |= CREAD | CLOCAL;                // enable receiver, ignore modem lines
- 
-  tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);  // raw mode, no line buffering
-  tty.c_iflag &= ~(IXON | IXOFF | IXANY);
-  tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-  tty.c_oflag &= ~OPOST;
- 
-  tty.c_cc[VMIN] = 0;   // non-blocking read: return immediately with whatever is available
+
+  cfmakeraw(&tty);
+  cfsetispeed(&tty, B115200);
+  cfsetospeed(&tty, B115200);
+
+  tty.c_cflag |= (CLOCAL | CREAD);
+  tty.c_cflag &= ~PARENB;
+  tty.c_cflag &= ~CSTOPB;
+  tty.c_cflag &= ~CSIZE;
+  tty.c_cflag |= CS8;
+  tty.c_cflag &= ~CRTSCTS;
+
+  tty.c_cc[VMIN] = 0;
   tty.c_cc[VTIME] = 0;
- 
+
   if (tcsetattr(serial_fd_, TCSANOW, &tty) != 0) {
-    RCLCPP_ERROR(rclcpp::get_logger("AmrHardwareInterface"),
-      "tcsetattr failed: %s", std::strerror(errno));
+    RCLCPP_ERROR(logger(), "tcsetattr failed on '%s': %s", serial_port_.c_str(),
+      std::strerror(errno));
+    closeSerial();
     return false;
   }
- 
+
   tcflush(serial_fd_, TCIOFLUSH);
   return true;
 }
- 
-void AmrHardwareInterface::closeSerialPort()
+
+void AmrHardwareInterface::closeSerial()
 {
   if (serial_fd_ >= 0) {
     ::close(serial_fd_);
     serial_fd_ = -1;
   }
 }
- 
-bool AmrHardwareInterface::sendPacket(uint8_t cmd, const uint8_t * data, uint8_t len)
+
+bool AmrHardwareInterface::sendCommand(int16_t speed_left, int16_t speed_right)
 {
-  if (serial_fd_ < 0) return false;
-  uint8_t crc = crc8(cmd, len, data);
- 
-  std::vector<uint8_t> buf;
-  buf.reserve(4 + len);
-  buf.push_back(protocol::HEADER_MASTER_TO_SLAVE);
-  buf.push_back(cmd);
-  buf.push_back(len);
-  if (len > 0 && data != nullptr) {
-    buf.insert(buf.end(), data, data + len);
+  if (serial_fd_ < 0) {
+    return false;
   }
-  buf.push_back(crc);
- 
-  ssize_t written = ::write(serial_fd_, buf.data(), buf.size());
-  return written == static_cast<ssize_t>(buf.size());
+  protocol::CommandFrame frame = protocol::encodeCommandFrame(speed_left, speed_right);
+
+  size_t written = 0;
+  while (written < sizeof(frame.bytes)) {
+    ssize_t n = ::write(serial_fd_, frame.bytes + written, sizeof(frame.bytes) - written);
+    if (n < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+        continue;
+      }
+      RCLCPP_ERROR_THROTTLE(
+        logger(), steady_clock_, 1000,
+        "write() to '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
+      return false;
+    }
+    written += static_cast<size_t>(n);
+  }
+  return true;
 }
- 
-void AmrHardwareInterface::feedByte(uint8_t b)
+
+bool AmrHardwareInterface::waitForTelemetry(std::chrono::milliseconds timeout)
 {
-  switch (parse_state_) {
-    case ParseState::WAIT_HEADER:
-      if (b == protocol::HEADER_SLAVE_TO_MASTER) {
-        parse_state_ = ParseState::WAIT_CMD;
+  protocol::TelemetryParser probe_parser;
+  const auto deadline = std::chrono::steady_clock::now() + timeout;
+  while (true) {
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= deadline) {
+      return false;
+    }
+    const auto remaining =
+      std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+
+    pollfd pfd{};
+    pfd.fd = serial_fd_;
+    pfd.events = POLLIN;
+    int ret = ::poll(&pfd, 1, static_cast<int>(remaining.count()));
+    if (ret < 0) {
+      if (errno == EINTR) {
+        continue;
       }
-      break;
- 
-    case ParseState::WAIT_CMD:
-      rx_cmd_ = b;
-      parse_state_ = ParseState::WAIT_LEN;
-      break;
- 
-    case ParseState::WAIT_LEN:
-      rx_len_ = b;
-      if (rx_len_ > protocol::MAX_DATA_LEN) {
-        parse_state_ = ParseState::WAIT_HEADER;  // corrupt length, resync
-        break;
+      return false;
+    }
+    if (ret == 0) {
+      return false;  // timed out
+    }
+
+    uint8_t buf[64];
+    ssize_t n = ::read(serial_fd_, buf, sizeof(buf));
+    if (n <= 0) {
+      continue;
+    }
+
+    for (ssize_t i = 0; i < n; ++i) {
+      if (probe_parser.feed(buf[i])) {
+        return true;
       }
-      rx_index_ = 0;
-      parse_state_ = (rx_len_ == 0) ? ParseState::WAIT_CRC : ParseState::WAIT_DATA;
-      break;
- 
-    case ParseState::WAIT_DATA:
-      rx_data_[rx_index_++] = b;
-      if (rx_index_ >= rx_len_) {
-        parse_state_ = ParseState::WAIT_CRC;
-      }
-      break;
- 
-    case ParseState::WAIT_CRC: {
-      uint8_t expected = crc8(rx_cmd_, rx_len_, rx_data_.data());
-      parse_state_ = ParseState::WAIT_HEADER;  // always resync, valid or not
-      if (b == expected) {
-        last_cmd_ = rx_cmd_;
-        last_len_ = rx_len_;
-        std::copy(rx_data_.begin(), rx_data_.begin() + rx_len_, last_data_.begin());
-      }
-      // else: CRC mismatch -- silently drop, same as firmware's protocol.cpp
-      break;
     }
   }
 }
- 
-bool AmrHardwareInterface::pollIncoming()
-{
-  if (serial_fd_ < 0) return false;
-  uint8_t buf[256];
-  bool got_packet = false;
-  ssize_t n;
-  while ((n = ::read(serial_fd_, buf, sizeof(buf))) > 0) {
-    for (ssize_t i = 0; i < n; i++) {
-      uint8_t prev_state = static_cast<uint8_t>(parse_state_);
-      feedByte(buf[i]);
-      // A full, CRC-valid packet was just decoded when we transition back to
-      // WAIT_HEADER from WAIT_CRC in feedByte(); detect that transition here.
-      if (prev_state == static_cast<uint8_t>(ParseState::WAIT_CRC) &&
-          parse_state_ == ParseState::WAIT_HEADER)
-      {
-        got_packet = true;
-      }
-    }
-  }
-  return got_packet;
-}
- 
+
 hardware_interface::CallbackReturn AmrHardwareInterface::on_configure(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("AmrHardwareInterface"),
-    "Configuring hardware interface, opening %s @ %d...", serial_port_.c_str(), baud_rate_);
- 
-  if (!openSerialPort()) {
+  RCLCPP_INFO(logger(), "Configuring hardware interface...");
+
+  if (!openSerial()) {
     return hardware_interface::CallbackReturn::ERROR;
   }
- 
-  // Give the Arduino a moment to finish its own boot/reset (many boards reset
-  // on DTR toggle when the serial port is opened) before we start talking.
-  std::this_thread::sleep_for(std::chrono::milliseconds(2000));
- 
-  if (!sendPacket(protocol::CMD_PING, nullptr, 0)) {
-    RCLCPP_ERROR(rclcpp::get_logger("AmrHardwareInterface"), "Ping failed to send.");
+
+  if (!waitForTelemetry(1000ms)) {
+    RCLCPP_ERROR(
+      logger(), "No telemetry from firmware on '%s' within 1s", serial_port_.c_str());
+    closeSerial();
     return hardware_interface::CallbackReturn::ERROR;
   }
- 
+
+  RCLCPP_INFO(logger(), "Firmware responded on '%s'.", serial_port_.c_str());
   return hardware_interface::CallbackReturn::SUCCESS;
 }
- 
+
+hardware_interface::CallbackReturn AmrHardwareInterface::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  closeSerial();
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
 hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  sendPacket(protocol::CMD_RESET_ENCODER, nullptr, 0);
-  sendPacket(protocol::CMD_RESET_ODOMETRY, nullptr, 0);
-  sendPacket(protocol::CMD_START, nullptr, 0);
-  RCLCPP_INFO(rclcpp::get_logger("AmrHardwareInterface"), "Hardware activated.");
+  if (!waitForTelemetry(500ms)) {
+    RCLCPP_ERROR(logger(), "Firmware not responding, aborting activation");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+
+  have_last_ticks_ = false;  // don't compute a bogus delta against a stale sample
+  last_telemetry_time_ = std::chrono::steady_clock::now();
+  RCLCPP_INFO(logger(), "Hardware activated.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
- 
+
 hardware_interface::CallbackReturn AmrHardwareInterface::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  sendPacket(protocol::CMD_STOP, nullptr, 0);
-  closeSerialPort();
-  RCLCPP_INFO(rclcpp::get_logger("AmrHardwareInterface"), "Hardware deactivated.");
+  // Firmware has no separate stop/ack handshake -- commanding zero velocity
+  // is what actually stops the wheels. Best-effort: even if this send fails,
+  // the firmware's own no-traffic watchdog will stop it shortly after.
+  sendCommand(0, 0);
+
+  RCLCPP_INFO(logger(), "Hardware deactivated.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
- 
+
 std::vector<hardware_interface::StateInterface>
 AmrHardwareInterface::export_state_interfaces()
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
- 
+
   state_interfaces.emplace_back(
     info_.joints[0].name,
     hardware_interface::HW_IF_POSITION,
@@ -279,7 +247,7 @@ AmrHardwareInterface::export_state_interfaces()
     info_.joints[0].name,
     hardware_interface::HW_IF_VELOCITY,
     &wheel_velocities_[0]);
- 
+
   state_interfaces.emplace_back(
     info_.joints[1].name,
     hardware_interface::HW_IF_POSITION,
@@ -288,101 +256,146 @@ AmrHardwareInterface::export_state_interfaces()
     info_.joints[1].name,
     hardware_interface::HW_IF_VELOCITY,
     &wheel_velocities_[1]);
- 
+
   return state_interfaces;
 }
- 
+
 std::vector<hardware_interface::CommandInterface>
 AmrHardwareInterface::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
- 
+
   command_interfaces.emplace_back(
     info_.joints[0].name,
     hardware_interface::HW_IF_VELOCITY,
     &wheel_velocity_commands_[0]);
- 
+
   command_interfaces.emplace_back(
     info_.joints[1].name,
     hardware_interface::HW_IF_VELOCITY,
     &wheel_velocity_commands_[1]);
- 
+
   return command_interfaces;
 }
- 
+
+int AmrHardwareInterface::wrapTickDelta(int current, int previous) const
+{
+  int delta = current - previous;
+  const int half = encoder_max_ / 2;
+  if (delta > half) {
+    delta -= encoder_max_;
+  } else if (delta < -half) {
+    delta += encoder_max_;
+  }
+  return delta;
+}
+
+void AmrHardwareInterface::applyTelemetry(
+  const protocol::TelemetryPacket & pkt, const rclcpp::Duration & period)
+{
+  if (!have_last_ticks_) {
+    last_tick_l_ = pkt.en_tick_l;
+    last_tick_r_ = pkt.en_tick_r;
+    have_last_ticks_ = true;
+    return;
+  }
+
+  const int delta_l = wrapTickDelta(pkt.en_tick_l, last_tick_l_);
+  const int delta_r = wrapTickDelta(pkt.en_tick_r, last_tick_r_);
+  last_tick_l_ = pkt.en_tick_l;
+  last_tick_r_ = pkt.en_tick_r;
+
+  // Ticks -> wheel angle, matching the firmware's own Odom::dist_per_tick_
+  // (2*pi*wheel_radius/ticks_per_rev) with the radius factored out since
+  // wheel_positions_ is an angle, not a distance.
+  const double rad_per_tick = 2.0 * M_PI / static_cast<double>(ticks_per_rev_);
+  const double new_left_pos = wheel_positions_[0] + delta_l * rad_per_tick;
+  const double new_right_pos = wheel_positions_[1] + delta_r * rad_per_tick;
+
+  const double dt = period.seconds();
+  if (dt > 1e-6) {
+    wheel_velocities_[0] = (new_left_pos - wheel_positions_[0]) / dt;
+    wheel_velocities_[1] = (new_right_pos - wheel_positions_[1]) / dt;
+  }
+  wheel_positions_[0] = new_left_pos;
+  wheel_positions_[1] = new_right_pos;
+}
+
 hardware_interface::return_type AmrHardwareInterface::read(
   const rclcpp::Time & /*time*/,
   const rclcpp::Duration & period)
 {
-  // Ask for the latest encoder counts + measured velocity every cycle, then
-  // drain and parse whatever has actually arrived (packets from a previous
-  // cycle's request, most likely -- serial round-trip won't land same-cycle).
-  sendPacket(protocol::CMD_ENCODER_POS, nullptr, 0);
-  sendPacket(protocol::CMD_VELOCITY, nullptr, 0);
- 
-  while (pollIncoming()) {
-    switch (last_cmd_) {
-      case protocol::CMD_ENCODER_POS: {
-        if (last_len_ < 8) break;
-        int32_t left_ticks, right_ticks;
-        std::memcpy(&left_ticks, &last_data_[0], 4);
-        std::memcpy(&right_ticks, &last_data_[4], 4);
-        // ticks -> radians: (ticks / ticks_per_rev) * 2*pi
-        wheel_positions_[0] = (left_ticks / encoder_ticks_per_rev_) * 2.0 * M_PI;
-        wheel_positions_[1] = (right_ticks / encoder_ticks_per_rev_) * 2.0 * M_PI;
-        break;
+  if (serial_fd_ < 0) {
+    return hardware_interface::return_type::ERROR;
+  }
+
+  bool got_packet = false;
+  uint8_t buf[128];
+  while (true) {
+    ssize_t n = ::read(serial_fd_, buf, sizeof(buf));
+    if (n < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        break;  // no more data available right now
       }
-      case protocol::CMD_VELOCITY: {
-        if (last_len_ < 8) break;
-        float left_cm_s, right_cm_s;
-        std::memcpy(&left_cm_s, &last_data_[0], 4);
-        std::memcpy(&right_cm_s, &last_data_[4], 4);
-        // firmware reports linear wheel-surface velocity in cm/s (see Encoder::readEncoder,
-        // wheelRadius is in cm); ros2_control wants angular velocity in rad/s.
-        double radius_cm = wheel_radius_ * 100.0;  // wheel_radius_ param assumed to be in meters
-        wheel_velocities_[0] = (left_cm_s / radius_cm);
-        wheel_velocities_[1] = (right_cm_s / radius_cm);
-        break;
+      if (errno == EINTR) {
+        continue;
       }
-      default:
-        break;  // ACKs, STATUS, ODOMETRY, WATCHDOG -- not needed by read(), ignore
+      RCLCPP_ERROR_THROTTLE(
+        logger(), steady_clock_, 1000,
+        "read() from '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
+      return hardware_interface::return_type::ERROR;
+    }
+    if (n == 0) {
+      break;
+    }
+    for (ssize_t i = 0; i < n; ++i) {
+      if (telemetry_parser_.feed(buf[i])) {
+        applyTelemetry(telemetry_parser_.packet(), period);
+        got_packet = true;
+      }
     }
   }
- 
+
+  const auto now = std::chrono::steady_clock::now();
+  if (got_packet) {
+    last_telemetry_time_ = now;
+    return hardware_interface::return_type::OK;
+  }
+
+  const auto since_last =
+    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_telemetry_time_);
+  if (since_last > kTelemetryTimeout) {
+    RCLCPP_ERROR_THROTTLE(
+      logger(), steady_clock_, 1000,
+      "No telemetry from firmware for %ldms", static_cast<long>(since_last.count()));
+    return hardware_interface::return_type::ERROR;
+  }
+
   return hardware_interface::return_type::OK;
 }
- 
+
 hardware_interface::return_type AmrHardwareInterface::write(
   const rclcpp::Time & /*time*/,
   const rclcpp::Duration & /*period*/)
 {
-  // Convert commanded wheel angular velocity (rad/s) to the linear wheel-surface
-  // velocity (cm/s) the firmware's CMD_SET_VELOCITY expects (see ControlMotor::setVelocity,
-  // which compares this directly against the encoder-derived cm/s velocity).
-  double radius_cm = wheel_radius_ * 100.0;
-  float left_cm_s = static_cast<float>(wheel_velocity_commands_[0] * radius_cm);
-  float right_cm_s = static_cast<float>(wheel_velocity_commands_[1] * radius_cm);
- 
-  // Skip re-sending an identical command every single cycle (e.g. holding still) --
-  // still send at least once so the firmware's watchdog keeps seeing traffic
-  // is not actually required here since read() already sends every cycle.
-  if (left_cm_s == last_sent_commands_[0] && right_cm_s == last_sent_commands_[1]) {
-    return hardware_interface::return_type::OK;
-  }
- 
-  uint8_t data[8];
-  std::memcpy(data + 0, &left_cm_s, 4);
-  std::memcpy(data + 4, &right_cm_s, 4);
-  if (sendPacket(protocol::CMD_SET_VELOCITY, data, sizeof(data))) {
-    last_sent_commands_[0] = left_cm_s;
-    last_sent_commands_[1] = right_cm_s;
-  }
- 
+  const double left_raw = wheel_velocity_commands_[0] * motor_command_scale_;
+  const double right_raw = wheel_velocity_commands_[1] * motor_command_scale_;
+
+  const int16_t left_speed = static_cast<int16_t>(
+    std::clamp(left_raw, -32768.0, 32767.0));
+  const int16_t right_speed = static_cast<int16_t>(
+    std::clamp(right_raw, -32768.0, 32767.0));
+
+  // Fire-and-forget every cycle (even zero velocity) -- firmware never
+  // replies to a command frame, and this is what keeps its no-traffic
+  // watchdog fed.
+  sendCommand(left_speed, right_speed);
+
   return hardware_interface::return_type::OK;
 }
- 
+
 }  // namespace uet_amr_hardware
- 
+
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(
   uet_amr_hardware::AmrHardwareInterface,

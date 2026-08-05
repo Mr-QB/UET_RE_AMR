@@ -50,7 +50,7 @@ void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_
 }
 
 bool R_Receive(int16_t &left, int16_t &right) {
-    while (Serial.available() >= 6){   //Read only when the required number of bytes is available.
+    while (Serial.available() >= 6){      // Read only when the required number of bytes is available.
         uint8_t header = Serial.read();
         if (header != HEAD) continue;
 
