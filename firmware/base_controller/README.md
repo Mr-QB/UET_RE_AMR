@@ -5,10 +5,7 @@ Low-level base controller firmware for the UET AMR differential drive robot. Thi
 ---
 
 ## Features
-
-- Subscribes to `/cmd_vel` velocity commands (geometry_msgs/Twist) from the ROS2 host
-- Closed-loop PID velocity control for two driving motors
-- Quadrature encoder reading and wheel odometry calculation
+- Three-phase encoder reading and wheel odometry calculation
 - Publishes wheel odometry information back to the ROS2 workspace
 - Monitors battery status and motor diagnostics
 
@@ -31,69 +28,26 @@ Low-level base controller firmware for the UET AMR differential drive robot. Thi
 
 Ensure PlatformIO Core is installed on your development machine before proceeding.
 
-### PlatformIO Workflow
-
-```bash
-# Verify PlatformIO is installed
-pio --version
-
-# Build the firmware
-cd firmware/base_controller
-pio run
-
-# Upload the binary to the connected microcontroller
-pio run --target upload
-
-# Start the serial monitor
-pio device monitor
-```
-
 ### Configuration (platformio.ini)
 
 Modify the `platformio.ini` configuration file to match your hardware:
 
+- `platform`: Specify the development platform/toolchain for your target MCU (e.g., `espressif32`, `ststm32`).
 - `board`: Update to your targeted MCU board (e.g., `nucleo_f446re`, `esp32dev`).
-- `upload_port`: Specify the serial port assigned to the connected MCU (e.g., `COM3`, `/dev/ttyUSB0`).
+- `framework`: Specify the development framework to use (e.g., `arduino`, `espidf`).
+- `upload_port`: Specify the serial port assigned to the connected MCU (e.g., `COM9`, `/dev/ttyUSB0`).
 
 ---
 
-## micro-ROS Communication
 
-The firmware uses micro-ROS client libraries to communicate directly with the high-level ROS2 stack.
-
-### Starting the micro-ROS Agent on the Host
-
-You must run a micro-ROS agent on the host computer to bridge communications:
-
-```bash
-# Option 1: Run via Docker (recommended)
-docker run -it --rm --net=host microros/micro-ros-agent:humble serial --dev /dev/ttyUSB0 -b 115200
-
-# Option 2: Run natively
-ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 --baudrate 115200
-```
-
----
-
-## PID Tuning
-
-PID coefficients can be adjusted in the `include/controlMotor.h` header file:
-
-```cpp
-double kp = 1.5;   // Proportional gain (adjusts responsiveness)
-double ki = 0.8;   // Integral gain (eliminates steady-state error)
-double kd = 0.05;  // Derivative gain (reduces overshoot)
-```
-
-Actual wheel RPM can be monitored on the `/motors/status` topic.
-
----
-
-## Pin Configurations
+## Setup Configurations
 
 Update the GPIO mappings in `src/main.cpp` to match your custom controller board layout:
 
 ```cpp
-// UART                               TX   RX
-HoverSerial.begin(115200, SERIAL_8N1, 16, 17);
+//UART      Baudrate
+Serial.begin(921600); // communicate with ROS2 
+
+// UART          Buadrate             TX   RX
+HoverSerial.begin(921600, SERIAL_8N1, 16, 17); // communicate with Hoverboard
 ```
