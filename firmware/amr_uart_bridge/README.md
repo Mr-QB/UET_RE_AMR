@@ -70,6 +70,18 @@ Arduino Mega/ESP32 serves as a high-speed, bidirectional UART bridge between ROS
 
 Baudrate: 921600 bit/s
 
+The hoverboard continuously provides feedback at 200 Hz.
+
+## Frequency
+| Task      | Freq      |
+|-------|--------|
+|Control update| 50 Hz|
+|Feedback update| 200 Hz|
+|Obstacle detection| 50Hz|
+
+*Control and feedback are independent of each other.
+
+
 ## ROS2 -> Hoverboard
 
 ROS 2 sends the command packet to the Mega/ESP32 via UART:
