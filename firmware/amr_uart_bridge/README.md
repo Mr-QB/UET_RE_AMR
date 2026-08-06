@@ -175,9 +175,7 @@ typedef struct __attribute__((packed)) {
     // Word 4 (Bits 96..127): Optional Expansion 2 & CRC Checksum
     uint32_t optional_2  : 16; // Bits 96..111 (Expansion payload 2)
     uint32_t crc         : 16; // Bits 112..127 (CRC-16 Checksum)
-} SlaveToMasterPacket16;                             // EXACTLY 16 Bytes (128 Bits)
-
-static_assert(sizeof(SlaveToMasterPacket16) == 16, "Packet size must be 16 bytes!");
+} FeedbackPacket;                             
 ```
 
 The remaining bits can be used to store additional data.

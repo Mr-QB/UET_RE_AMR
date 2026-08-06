@@ -8,7 +8,7 @@ static uint16_t checksum16(const uint8_t *data, uint8_t len) {
     return c;
 }
 
-static void packPacket(const SlaveToMasterPacket &p, uint8_t out[FB_LEN]) {
+static void packPacket(const FeedbackPacket &p, uint8_t out[FB_LEN]) {
     out[0]  = HEAD;
     out[1]  = (uint8_t)(p.sys_status & 0x3);
     out[2]  = (uint8_t)p.speed_l;
@@ -32,7 +32,7 @@ static void packPacket(const SlaveToMasterPacket &p, uint8_t out[FB_LEN]) {
 }
 
 void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_t temp, int16_t cur, uint8_t bat, bool charge) {
-    SlaveToMasterPacket p{};
+    FeedbackPacket p{};
     p.sys_status = (uint32_t)sys;
     p.speed_l    = spL;
     p.speed_r    = spR;

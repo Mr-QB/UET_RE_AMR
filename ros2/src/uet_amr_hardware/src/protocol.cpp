@@ -31,7 +31,7 @@ CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
   return frame;
 }
 
-bool TelemetryParser::feed(uint8_t b)
+bool FeedbackParser::feed(uint8_t b)
 {
   switch (state_) {
     case State::WaitHeader:
@@ -44,12 +44,12 @@ bool TelemetryParser::feed(uint8_t b)
 
     case State::WaitBody:
       body_[body_index_++] = b;
-      if (body_index_ >= kTelemetryPacketLen) {
+      if (body_index_ >= kFeedbackPacketLen) {
         state_ = State::WaitHeader;
 
-        const uint16_t expected = checksum16(body_, kTelemetryPacketLen - 2);
+        const uint16_t expected = checksum16(body_, kFeedbackPacketLen - 2);
         const uint16_t received = static_cast<uint16_t>(
-          body_[kTelemetryPacketLen - 2] | (body_[kTelemetryPacketLen - 1] << 8));
+          body_[kFeedbackPacketLen - 2] | (body_[kFeedbackPacketLen - 1] << 8));
         if (received != expected) {
           break;  // checksum mismatch, drop and resync on the next header
         }

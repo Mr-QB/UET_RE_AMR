@@ -12,18 +12,18 @@
 // `Odom odom(wheel_radius_cm, wheel_base_cm, ticks_per_rev, encoder_max)`
 // constants determine how raw encoder ticks map to wheel angle below).
 //
-// This is a push-style protocol: the firmware streams a telemetry packet
+// This is a push-style protocol: the firmware streams a feedback packet
 // every time it gets a fresh reading from the hoverboard, unprompted. There
 // is no request/response -- the host just keeps the most recent command
 // frame flowing so the firmware's no-traffic watchdog stays fed.
 //
-// Slave (ESP32) -> Master (ROS2) telemetry packet, 16 bytes / 128 bits,
-// bit-packed. TelemetryPacket below is a bitfield struct used only as the
+// Slave (ESP32) -> Master (ROS2) feedback packet, 16 bytes / 128 bits,
+// bit-packed. FeedbackPacket below is a bitfield struct used only as the
 // *decoded value* representation (readable field names/widths) -- the wire
 // bytes are never reinterpreted as this struct directly, because C++
 // bitfield/struct memory layout (bit order, padding) is
 // implementation-defined and differs across compilers/architectures.
-// TelemetryParser decodes the wire bytes by hand with explicit shifts, the
+// FeedbackParser decodes the wire bytes by hand with explicit shifts, the
 // same way the firmware's packPacket() encodes them.
 //
 //   Word 1 (bytes 0..3,   bits 0..31):
@@ -68,7 +68,7 @@ namespace protocol
 {
 
 constexpr uint8_t kHeader = 0xAA;
-constexpr size_t kTelemetryPacketLen = 16;
+constexpr size_t kFeedbackPacketLen = 16;
 constexpr size_t kCommandFrameLen = 6;
 
 // XOR-fold checksum matching the firmware's checksum16(): byte i is XORed
@@ -84,10 +84,10 @@ struct CommandFrame
 };
 CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right);
 
-// Decoded slave->master telemetry packet. A bitfield struct purely for
+// Decoded slave->master feedback packet. A bitfield struct purely for
 // readable field names/widths -- populated field-by-field from the manual
-// bit-unpack in TelemetryParser::feed(), never by reinterpreting raw bytes.
-struct TelemetryPacket
+// bit-unpack in FeedbackParser::feed(), never by reinterpreting raw bytes.
+struct FeedbackPacket
 {
   uint32_t sys_status : 2;
   int32_t speed_l : 8;
@@ -102,10 +102,10 @@ struct TelemetryPacket
   uint32_t optional_2 : 16;
 };
 
-// Byte-fed parser for slave->master telemetry packets (header 0xAA, fixed
-// length kTelemetryPacketLen). Resyncs on the next header byte whenever a
+// Byte-fed parser for slave->master feedback packets (header 0xAA, fixed
+// length kFeedbackPacketLen). Resyncs on the next header byte whenever a
 // checksum fails, mirroring the firmware's own tolerant receive behavior.
-class TelemetryParser
+class FeedbackParser
 {
 public:
   // Feed one received byte. Returns true exactly when a full,
@@ -113,15 +113,15 @@ public:
   // immediately after a call that returned true.
   bool feed(uint8_t byte);
 
-  const TelemetryPacket & packet() const {return packet_;}
+  const FeedbackPacket & packet() const {return packet_;}
 
 private:
   enum class State {WaitHeader, WaitBody};
 
   State state_{State::WaitHeader};
-  uint8_t body_[kTelemetryPacketLen]{};
+  uint8_t body_[kFeedbackPacketLen]{};
   uint8_t body_index_{0};
-  TelemetryPacket packet_{};
+  FeedbackPacket packet_{};
 };
 
 }  // namespace protocol

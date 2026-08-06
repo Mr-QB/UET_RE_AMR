@@ -6,8 +6,8 @@
 #define HEAD 0xAA
 
 // =============================================================================
-// Slave (ESP32) -> Master (ROS2) telemetry packet, 16 bytes / 128 bits,
-// bit-packed. SlaveToMasterPacket below is a bitfield struct used only as
+// Slave (ESP32) -> Master (ROS2) feedback packet, 16 bytes / 128 bits,
+// bit-packed. FeedbackPacket below is a bitfield struct used only as
 // the *local* in-code representation (readable field names/widths) -- it is
 // never memcpy'd onto the wire, because C++ bitfield/struct memory layout
 // (bit order, padding) is implementation-defined and differs across
@@ -40,7 +40,7 @@
 // =============================================================================
 #define FB_LEN 16
 
-struct __attribute__((packed)) SlaveToMasterPacket {
+struct __attribute__((packed)) FeedbackPacket {
   uint32_t sys_status : 2;
   int32_t  speed_l    : 8;
   int32_t  speed_r    : 8;

@@ -24,7 +24,7 @@ namespace uet_amr_hardware
  *
  * Communicates with the ESP32 base controller firmware via serial (UART)
  * using the push-style binary protocol in serial_protocol.h. The firmware
- * streams a telemetry packet (measured wheel speed, raw per-wheel encoder
+ * streams a feedback packet (measured wheel speed, raw per-wheel encoder
  * ticks, battery/temperature) every time it gets a fresh reading from the
  * hoverboard; there is no request/response. Per-wheel joint position is
  * built up here from the raw encoder ticks (see read()), and vehicle
@@ -75,13 +75,13 @@ private:
   // reply (the firmware never acknowledges commands).
   bool sendCommand(int16_t speed_left, int16_t speed_right);
 
-  // Passively waits (up to timeout) for one valid telemetry packet, used to
+  // Passively waits (up to timeout) for one valid feedback packet, used to
   // confirm the link is alive on configure/activate. There is no request to
   // send -- the firmware only speaks when it has something to say.
-  bool waitForTelemetry(std::chrono::milliseconds timeout);
+  bool waitForFeedback(std::chrono::milliseconds timeout);
 
-  // Applies one decoded telemetry packet to wheel_positions_/velocities_.
-  void applyTelemetry(const protocol::TelemetryPacket & pkt, const rclcpp::Duration & period);
+  // Applies one decoded feedback packet to wheel_positions_/velocities_.
+  void applyFeedback(const protocol::FeedbackPacket & pkt, const rclcpp::Duration & period);
 
   // Signed tick delta accounting for wrap-around at encoder_max_, matching
   // the firmware's own Odom::wrapDelta().
@@ -91,12 +91,12 @@ private:
   std::string serial_port_;
   int baud_rate_;
   int serial_fd_{-1};
-  protocol::TelemetryParser telemetry_parser_;
+  protocol::FeedbackParser feedback_parser_;
   rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
-  std::chrono::steady_clock::time_point last_telemetry_time_;
-  static constexpr std::chrono::milliseconds kTelemetryTimeout{500};
+  std::chrono::steady_clock::time_point last_feedback_time_;
+  static constexpr std::chrono::milliseconds kFeedbackTimeout{500};
 
-  // Wrap-aware encoder tick tracking (see wrapTickDelta()/applyTelemetry()).
+  // Wrap-aware encoder tick tracking (see wrapTickDelta()/applyFeedback()).
   bool have_last_ticks_{false};
   int last_tick_l_{0};
   int last_tick_r_{0};

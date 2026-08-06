@@ -141,9 +141,9 @@ bool AmrHardwareInterface::sendCommand(int16_t speed_left, int16_t speed_right)
   return true;
 }
 
-bool AmrHardwareInterface::waitForTelemetry(std::chrono::milliseconds timeout)
+bool AmrHardwareInterface::waitForFeedback(std::chrono::milliseconds timeout)
 {
-  protocol::TelemetryParser probe_parser;
+  protocol::FeedbackParser probe_parser;
   const auto deadline = std::chrono::steady_clock::now() + timeout;
   while (true) {
     const auto now = std::chrono::steady_clock::now();
@@ -190,9 +190,9 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_configure(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  if (!waitForTelemetry(1000ms)) {
+  if (!waitForFeedback(1000ms)) {
     RCLCPP_ERROR(
-      logger(), "No telemetry from firmware on '%s' within 1s", serial_port_.c_str());
+      logger(), "No feedback from firmware on '%s' within 1s", serial_port_.c_str());
     closeSerial();
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -211,13 +211,13 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_cleanup(
 hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  if (!waitForTelemetry(500ms)) {
+  if (!waitForFeedback(500ms)) {
     RCLCPP_ERROR(logger(), "Firmware not responding, aborting activation");
     return hardware_interface::CallbackReturn::ERROR;
   }
 
   have_last_ticks_ = false;  // don't compute a bogus delta against a stale sample
-  last_telemetry_time_ = std::chrono::steady_clock::now();
+  last_feedback_time_ = std::chrono::steady_clock::now();
   RCLCPP_INFO(logger(), "Hardware activated.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -290,8 +290,8 @@ int AmrHardwareInterface::wrapTickDelta(int current, int previous) const
   return delta;
 }
 
-void AmrHardwareInterface::applyTelemetry(
-  const protocol::TelemetryPacket & pkt, const rclcpp::Duration & period)
+void AmrHardwareInterface::applyFeedback(
+  const protocol::FeedbackPacket & pkt, const rclcpp::Duration & period)
 {
   if (!have_last_ticks_) {
     last_tick_l_ = pkt.en_tick_l;
@@ -349,8 +349,8 @@ hardware_interface::return_type AmrHardwareInterface::read(
       break;
     }
     for (ssize_t i = 0; i < n; ++i) {
-      if (telemetry_parser_.feed(buf[i])) {
-        applyTelemetry(telemetry_parser_.packet(), period);
+      if (feedback_parser_.feed(buf[i])) {
+        applyFeedback(feedback_parser_.packet(), period);
         got_packet = true;
       }
     }
@@ -358,16 +358,16 @@ hardware_interface::return_type AmrHardwareInterface::read(
 
   const auto now = std::chrono::steady_clock::now();
   if (got_packet) {
-    last_telemetry_time_ = now;
+    last_feedback_time_ = now;
     return hardware_interface::return_type::OK;
   }
 
   const auto since_last =
-    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_telemetry_time_);
-  if (since_last > kTelemetryTimeout) {
+    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_feedback_time_);
+  if (since_last > kFeedbackTimeout) {
     RCLCPP_ERROR_THROTTLE(
       logger(), steady_clock_, 1000,
-      "No telemetry from firmware for %ldms", static_cast<long>(since_last.count()));
+      "No feedback from firmware for %ldms", static_cast<long>(since_last.count()));
     return hardware_interface::return_type::ERROR;
   }
 
