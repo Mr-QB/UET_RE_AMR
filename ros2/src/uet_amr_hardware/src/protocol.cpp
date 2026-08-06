@@ -12,73 +12,76 @@ namespace protocol
 
 uint16_t checksum16(const uint8_t * data, size_t len)
 {
-  uint16_t checksum = 0;
+  uint16_t c = 0;
   for (size_t i = 0; i < len; i++) {
-    checksum ^= data[i];
+    c ^= static_cast<uint16_t>(data[i]) << ((i & 1u) * 8u);
   }
-  return checksum;
+  return c;
 }
 
-CommandFrame encodeCommandFrame(Cmd cmd, int16_t speed_left, int16_t speed_right)
+CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
 {
   CommandFrame frame{};
-  frame.bytes[0] = kHeaderMasterToSlave;
-  frame.bytes[1] = static_cast<uint8_t>(cmd);
-  std::memcpy(frame.bytes + 2, &speed_left, 2);
-  std::memcpy(frame.bytes + 4, &speed_right, 2);
-  uint16_t crc = checksum16(frame.bytes, 6);
-  std::memcpy(frame.bytes + 6, &crc, 2);
+  frame.bytes[0] = kHeader;
+  frame.bytes[1] = static_cast<uint8_t>(speed_left & 0xFF);
+  frame.bytes[2] = static_cast<uint8_t>((speed_left >> 8) & 0xFF);
+  frame.bytes[3] = static_cast<uint8_t>(speed_right & 0xFF);
+  frame.bytes[4] = static_cast<uint8_t>((speed_right >> 8) & 0xFF);
+  frame.bytes[5] = static_cast<uint8_t>(checksum16(frame.bytes, 5) & 0xFF);
   return frame;
 }
 
-bool FrameParser::feed(uint8_t b)
+bool FeedbackParser::feed(uint8_t b)
 {
   switch (state_) {
     case State::WaitHeader:
-      if (b == kHeaderSlaveToMaster) {
-        state_ = State::WaitCmd;
+      if (b == kHeader) {
+        body_[0] = b;
+        body_index_ = 1;
+        state_ = State::WaitBody;
       }
       break;
 
-    case State::WaitCmd: {
-        cmd_ = b;
-        switch (static_cast<Cmd>(cmd_)) {
-          case Cmd::RequestVelocity:
-          case Cmd::RequestStatus:
-            payload_len_ = 4;
-            break;
-          case Cmd::RequestOdometry:
-            payload_len_ = 10;
-            break;
-          default:
-            // Unrecognized cmd for a slave->master frame -- resync.
-            state_ = State::WaitHeader;
-            return false;
-        }
-        body_len_ = static_cast<uint8_t>(payload_len_ + 2);
-        body_index_ = 0;
-        state_ = State::WaitBody;
-        break;
-      }
-
     case State::WaitBody:
       body_[body_index_++] = b;
-      if (body_index_ >= body_len_) {
+      if (body_index_ >= kFeedbackPacketLen) {
         state_ = State::WaitHeader;
 
-        uint8_t header_and_payload[2 + kMaxPayloadLen];
-        header_and_payload[0] = kHeaderSlaveToMaster;
-        header_and_payload[1] = cmd_;
-        std::memcpy(header_and_payload + 2, body_, payload_len_);
-
-        uint16_t expected = checksum16(header_and_payload, 2u + payload_len_);
-        uint16_t received;
-        std::memcpy(&received, body_ + payload_len_, 2);
-
-        if (received == expected) {
-          return true;
+        const uint16_t expected = checksum16(body_, kFeedbackPacketLen - 2);
+        const uint16_t received = static_cast<uint16_t>(
+          body_[kFeedbackPacketLen - 2] | (body_[kFeedbackPacketLen - 1] << 8));
+        if (received != expected) {
+          break;  // checksum mismatch, drop and resync on the next header
         }
-        // else: checksum mismatch, silently drop (already resynced above).
+
+        const uint32_t w1 = static_cast<uint32_t>(body_[0]) |
+          (static_cast<uint32_t>(body_[1]) << 8) |
+          (static_cast<uint32_t>(body_[2]) << 16) |
+          (static_cast<uint32_t>(body_[3]) << 24);
+        const uint32_t w2 = static_cast<uint32_t>(body_[4]) |
+          (static_cast<uint32_t>(body_[5]) << 8) |
+          (static_cast<uint32_t>(body_[6]) << 16) |
+          (static_cast<uint32_t>(body_[7]) << 24);
+        const uint32_t w3 = static_cast<uint32_t>(body_[8]) |
+          (static_cast<uint32_t>(body_[9]) << 8) |
+          (static_cast<uint32_t>(body_[10]) << 16) |
+          (static_cast<uint32_t>(body_[11]) << 24);
+        const uint32_t optional_2 = static_cast<uint32_t>(body_[12]) |
+          (static_cast<uint32_t>(body_[13]) << 8);
+
+        packet_.sys_status = (w1 >> 8) & 0x3;
+        packet_.speed_l = static_cast<int8_t>((w1 >> 16) & 0xFF);
+        packet_.speed_r = static_cast<int8_t>((w1 >> 24) & 0xFF);
+        packet_.en_tick_l = w2 & 0x3FFF;
+        packet_.en_tick_r = (w2 >> 14) & 0x3FFF;
+        packet_.temp_c = w3 & 0x7F;
+        packet_.current_a = (w3 >> 7) & 0x7FF;
+        packet_.battery = (w3 >> 18) & 0x7F;
+        packet_.charging = (w3 >> 25) & 0x1;
+        packet_.optional_1 = (w3 >> 26) & 0x3F;
+        packet_.optional_2 = optional_2;
+
+        return true;
       }
       break;
   }

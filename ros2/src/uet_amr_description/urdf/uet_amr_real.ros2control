@@ -18,6 +18,10 @@
            empirically against the real robot before trusting closed-loop
            velocity commands. -->
       <param name="motor_command_scale">100.0</param>
+      <!-- Must match firmware's Odom(wheel_radius, wheel_base, ticks_per_rev,
+           encoder_max) constants in hoverboardSerial.h. -->
+      <param name="ticks_per_rev">90</param>
+      <param name="encoder_max">9000</param>
     </hardware>
 
     <joint name="Revolute 17">
@@ -42,4 +46,4 @@
 
   </ros2_control>
 
-</robot>
+</robot>a

@@ -28,13 +28,6 @@ rclcpp::Logger logger()
 {
   return rclcpp::get_logger("AmrHardwareInterface");
 }
-
-double normalizeAngle(double angle)
-{
-  while (angle > M_PI) {angle -= 2.0 * M_PI;}
-  while (angle < -M_PI) {angle += 2.0 * M_PI;}
-  return angle;
-}
 }  // namespace
 
 hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
@@ -52,6 +45,8 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
   wheel_radius_ = std::stod(info_.hardware_parameters.at("wheel_radius"));
   wheel_separation_ = std::stod(info_.hardware_parameters.at("wheel_separation"));
   motor_command_scale_ = std::stod(info_.hardware_parameters.at("motor_command_scale"));
+  ticks_per_rev_ = std::stoi(info_.hardware_parameters.at("ticks_per_rev"));
+  encoder_max_ = std::stoi(info_.hardware_parameters.at("encoder_max"));
 
   // Initialize state and command vectors (left, right)
   wheel_positions_.assign(2, 0.0);
@@ -122,12 +117,12 @@ void AmrHardwareInterface::closeSerial()
   }
 }
 
-bool AmrHardwareInterface::sendCommand(protocol::Cmd cmd, int16_t speed_left, int16_t speed_right)
+bool AmrHardwareInterface::sendCommand(int16_t speed_left, int16_t speed_right)
 {
   if (serial_fd_ < 0) {
     return false;
   }
-  protocol::CommandFrame frame = protocol::encodeCommandFrame(cmd, speed_left, speed_right);
+  protocol::CommandFrame frame = protocol::encodeCommandFrame(speed_left, speed_right);
 
   size_t written = 0;
   while (written < sizeof(frame.bytes)) {
@@ -146,14 +141,9 @@ bool AmrHardwareInterface::sendCommand(protocol::Cmd cmd, int16_t speed_left, in
   return true;
 }
 
-bool AmrHardwareInterface::requestAndWait(
-  protocol::Cmd request_cmd, protocol::Cmd expect_reply_cmd,
-  std::vector<uint8_t> & out_payload, std::chrono::milliseconds timeout)
+bool AmrHardwareInterface::waitForFeedback(std::chrono::milliseconds timeout)
 {
-  if (!sendCommand(request_cmd, 0, 0)) {
-    return false;
-  }
-
+  protocol::FeedbackParser probe_parser;
   const auto deadline = std::chrono::steady_clock::now() + timeout;
   while (true) {
     const auto now = std::chrono::steady_clock::now();
@@ -184,12 +174,8 @@ bool AmrHardwareInterface::requestAndWait(
     }
 
     for (ssize_t i = 0; i < n; ++i) {
-      if (parser_.feed(buf[i])) {
-        if (parser_.cmd() == expect_reply_cmd) {
-          out_payload.assign(parser_.payload(), parser_.payload() + parser_.payloadLen());
-          return true;
-        }
-        // Some other valid frame -- discard and keep waiting.
+      if (probe_parser.feed(buf[i])) {
+        return true;
       }
     }
   }
@@ -204,20 +190,13 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_configure(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  bool ok = false;
-  std::vector<uint8_t> reply;
-  for (int attempt = 0; attempt < 5 && !ok; ++attempt) {
-    ok = requestAndWait(
-      protocol::Cmd::RequestStatus, protocol::Cmd::RequestStatus, reply, 100ms);
-  }
-  if (!ok) {
+  if (!waitForFeedback(1000ms)) {
     RCLCPP_ERROR(
-      logger(), "No response from firmware on '%s' after 5 attempts", serial_port_.c_str());
+      logger(), "No feedback from firmware on '%s' within 1s", serial_port_.c_str());
     closeSerial();
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  consecutive_comm_failures_ = 0;
   RCLCPP_INFO(logger(), "Firmware responded on '%s'.", serial_port_.c_str());
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -232,19 +211,13 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_cleanup(
 hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  bool ok = false;
-  std::vector<uint8_t> reply;
-  for (int attempt = 0; attempt < 3 && !ok; ++attempt) {
-    ok = requestAndWait(
-      protocol::Cmd::RequestStatus, protocol::Cmd::RequestStatus, reply, 50ms);
-  }
-  if (!ok) {
+  if (!waitForFeedback(500ms)) {
     RCLCPP_ERROR(logger(), "Firmware not responding, aborting activation");
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  consecutive_comm_failures_ = 0;
-  have_last_pose_ = false;  // don't compute a bogus delta against a stale sample
+  have_last_ticks_ = false;  // don't compute a bogus delta against a stale sample
+  last_feedback_time_ = std::chrono::steady_clock::now();
   RCLCPP_INFO(logger(), "Hardware activated.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -254,8 +227,8 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_deactivate(
 {
   // Firmware has no separate stop/ack handshake -- commanding zero velocity
   // is what actually stops the wheels. Best-effort: even if this send fails,
-  // the firmware's own 1000ms no-traffic watchdog will stop it shortly after.
-  sendCommand(protocol::Cmd::SetVelocity, 0, 0);
+  // the firmware's own no-traffic watchdog will stop it shortly after.
+  sendCommand(0, 0);
 
   RCLCPP_INFO(logger(), "Hardware deactivated.");
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -305,57 +278,39 @@ AmrHardwareInterface::export_command_interfaces()
   return command_interfaces;
 }
 
-hardware_interface::return_type AmrHardwareInterface::read(
-  const rclcpp::Time & /*time*/,
-  const rclcpp::Duration & period)
+int AmrHardwareInterface::wrapTickDelta(int current, int previous) const
 {
-  std::vector<uint8_t> reply;
-  bool ok = requestAndWait(
-    protocol::Cmd::RequestOdometry, protocol::Cmd::RequestOdometry, reply, 15ms);
-
-  if (!ok || reply.size() < 10) {
-    consecutive_comm_failures_++;
-    RCLCPP_WARN_THROTTLE(
-      logger(), steady_clock_, 1000,
-      "No odometry reply from firmware (failure #%d)", consecutive_comm_failures_);
-    if (consecutive_comm_failures_ > kMaxConsecutiveFailures) {
-      return hardware_interface::return_type::ERROR;
-    }
-    return hardware_interface::return_type::OK;
+  int delta = current - previous;
+  const int half = encoder_max_ / 2;
+  if (delta > half) {
+    delta -= encoder_max_;
+  } else if (delta < -half) {
+    delta += encoder_max_;
   }
-  consecutive_comm_failures_ = 0;
+  return delta;
+}
 
-  float x_cm = 0.0f;
-  float y_cm = 0.0f;
-  int16_t theta_raw = 0;
-  std::memcpy(&x_cm, reply.data() + 0, 4);
-  std::memcpy(&y_cm, reply.data() + 4, 4);
-  std::memcpy(&theta_raw, reply.data() + 8, 2);
-  const double theta_rad = static_cast<double>(theta_raw) / 10.0;
-
-  if (!have_last_pose_) {
-    last_x_cm_ = x_cm;
-    last_y_cm_ = y_cm;
-    last_theta_rad_ = theta_rad;
-    have_last_pose_ = true;
-    return hardware_interface::return_type::OK;
+void AmrHardwareInterface::applyFeedback(
+  const protocol::FeedbackPacket & pkt, const rclcpp::Duration & period)
+{
+  if (!have_last_ticks_) {
+    last_tick_l_ = pkt.en_tick_l;
+    last_tick_r_ = pkt.en_tick_r;
+    have_last_ticks_ = true;
+    return;
   }
 
-  // Recover per-wheel displacement by inverting the same diff-drive
-  // kinematics the firmware used to build (x, y, theta) from its encoder
-  // deltas in the first place (see Odom::integrate() in odom.cpp).
-  const double wheel_radius_cm = wheel_radius_ * 100.0;
-  const double wheel_separation_cm = wheel_separation_ * 100.0;
+  const int delta_l = wrapTickDelta(pkt.en_tick_l, last_tick_l_);
+  const int delta_r = wrapTickDelta(pkt.en_tick_r, last_tick_r_);
+  last_tick_l_ = pkt.en_tick_l;
+  last_tick_r_ = pkt.en_tick_r;
 
-  const double dtheta = normalizeAngle(theta_rad - last_theta_rad_);
-  const double theta_mid = last_theta_rad_ + dtheta / 2.0;
-  const double dc_cm =
-    (x_cm - last_x_cm_) * std::cos(theta_mid) + (y_cm - last_y_cm_) * std::sin(theta_mid);
-  const double dl_cm = dc_cm - dtheta * wheel_separation_cm / 2.0;
-  const double dr_cm = dc_cm + dtheta * wheel_separation_cm / 2.0;
-
-  const double new_left_pos = wheel_positions_[0] + dl_cm / wheel_radius_cm;
-  const double new_right_pos = wheel_positions_[1] + dr_cm / wheel_radius_cm;
+  // Ticks -> wheel angle, matching the firmware's own Odom::dist_per_tick_
+  // (2*pi*wheel_radius/ticks_per_rev) with the radius factored out since
+  // wheel_positions_ is an angle, not a distance.
+  const double rad_per_tick = 2.0 * M_PI / static_cast<double>(ticks_per_rev_);
+  const double new_left_pos = wheel_positions_[0] + delta_l * rad_per_tick;
+  const double new_right_pos = wheel_positions_[1] + delta_r * rad_per_tick;
 
   const double dt = period.seconds();
   if (dt > 1e-6) {
@@ -364,10 +319,57 @@ hardware_interface::return_type AmrHardwareInterface::read(
   }
   wheel_positions_[0] = new_left_pos;
   wheel_positions_[1] = new_right_pos;
+}
 
-  last_x_cm_ = x_cm;
-  last_y_cm_ = y_cm;
-  last_theta_rad_ = theta_rad;
+hardware_interface::return_type AmrHardwareInterface::read(
+  const rclcpp::Time & /*time*/,
+  const rclcpp::Duration & period)
+{
+  if (serial_fd_ < 0) {
+    return hardware_interface::return_type::ERROR;
+  }
+
+  bool got_packet = false;
+  uint8_t buf[128];
+  while (true) {
+    ssize_t n = ::read(serial_fd_, buf, sizeof(buf));
+    if (n < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        break;  // no more data available right now
+      }
+      if (errno == EINTR) {
+        continue;
+      }
+      RCLCPP_ERROR_THROTTLE(
+        logger(), steady_clock_, 1000,
+        "read() from '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
+      return hardware_interface::return_type::ERROR;
+    }
+    if (n == 0) {
+      break;
+    }
+    for (ssize_t i = 0; i < n; ++i) {
+      if (feedback_parser_.feed(buf[i])) {
+        applyFeedback(feedback_parser_.packet(), period);
+        got_packet = true;
+      }
+    }
+  }
+
+  const auto now = std::chrono::steady_clock::now();
+  if (got_packet) {
+    last_feedback_time_ = now;
+    return hardware_interface::return_type::OK;
+  }
+
+  const auto since_last =
+    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_feedback_time_);
+  if (since_last > kFeedbackTimeout) {
+    RCLCPP_ERROR_THROTTLE(
+      logger(), steady_clock_, 1000,
+      "No feedback from firmware for %ldms", static_cast<long>(since_last.count()));
+    return hardware_interface::return_type::ERROR;
+  }
 
   return hardware_interface::return_type::OK;
 }
@@ -385,9 +387,9 @@ hardware_interface::return_type AmrHardwareInterface::write(
     std::clamp(right_raw, -32768.0, 32767.0));
 
   // Fire-and-forget every cycle (even zero velocity) -- firmware never
-  // replies to SetVelocity, and this is what keeps its 1000ms no-traffic
+  // replies to a command frame, and this is what keeps its no-traffic
   // watchdog fed.
-  sendCommand(protocol::Cmd::SetVelocity, left_speed, right_speed);
+  sendCommand(left_speed, right_speed);
 
   return hardware_interface::return_type::OK;
 }
