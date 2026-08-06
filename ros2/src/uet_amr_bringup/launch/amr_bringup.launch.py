@@ -75,8 +75,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'baud_rate',
-            default_value='115200',
-            description='Serial baud rate (firmware is fixed at 115200)'
+            default_value='921600',
+            description='Serial baud rate (firmware/amr_uart_bridge is fixed at 921600)'
         ),
         OpaqueFunction(function=launch_setup),
     ])

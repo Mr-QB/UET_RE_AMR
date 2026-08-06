@@ -28,6 +28,21 @@ rclcpp::Logger logger()
 {
   return rclcpp::get_logger("AmrHardwareInterface");
 }
+
+speed_t baudRateToSpeed(int baud_rate)
+{
+  switch (baud_rate) {
+    case 9600: return B9600;
+    case 19200: return B19200;
+    case 38400: return B38400;
+    case 57600: return B57600;
+    case 115200: return B115200;
+    case 230400: return B230400;
+    case 460800: return B460800;
+    case 921600: return B921600;
+    default: return B0;
+  }
+}
 }  // namespace
 
 hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
@@ -69,11 +84,15 @@ bool AmrHardwareInterface::openSerial()
     return false;
   }
 
-  if (baud_rate_ != 115200) {
-    RCLCPP_WARN(
+  const speed_t speed = baudRateToSpeed(baud_rate_);
+  if (speed == B0) {
+    RCLCPP_ERROR(
       logger(),
-      "Requested baud_rate=%d but firmware protocol is fixed at 115200; using 115200 anyway.",
-      baud_rate_);
+      "Unsupported baud_rate=%d on '%s'; supported rates: 9600, 19200, 38400, 57600, "
+      "115200, 230400, 460800, 921600.",
+      baud_rate_, serial_port_.c_str());
+    closeSerial();
+    return false;
   }
 
   termios tty{};
@@ -85,8 +104,8 @@ bool AmrHardwareInterface::openSerial()
   }
 
   cfmakeraw(&tty);
-  cfsetispeed(&tty, B115200);
-  cfsetospeed(&tty, B115200);
+  cfsetispeed(&tty, speed);
+  cfsetospeed(&tty, speed);
 
   tty.c_cflag |= (CLOCAL | CREAD);
   tty.c_cflag &= ~PARENB;

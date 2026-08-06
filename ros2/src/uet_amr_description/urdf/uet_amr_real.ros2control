@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
   <xacro:arg name="serial_port" default="/dev/ttyUSB0"/>
-  <xacro:arg name="baud_rate" default="115200"/>
+  <xacro:arg name="baud_rate" default="921600"/>
 
   <ros2_control name="AmrRealHardware" type="system">
 
@@ -46,4 +46,4 @@
 
   </ros2_control>
 
-</robot>a
+</robot>
