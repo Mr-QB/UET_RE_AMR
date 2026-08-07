@@ -42,8 +42,13 @@ git clone --recurse-submodules https://github.com/UET-RE/UET_RE_AMR.git
 cd UET_RE_AMR
 
 # Run the automated setup script
-chmod +x tools/setup.sh
-./tools/setup.sh
+chmod +x tools/setup_dev.sh tools/setup_prod.sh
+
+# For developers (adds PlatformIO + micro-ROS agent for firmware work)
+./tools/setup_dev.sh
+
+# For production / deployment machines (ROS2 workspace only)
+./tools/setup_prod.sh
 ```
 
 ### Manual Installation Steps (Alternative)
