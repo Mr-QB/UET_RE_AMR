@@ -158,7 +158,7 @@ sudo usermod -a -G dialout $USER
 Reboot or log out and log back in for changes to take effect.
 
 ### Gazebo launch failures
-Verify that the gazebo packages are correctly installed and integrated with ROS2:
+Verify that the Gazebo (new, Ignition-based) packages are correctly installed and integrated with ROS2:
 ```bash
-sudo apt install gazebo ros-humble-gazebo-ros-pkgs
+sudo apt install ros-humble-ros-gz ros-humble-ros-gz-sim ros-humble-ros-gz-bridge ros-humble-ign-ros2-control
 ```
