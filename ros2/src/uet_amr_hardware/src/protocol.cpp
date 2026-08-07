@@ -27,7 +27,15 @@ CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
   frame.bytes[2] = static_cast<uint8_t>((speed_left >> 8) & 0xFF);
   frame.bytes[3] = static_cast<uint8_t>(speed_right & 0xFF);
   frame.bytes[4] = static_cast<uint8_t>((speed_right >> 8) & 0xFF);
-  frame.bytes[5] = static_cast<uint8_t>(checksum16(frame.bytes, 5) & 0xFF);
+
+  // Plain byte-wise XOR of bytes [0..4], matching the firmware's R_Receive()
+  // in serial_protocol.cpp -- NOT checksum16(), which is the 16-bit
+  // alternating fold used only for the 16-byte feedback packet.
+  uint8_t checksum = 0;
+  for (size_t i = 0; i < 5; ++i) {
+    checksum ^= frame.bytes[i];
+  }
+  frame.bytes[5] = checksum;
   return frame;
 }
 

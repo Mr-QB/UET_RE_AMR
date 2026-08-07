@@ -405,6 +405,12 @@ hardware_interface::return_type AmrHardwareInterface::write(
   const int16_t right_speed = static_cast<int16_t>(
     std::clamp(right_raw, -32768.0, 32767.0));
 
+  RCLCPP_INFO_THROTTLE(
+    logger(), steady_clock_, 200,
+    "cmd: left=%.3f right=%.3f -> raw left=%d right=%d",
+    wheel_velocity_commands_[0], wheel_velocity_commands_[1],
+    static_cast<int>(left_speed), static_cast<int>(right_speed));
+
   // Fire-and-forget every cycle (even zero velocity) -- firmware never
   // replies to a command frame, and this is what keeps its no-traffic
   // watchdog fed.
