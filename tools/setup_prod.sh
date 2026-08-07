@@ -18,7 +18,7 @@ init_submodules
 
 echo -e "${YELLOW}[3/4] Installing ROS2 workspace dependencies...${NC}"
 echo -e "${YELLOW}[4/4] Building ROS2 workspace...${NC}"
-build_workspace
+build_workspace false
 
 setup_bashrc
 
@@ -27,4 +27,4 @@ echo -e "${GREEN}✅ Production setup complete!${NC}"
 echo ""
 echo "Next steps:"
 echo "  source ~/.bashrc"
-echo "  ros2 launch uet_amr_bringup amr_simulation.launch.py"
+echo "  ros2 launch uet_amr_bringup amr_bringup.launch.py"

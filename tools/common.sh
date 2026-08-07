@@ -29,15 +29,31 @@ init_submodules() {
   git submodule update --init --recursive ros2/src/third_party
 }
 
+# $1: "true" (default) to include uet_amr_simulation (Gazebo sim deps),
+#     "false" to skip it — for production/robot machines that don't run
+#     simulation and may lack arm64 apt binaries for ros_gz_sim / ign_ros2_control.
 build_workspace() {
+  local include_simulation="${1:-true}"
+
   echo -e "${YELLOW}Installing ROS2 workspace dependencies...${NC}"
   cd "$REPO_ROOT/ros2"
   source /opt/ros/humble/setup.bash
   rosdep update --rosdistro=humble
-  rosdep install --from-paths src --ignore-src -r -y
+
+  if [ "$include_simulation" = "false" ]; then
+    rosdep install --from-paths src --ignore-src -r -y \
+      --skip-keys "ros_gz_sim ros_gz_bridge ign_ros2_control"
+  else
+    rosdep install --from-paths src --ignore-src -r -y
+  fi
 
   echo -e "${YELLOW}Building ROS2 workspace...${NC}"
-  colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+  if [ "$include_simulation" = "false" ]; then
+    colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release \
+      --packages-skip uet_amr_simulation
+  else
+    colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+  fi
   source install/setup.bash
 }
 
