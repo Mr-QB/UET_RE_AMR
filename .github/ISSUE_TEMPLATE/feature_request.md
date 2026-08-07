@@ -22,7 +22,6 @@ assignees: ''
 - [ ] `uet_amr_navigation`
 - [ ] `uet_amr_perception`
 - [ ] `uet_amr_hardware`
-- [ ] `uet_amr_control`
 - [ ] `firmware/base_controller`
 - [ ] `firmware/sensor_hub`
 - [ ] `simulation`
