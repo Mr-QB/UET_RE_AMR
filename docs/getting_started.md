@@ -38,12 +38,17 @@ source ~/.bashrc
 ## 3. Cloning and Setting Up the Workspace
 
 ```bash
-git clone https://github.com/UET-RE/UET_RE_AMR.git
+git clone --recurse-submodules https://github.com/UET-RE/UET_RE_AMR.git
 cd UET_RE_AMR
 
 # Run the automated setup script
-chmod +x tools/setup.sh
-./tools/setup.sh
+chmod +x tools/setup_dev.sh tools/setup_prod.sh
+
+# For developers (adds PlatformIO + micro-ROS agent for firmware work)
+./tools/setup_dev.sh
+
+# For production / deployment machines (ROS2 workspace only)
+./tools/setup_prod.sh
 ```
 
 ### Manual Installation Steps (Alternative)
@@ -153,7 +158,7 @@ sudo usermod -a -G dialout $USER
 Reboot or log out and log back in for changes to take effect.
 
 ### Gazebo launch failures
-Verify that the gazebo packages are correctly installed and integrated with ROS2:
+Verify that the Gazebo (new, Ignition-based) packages are correctly installed and integrated with ROS2:
 ```bash
-sudo apt install gazebo ros-humble-gazebo-ros-pkgs
+sudo apt install ros-humble-ros-gz ros-humble-ros-gz-sim ros-humble-ros-gz-bridge ros-humble-ign-ros2-control
 ```

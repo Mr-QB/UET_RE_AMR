@@ -6,6 +6,7 @@ find_package(ament_cmake_python REQUIRED)
 
 install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
 )
 
 if(BUILD_TESTING)

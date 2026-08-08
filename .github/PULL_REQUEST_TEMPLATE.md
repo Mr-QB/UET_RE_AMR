@@ -18,7 +18,6 @@ Closes #<!-- issue number -->
 - [ ] `ros2/uet_amr_navigation`
 - [ ] `ros2/uet_amr_perception`
 - [ ] `ros2/uet_amr_hardware`
-- [ ] `ros2/uet_amr_control`
 - [ ] `ros2/uet_amr_msgs`
 - [ ] `ros2/uet_amr_bringup`
 - [ ] `ros2/uet_amr_description`
