@@ -10,10 +10,10 @@ controller_manager:
 
 diff_drive_controller:
   ros__parameters:
-    left_wheel_names: ["Revolute 17"]
-    right_wheel_names: ["Revolute 18"]
+    left_wheel_names: ["left_wheel_joint"]
+    right_wheel_names: ["right_wheel_joint"]
 
-    wheel_separation: 0.45      # [m] -- matches firmware's Odom wheel_base (hoverboardSerial.h)
+    wheel_separation: 0.304      # [m] -- matches firmware's Odom wheel_base (hoverboardSerial.h)
     wheel_radius: 0.085         # [m] -- matches firmware's Odom wheel_radius = 8.5 cm (hoverboardSerial.h)
 
     use_stamped_vel: false
@@ -24,7 +24,7 @@ diff_drive_controller:
 
     publish_rate: 50.0          # [Hz]
     odom_frame_id: "odom"
-    base_frame_id: "base_link"
+    base_frame_id: "base_footprint"
     pose_covariance_diagonal: [0.001, 0.001, 0.0, 0.0, 0.0, 0.01]
     twist_covariance_diagonal: [0.001, 0.0, 0.0, 0.0, 0.0, 0.01]
 

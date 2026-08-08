@@ -1,5 +1,5 @@
-<?xml version="1.0" ?>
-<robot name="uet_amr" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
 <xacro:property name="body_color" value="Gazebo/Silver" />
 
@@ -13,71 +13,71 @@
 
 <gazebo reference="left_wheel_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>100.0</mu1>
+  <mu2>100.0</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="right_wheel_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>100.0</mu1>
+  <mu2>100.0</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="bl_caster_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="br_caster_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="fl_caster_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="fr_caster_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="fl_caster_wheel__1__1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="bl_caster_wheel_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="br_caster_wheel_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
 <gazebo reference="fr_caster_wheel_1">
   <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
+  <mu1>0.01</mu1>
+  <mu2>0.01</mu2>
   <self_collide>true</self_collide>
 </gazebo>
 
@@ -171,6 +171,16 @@
           </noise>
       </camera>
   </sensor>
+</gazebo>
+
+<!-- Wheel odometry and differential drive control are handled cleanly by ros2_control (diff_drive_controller) -->
+
+<gazebo>
+  <plugin
+    filename="ignition-gazebo-joint-state-publisher-system"
+    name="ignition::gazebo::systems::JointStatePublisher">
+    <topic>joint_states</topic>
+  </plugin>
 </gazebo>
 
 </robot>

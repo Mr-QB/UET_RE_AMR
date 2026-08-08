@@ -29,15 +29,15 @@ CTRL-C to quit
 
 
 MOVE_BINDINGS = {
-    'w': (1, 0),
-    'a': (1, -1),
-    'e': (0, 1),
-    'q': (0, -1),
-    'd': (1, 1),
-    's': (-1, 0),
-    'c': (-1, 1),
-    'z': (-1, -1),
-    'x': (0, 0),
+    'w': (1.0, 0.0),
+    's': (-1.0, 0.0),
+    'a': (0.0, 1.0),
+    'd': (0.0, -1.0),
+    'q': (1.0, 1.0),
+    'e': (1.0, -1.0),
+    'z': (-1.0, -1.0),
+    'c': (-1.0, 1.0),
+    'x': (0.0, 0.0),
 }
 
 SPEED_BINDINGS = {
@@ -51,8 +51,11 @@ SPEED_BINDINGS = {
 
 def get_key(settings):
     tty.setraw(sys.stdin.fileno())
-    select.select([sys.stdin], [], [], 0.1)
-    key = sys.stdin.read(1)
+    rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+    if rlist:
+        key = sys.stdin.read(1)
+    else:
+        key = ''
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
     return key
 
@@ -63,7 +66,8 @@ def run_teleop_node(context, *args, **kwargs):
         rclpy.init()
 
     node = rclpy.create_node('uet_amr_teleop_keyboard')
-    pub = node.create_publisher(Twist, '/diff_drive_controller/cmd_vel_unstamped', 10)
+    pub_cmd_vel = node.create_publisher(Twist, '/cmd_vel', 10)
+    pub_diff = node.create_publisher(Twist, '/diff_drive_controller/cmd_vel_unstamped', 10)
 
     speed = 0.5   
     turn = 1.0    
@@ -80,26 +84,26 @@ def run_teleop_node(context, *args, **kwargs):
             if key in MOVE_BINDINGS.keys():
                 x = MOVE_BINDINGS[key][0]
                 th = MOVE_BINDINGS[key][1]
+                print(f"moving:\tlinear {x * speed:.2f}\tangular {th * turn:.2f}")
             elif key in SPEED_BINDINGS.keys():
                 speed *= SPEED_BINDINGS[key][0]
                 turn *= SPEED_BINDINGS[key][1]
                 print(f"currently:\tspeed {speed:.2f}\tturn {turn:.2f}")
-            else:
-                x = 0.0
-                th = 0.0
-                if key == '\x03': 
-                    break
+            elif key == '\x03': 
+                break
 
             twist = Twist()
             twist.linear.x = x * speed
             twist.angular.z = th * turn
-            pub.publish(twist)
+            pub_cmd_vel.publish(twist)
+            pub_diff.publish(twist)
 
     except Exception as e:
         print(f"Error: {e}")
     finally:
         twist = Twist()
-        pub.publish(twist)
+        pub_cmd_vel.publish(twist)
+        pub_diff.publish(twist)
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
         rclpy.shutdown()

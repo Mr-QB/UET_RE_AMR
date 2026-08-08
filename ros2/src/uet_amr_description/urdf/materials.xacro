@@ -2,7 +2,7 @@
 <robot name="uet_amr" xmlns:xacro="http://www.ros.org/wiki/xacro" >
 
 <material name="silver">
-  <color rgba="0.700 0.700 0.700 1.000"/>
+  <color rgba="0.55 0.58 0.62 1.000"/>
 </material>
 
 </robot>

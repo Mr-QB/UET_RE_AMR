@@ -1,4 +1,3 @@
-# UET_RE_AMR — Autonomous Mobile Robot
 
 [![ROS2 Humble](https://img.shields.io/badge/ROS2-Humble-blue?logo=ros)](https://docs.ros.org/en/humble/)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Docker-lightgrey)](https://www.docker.com/)
@@ -44,9 +43,20 @@ For detailed software architecture details, refer to `docs/architecture.md`.
 To run the ROS2 stack natively, you need Ubuntu 22.04 and ROS2 Humble:
 
 ```bash
-# Install core dependencies
+# Update package lists
 sudo apt update
-sudo apt install ros-humble-desktop ros-humble-nav2-bringup
+
+# Install core ROS2 and Nav2 dependencies
+sudo apt install -y \
+  ros-humble-desktop \
+  ros-humble-nav2-bringup \
+  ros-humble-slam-toolbox \
+  ros-humble-nav2-map-server \
+  ros-humble-ros2-control \
+  ros-humble-ros2-controllers \
+  ros-humble-gz-ros2-control \
+  ros-humble-ros-gz-bridge \
+  ros-humble-ros-gz-sim
 ```
 
 Alternatively, you can run the stack using Docker (recommended):
@@ -78,6 +88,64 @@ To launch the robot model in a Gazebo simulation environment:
 ```bash
 ros2 launch uet_amr_bringup amr_simulation.launch.py
 ```
+
+### Visualizing with RViz2
+
+Open RViz2 to inspect the robot model, TF tree, LaserScan data, and map while the simulation is running:
+
+```bash
+# Terminal 1 - Start Gazebo (if not already running)
+source install/setup.bash
+ros2 launch uet_amr_bringup amr_simulation.launch.py
+
+# Terminal 2 - Open RViz2
+source install/setup.bash
+ros2 launch uet_amr_simulation rviz.launch.py
+```
+
+Default displays in RViz2:
+- **RobotModel** – 3D robot model visualization
+- **TF** – transform tree `map → odom → base_footprint → base_link → ...`
+- **LaserScan** – real-time LiDAR data (topic `/scan`)
+- **Odometry** – velocity and position vectors (topic `/odom`)
+
+### 2D Mapping (SLAM)
+
+Run 2D mapping using `slam_toolbox`. Open **4 separate terminals**, each with the workspace sourced:
+
+**Terminal 1 – Gazebo simulation:**
+```bash
+source install/setup.bash
+ros2 launch uet_amr_bringup amr_simulation.launch.py
+```
+
+**Terminal 2 – SLAM Toolbox (map building):**
+```bash
+source install/setup.bash
+ros2 launch uet_amr_navigation slam.launch.py
+```
+
+**Terminal 3 – Teleop (drive the robot):**
+```bash
+source install/setup.bash
+ros2 launch uet_amr_teleop teleop.launch.py
+```
+
+**Terminal 4 – RViz2 (visualize the map):**
+```bash
+source install/setup.bash
+ros2 launch uet_amr_simulation rviz.launch.py
+```
+
+In RViz2, add a **Map** display → topic `/map` to view the map being built in real-time.
+
+**Save the map when mapping is complete:**
+```bash
+source install/setup.bash
+ros2 run nav2_map_server map_saver_cli -f ~/maps/my_map
+```
+
+This generates `my_map.pgm` and `my_map.yaml`, which can be used for autonomous navigation.
 
 ### Running on Physical Hardware
 

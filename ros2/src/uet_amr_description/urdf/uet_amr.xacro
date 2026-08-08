@@ -12,6 +12,15 @@
 </xacro:unless>
 <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.gazebo" />
 
+<link name="base_footprint">
+</link>
+
+<joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.163" rpy="0 0 0"/>
+</joint>
+
 <link name="base_link">
   <inertial>
     <origin xyz="0.0025532775935351716 0.0007810393984697188 -0.007616605165089496" rpy="0 0 0"/>
@@ -21,25 +30,16 @@
   <visual>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
-</link>
-
-<joint name="base_footprint_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="base_footprint"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-</joint>
-
-<link name="base_footprint">
 </link>
 
 <link name="left_wheel_1">
@@ -51,14 +51,14 @@
   <visual>
     <origin xyz="-0.001978 -0.151669 0.077157" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.001978 -0.151669 0.077157" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -72,14 +72,14 @@
   <visual>
     <origin xyz="-0.002833 0.152327 0.078549" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.002833 0.152327 0.078549" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -93,14 +93,14 @@
   <visual>
     <origin xyz="0.213493 -0.141254 0.064203" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0.213493 -0.141254 0.064203" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -114,14 +114,14 @@
   <visual>
     <origin xyz="0.212694 0.143242 0.065506" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0.212694 0.143242 0.065506" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -135,14 +135,14 @@
   <visual>
     <origin xyz="-0.217505 -0.142465 0.064201" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.217505 -0.142465 0.064201" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -156,14 +156,14 @@
   <visual>
     <origin xyz="-0.218305 0.142031 0.065504" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.218305 0.142031 0.065504" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -177,14 +177,14 @@
   <visual>
     <origin xyz="-0.186479 -0.157654 0.117065" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.186479 -0.157654 0.117065" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -198,14 +198,14 @@
   <visual>
     <origin xyz="0.244519 -0.156443 0.117067" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0.244519 -0.156443 0.117067" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -219,14 +219,14 @@
   <visual>
     <origin xyz="0.243668 0.158053 0.118507" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="0.243668 0.158053 0.118507" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
@@ -240,26 +240,26 @@
   <visual>
     <origin xyz="-0.18733 0.156841 0.118505" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
     <material name="silver"/>
   </visual>
   <collision>
     <origin xyz="-0.18733 0.156841 0.118505" rpy="0 0 0"/>
     <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+      <mesh filename="package://uet_amr_description/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
   </collision>
 </link>
 
-<joint name="Revolute 17" type="continuous">
+<joint name="left_wheel_joint" type="continuous">
   <origin xyz="0.001978 0.151669 -0.077157" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="left_wheel_1"/>
   <axis xyz="0 1 0"/>
 </joint>
 
-<joint name="Revolute 18" type="continuous">
+<joint name="right_wheel_joint" type="continuous">
   <origin xyz="0.002833 -0.152327 -0.078549" rpy="0 0 0"/>
   <parent link="base_link"/>
   <child link="right_wheel_1"/>
@@ -439,11 +439,11 @@
   <origin xyz="0.25 0.0 0.08" rpy="0 0 0"/>
 </joint>
 
-<link name="camera_depth_frame"></link>
+<link name="camera_depth_optical_frame"></link>
 
 <joint name="camera_depth_joint" type="fixed">
   <parent link="camera_link"/>
-  <child link="camera_depth_frame"/>
+  <child link="camera_depth_optical_frame"/>
   <origin xyz="0 0 0" rpy="-1.570796 0 -1.570796"/>
 </joint>
 
