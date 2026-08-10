@@ -1,0 +1,18 @@
+teleop_twist_joy:
+  ros__parameters:
+    # Mapping verified against this specific PS4 controller via /joy echo.
+    axis_linear:
+      x: 1          # left stick vertical
+    scale_linear:
+      x: 0.5        # matches keyboard teleop default speed
+    scale_linear_turbo:
+      x: 1.0
+
+    axis_angular:
+      yaw: 0        # left stick horizontal (single-stick control)
+    scale_angular:
+      yaw: -1.0     # negated: positive axis (right) must produce a right turn
+    scale_angular_turbo:
+      yaw: -1.5
+
+    require_enable_button: false

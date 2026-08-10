@@ -9,6 +9,11 @@ install(DIRECTORY launch config
   OPTIONAL
 )
 
+install(PROGRAMS
+  scripts/joy_speed_adjust.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
