@@ -15,7 +15,7 @@ void setup() {
   odom.reset(0, 0, PI/2);
 }
 
-void loop(void){ 
+void loop(void){
   H_Receive();
   if(R_Receive(left, right)) H_Send(left, right);
 }
