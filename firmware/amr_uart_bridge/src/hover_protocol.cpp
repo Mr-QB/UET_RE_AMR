@@ -9,9 +9,9 @@ float x_odom = 0.0f;
 float y_odom = 0.0f;
 float theta  = 0.0f;
 
-static SerialCommand Command;
-SerialFeedback Feedback;
-static SerialFeedback NewFeedback;
+static HoverCommand Command;
+HoverFeedback Feedback;
+static HoverFeedback NewFeedback;
 
 static uint8_t idx = 0;
 static byte incomingByte;
@@ -46,11 +46,11 @@ bool H_Receive(){
       *p++ = incomingByte;
       idx = 2;
     }
-    else if (idx >= 2 && idx < sizeof(SerialFeedback)) {
+    else if (idx >= 2 && idx < sizeof(HoverFeedback)) {
       byte *p = (byte *)&NewFeedback;
       p[idx] = incomingByte;
       idx++;
-      if (idx == sizeof(SerialFeedback)) {
+      if (idx == sizeof(HoverFeedback)) {
         idx = 0;
 
         // cal Checksum
@@ -58,7 +58,7 @@ bool H_Receive(){
 
         // Check Checksum
         if (checksum == NewFeedback.checksum) {
-          memcpy(&Feedback, &NewFeedback, sizeof(SerialFeedback));
+          memcpy(&Feedback, &NewFeedback, sizeof(HoverFeedback));
           Feedback.speedL_meas = -Feedback.speedL_meas;
           Feedback.speedR_meas = Feedback.speedR_meas;
 

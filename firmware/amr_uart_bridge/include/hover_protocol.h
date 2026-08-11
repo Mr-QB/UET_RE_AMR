@@ -17,7 +17,7 @@ typedef struct __attribute__((packed)) { // do not touch here
    int16_t  steer;
    int16_t  speed;
    uint16_t checksum;
-} SerialCommand;
+} HoverCommand;
 
 typedef struct __attribute__((packed)) { // do not touch here
   uint16_t start;
@@ -29,9 +29,9 @@ typedef struct __attribute__((packed)) { // do not touch here
   uint8_t  boardTemp;
   int16_t  cur;
   uint16_t checksum;
-} SerialFeedback;
+} HoverFeedback;
 
-extern SerialFeedback Feedback;
+extern HoverFeedback Feedback;
 
 void H_Init();
 void H_Send(int16_t L, int16_t R);

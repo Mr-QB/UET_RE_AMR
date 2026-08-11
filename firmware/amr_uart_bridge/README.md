@@ -103,7 +103,7 @@ typedef struct __attribute__((packed)) {
    int16_t  steer;
    int16_t  speed;
    uint16_t checksum;
-} SerialCommand;
+} HoverCommand;
 ```
 
 ## Hoverboard -> ROS2
@@ -121,7 +121,7 @@ typedef struct __attribute__((packed)) {
   uint8_t   boardTemp;
   int16_t   cur;         // current draw
   uint16_t  checksum;
-} SerialFeedback;
+} HoverFeedback;
 ```
 
 The Mega/ESP32 validates the received packet and package all information in this format:
