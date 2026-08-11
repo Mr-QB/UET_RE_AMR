@@ -34,8 +34,7 @@ void H_Init() {
 #endif
 }
 
-// ########################## SEND ##########################
-void H_Send(int16_t L, int16_t R){ // do not touch here
+void H_Send(int16_t L, int16_t R) { // do not touch here
     L = -L;
     R = -R;
     Command.start    = (uint16_t)START_FRAME;
@@ -46,8 +45,7 @@ void H_Send(int16_t L, int16_t R){ // do not touch here
     HoverSerial.write((uint8_t *)&Command, sizeof(Command));
 }
 
-// ########################## RECEIVE ##########################
-bool H_Receive(){
+bool H_Receive() {
     bool updated = false;
     while (HoverSerial.available() >= 14) {  // Read only when the required number of bytes is available.
         incomingByte = HoverSerial.read();
@@ -64,8 +62,6 @@ bool H_Receive(){
             idx++;
             if (idx == sizeof(HoverFeedback)) {
                 idx = 0;
-
-                // cal Checksum
                 uint16_t checksum = (uint16_t)(NewFeedback.start ^ NewFeedback.speedR_meas ^ NewFeedback.speedL_meas ^ NewFeedback.wheelR_cnt ^ NewFeedback.wheelL_cnt ^ NewFeedback.cur ^ NewFeedback.batVoltage ^ NewFeedback.boardTemp);
 
                 // Check Checksum
