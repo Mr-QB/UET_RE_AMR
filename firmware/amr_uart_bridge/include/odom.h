@@ -8,6 +8,11 @@
 #ifndef ODOM_H
 #define ODOM_H
 
+/// Enable or disable odometry calculations through firmware.
+#ifndef ENABLE_ODOM
+#define ENABLE_ODOM 0
+#endif
+
 class Odom
 {
 public:

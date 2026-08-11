@@ -48,17 +48,17 @@
 #define FB_LEN 16
 
 struct __attribute__((packed)) FeedbackPacket {
-  uint32_t sys_status : 2;
-  int32_t  speed_l    : 8;
-  int32_t  speed_r    : 8;
-  uint32_t en_tick_l  : 14;
-  uint32_t en_tick_r  : 14;
-  uint32_t temp_c     : 7;
-  uint32_t current_a  : 11;
-  uint32_t battery    : 7;
-  uint32_t charging   : 1;
-  uint32_t optional_1 : 6;
-  uint32_t optional_2 : 16;
+    uint32_t sys_status : 2;
+    int32_t  speed_l    : 8;
+    int32_t  speed_r    : 8;
+    uint32_t en_tick_l  : 14;
+    uint32_t en_tick_r  : 14;
+    uint32_t temp_c     : 7;
+    uint32_t current_a  : 11;
+    uint32_t battery    : 7;
+    uint32_t charging   : 1;
+    uint32_t optional_1 : 6;
+    uint32_t optional_2 : 16;
 };
 
 void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_t temp, int16_t cur, uint8_t bat, bool charge);
@@ -84,9 +84,9 @@ void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_
 #define CMD_LEN 8
 
 struct __attribute__((packed)) CommandPacket {
-  int32_t  speed_l  : 8;
-  int32_t  speed_r  : 8;
-  uint32_t reserved : 32;
+    int32_t  speed_l  : 8;
+    int32_t  speed_r  : 8;
+    uint32_t reserved : 32;
 };
 
 bool R_Receive(int16_t &left, int16_t &right);
