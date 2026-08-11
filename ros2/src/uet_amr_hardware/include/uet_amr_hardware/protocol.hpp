@@ -7,8 +7,8 @@
 #include <cstdint>
 
 // =============================================================================
-// C++ port of firmware/base_controller/include/serial_protocol.h -- must
-// stay in sync with that file (and hoverboardSerial.h, whose
+// C++ port of firmware/amr_uart_bridge/include/ros_protocol.h -- must
+// stay in sync with that file (and hover_protocol.h, whose
 // `Odom odom(wheel_radius_cm, wheel_base_cm, ticks_per_rev, encoder_max)`
 // constants determine how raw encoder ticks map to wheel angle below).
 //
@@ -47,14 +47,23 @@
 //   charging:    0=discharging, 1=charging
 //   optional_1/2: expansion payload, currently unused
 //
-// Master (ROS2) -> Slave (ESP32) command frame, 6 bytes (byte-aligned, no
-// bit-packing needed):
+// Master (ROS2) -> Slave (ESP32) command frame, 8 bytes. CommandPacket below
+// is a bitfield struct purely for readable field names/widths, the same way
+// FeedbackPacket is for the feedback packet -- it is never reinterpreted
+// from the raw bytes directly.
+//
+//   left/right are clamped to -100..100, so they're packed as 8-bit fields
+//   (matching how FeedbackPacket encodes measured speed) instead of a full
+//   int16 -- the bits saved go to `reserved` for future expansion (e.g.
+//   enable/estop/mode flags) without growing the frame again.
+//
 //   [0]    header   uint8  0xAA
-//   [1..2] left     int16  LE, commanded left speed (firmware clamps to
+//   [1]    left     int8   commanded left speed (firmware clamps to
 //                          -100..100)
-//   [3..4] right    int16  LE, commanded right speed (firmware clamps to
+//   [2]    right    int8   commanded right speed (firmware clamps to
 //                          -100..100)
-//   [5]    checksum uint8  XOR of bytes [0..4]
+//   [3..6] reserved uint32 LE, expansion payload, currently unused (0)
+//   [7]    checksum uint8  XOR of bytes [0..6]
 //
 // Wheel encoder ticks wrap modulo encoder_max and must be turned into a
 // signed delta the same way the firmware's own Odom::wrapDelta() does
@@ -69,15 +78,25 @@ namespace protocol
 
 constexpr uint8_t kHeader = 0xAA;
 constexpr size_t kFeedbackPacketLen = 16;
-constexpr size_t kCommandFrameLen = 6;
+constexpr size_t kCommandFrameLen = 8;
 
 // XOR-fold checksum matching the firmware's checksum16(): byte i is XORed
 // into the low half of the accumulator if i is even, the high half if odd.
 uint16_t checksum16(const uint8_t * data, size_t len);
 
-// Builds a master->slave command frame (6 bytes): header, left, right,
-// checksum. left/right are the raw command sent as-is; the firmware clamps
-// them to -100..100 on its side.
+// Decoded master->slave command values. A bitfield struct purely for
+// readable field names/widths -- mirrors the firmware's CommandPacket in
+// ros_protocol.h.
+struct CommandPacket
+{
+  int32_t speed_l : 8;
+  int32_t speed_r : 8;
+  uint32_t reserved : 32;
+};
+
+// Builds a master->slave command frame (8 bytes): header, left, right,
+// reserved, checksum. left/right are the raw command sent as-is (truncated
+// to int8 on the wire); the firmware clamps them to -100..100 on its side.
 struct CommandFrame
 {
   uint8_t bytes[kCommandFrameLen];

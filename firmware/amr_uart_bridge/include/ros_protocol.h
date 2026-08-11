@@ -1,5 +1,5 @@
-#ifndef SERIAL_PROTOCOL_H
-#define SERIAL_PROTOCOL_H
+#ifndef ROS_PROTOCOL_H
+#define ROS_PROTOCOL_H
 
 #include <Arduino.h>
 
@@ -11,7 +11,7 @@
 // the *local* in-code representation (readable field names/widths) -- it is
 // never memcpy'd onto the wire, because C++ bitfield/struct memory layout
 // (bit order, padding) is implementation-defined and differs across
-// compilers/architectures. packPacket() in serial_protocol.cpp packs each
+// compilers/architectures. packPacket() in ros_protocol.cpp packs each
 // field onto the wire by hand with explicit shifts, so the wire bytes are
 // fixed regardless of compiler. Must stay in sync with the C++ port in
 // ros2/src/uet_amr_hardware/include/uet_amr_hardware/protocol.hpp.
@@ -26,7 +26,7 @@
 //     optional_2(16) checksum(16)
 //
 //   Each word is written little-endian (LSB first). checksum is a 16-bit
-//   XOR fold (see checksum16() in serial_protocol.cpp) over payload bytes
+//   XOR fold (see checksum16() in ros_protocol.cpp) over payload bytes
 //   [0..13].
 //
 //   sys_status:  0=Idle, 1=Nav, 2=Manual, 3=Fault
@@ -57,13 +57,31 @@ struct __attribute__((packed)) FeedbackPacket {
 void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_t temp, int16_t cur, uint8_t bat, bool charge);
 
 // =============================================================================
-// Master (ROS2) -> Slave (ESP32) command frame, 6 bytes, plain byte array
-// (no bit-packing needed -- every field is already byte-aligned):
+// Master (ROS2) -> Slave (ESP32) command frame, 8 bytes. CommandPacket below
+// is a bitfield struct used only as the *local* in-code representation
+// (readable field names/widths) -- it is never memcpy'd onto the wire, same
+// rationale as FeedbackPacket above. Must stay in sync with the C++ port in
+// ros2/src/uet_amr_hardware/include/uet_amr_hardware/protocol.hpp.
+//
+//   speed_l/r are clamped to -100..100, so they're packed as 8-bit fields
+//   (matching how FeedbackPacket encodes measured speed) instead of a full
+//   int16 -- the bits saved go to `reserved` for future expansion (e.g.
+//   enable/estop/mode flags) without growing the frame again.
+//
 //   [0]    header   uint8  0xAA
-//   [1..2] left     int16  LE, commanded left speed (clamped to -100..100)
-//   [3..4] right    int16  LE, commanded right speed (clamped to -100..100)
-//   [5]    checksum uint8  XOR of bytes [0..4]
+//   [1]    left     int8   commanded left speed (clamped to -100..100)
+//   [2]    right    int8   commanded right speed (clamped to -100..100)
+//   [3..6] reserved uint32 LE, expansion payload, currently unused (0)
+//   [7]    checksum uint8  XOR of bytes [0..6]
 // =============================================================================
+#define CMD_LEN 8
+
+struct __attribute__((packed)) CommandPacket {
+  int32_t  speed_l  : 8;
+  int32_t  speed_r  : 8;
+  uint32_t reserved : 32;
+};
+
 bool R_Receive(int16_t &left, int16_t &right);
 
-#endif // SERIAL_PROTOCOL_H
+#endif // ROS_PROTOCOL_H

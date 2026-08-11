@@ -23,7 +23,7 @@ namespace uet_amr_hardware
  * @brief Hardware interface for UET AMR differential drive robot.
  *
  * Communicates with the ESP32 base controller firmware via serial (UART)
- * using the push-style binary protocol in serial_protocol.h. The firmware
+ * using the push-style binary protocol in ros_protocol.h. The firmware
  * streams a feedback packet (measured wheel speed, raw per-wheel encoder
  * ticks, battery/temperature) every time it gets a fresh reading from the
  * hoverboard; there is no request/response. Per-wheel joint position is

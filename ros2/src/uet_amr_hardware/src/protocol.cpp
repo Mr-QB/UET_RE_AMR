@@ -19,23 +19,38 @@ uint16_t checksum16(const uint8_t * data, size_t len)
   return c;
 }
 
+namespace
+{
+// The wire frame packs speed as int8 (see CommandPacket), so clamp to
+// -100..100 here rather than relying on the implementation-defined result
+// of truncating an out-of-range int16 to int8.
+int8_t clampToInt8Speed(int16_t speed)
+{
+  if (speed > 100) {return 100;}
+  if (speed < -100) {return -100;}
+  return static_cast<int8_t>(speed);
+}
+}  // namespace
+
 CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
 {
   CommandFrame frame{};
   frame.bytes[0] = kHeader;
-  frame.bytes[1] = static_cast<uint8_t>(speed_left & 0xFF);
-  frame.bytes[2] = static_cast<uint8_t>((speed_left >> 8) & 0xFF);
-  frame.bytes[3] = static_cast<uint8_t>(speed_right & 0xFF);
-  frame.bytes[4] = static_cast<uint8_t>((speed_right >> 8) & 0xFF);
+  frame.bytes[1] = static_cast<uint8_t>(clampToInt8Speed(speed_left));
+  frame.bytes[2] = static_cast<uint8_t>(clampToInt8Speed(speed_right));
+  frame.bytes[3] = 0;  // reserved
+  frame.bytes[4] = 0;  // reserved
+  frame.bytes[5] = 0;  // reserved
+  frame.bytes[6] = 0;  // reserved
 
-  // Plain byte-wise XOR of bytes [0..4], matching the firmware's R_Receive()
-  // in serial_protocol.cpp -- NOT checksum16(), which is the 16-bit
+  // Plain byte-wise XOR of bytes [0..6], matching the firmware's R_Receive()
+  // in ros_protocol.cpp -- NOT checksum16(), which is the 16-bit
   // alternating fold used only for the 16-byte feedback packet.
   uint8_t checksum = 0;
-  for (size_t i = 0; i < 5; ++i) {
+  for (size_t i = 0; i < 7; ++i) {
     checksum ^= frame.bytes[i];
   }
-  frame.bytes[5] = checksum;
+  frame.bytes[7] = checksum;
   return frame;
 }
 

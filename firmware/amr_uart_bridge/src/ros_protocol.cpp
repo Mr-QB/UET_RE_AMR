@@ -1,4 +1,4 @@
-#include "serial_protocol.h"
+#include "ros_protocol.h"
 
 static uint8_t FB[FB_LEN];
 
@@ -49,25 +49,30 @@ void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_
     Serial.write(FB, FB_LEN);
 }
 
+static CommandPacket unpackCommand(const uint8_t frame[CMD_LEN]) {
+    CommandPacket p{};
+    p.speed_l  = (int8_t)frame[1];
+    p.speed_r  = (int8_t)frame[2];
+    p.reserved = (uint32_t)frame[3] | ((uint32_t)frame[4] << 8) |
+                 ((uint32_t)frame[5] << 16) | ((uint32_t)frame[6] << 24);
+    return p;
+}
+
 bool R_Receive(int16_t &left, int16_t &right) {
-    while (Serial.available() >= 6){      // Read only when the required number of bytes is available.
+    while (Serial.available() >= CMD_LEN){      // Read only when the required number of bytes is available.
         uint8_t header = Serial.read();
         if (header != HEAD) continue;
 
-        uint8_t frame[6];
+        uint8_t frame[CMD_LEN];
         frame[0] = header;
-        frame[1] = Serial.read();
-        frame[2] = Serial.read();
-        frame[3] = Serial.read();
-        frame[4] = Serial.read();
-        frame[5] = Serial.read();
+        for (uint8_t i = 1; i < CMD_LEN; i++) frame[i] = Serial.read();
 
-        uint8_t checksum = frame[0] ^ frame[1] ^ frame[2] ^ frame[3] ^ frame[4];
-        if (checksum == frame[5]) {
-            left  = (int16_t)((frame[2] << 8) | frame[1]);
-            right = (int16_t)((frame[4] << 8) | frame[3]);
-            left  = constrain(left, -100, 100);
-            right = constrain(right, -100, 100);
+        uint8_t checksum = 0;
+        for (uint8_t i = 0; i < CMD_LEN - 1; i++) checksum ^= frame[i];
+        if (checksum == frame[CMD_LEN - 1]) {
+            const CommandPacket p = unpackCommand(frame);
+            left  = constrain((int16_t)p.speed_l, -100, 100);
+            right = constrain((int16_t)p.speed_r, -100, 100);
             return true;
         }
     }
