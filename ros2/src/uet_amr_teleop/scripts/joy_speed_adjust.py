@@ -5,11 +5,12 @@ from sensor_msgs.msg import Joy
 from rcl_interfaces.srv import SetParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 
-# SDL button indices (verified on this controller): 0=Cross, 1=Circle, 2=Square, 3=Triangle
-BTN_LINEAR_DOWN = 0
-BTN_ANGULAR_UP = 1
-BTN_ANGULAR_DOWN = 2
-BTN_LINEAR_UP = 3
+# SDL button indices, standard D-pad ordering (matches confirmed L1=9/R1=10):
+# 11=dpad_up, 12=dpad_down, 13=dpad_left, 14=dpad_right
+BTN_LINEAR_UP = 11
+BTN_LINEAR_DOWN = 12
+BTN_ANGULAR_DOWN = 13
+BTN_ANGULAR_UP = 14
 
 TARGET_NODE = 'teleop_twist_joy'
 
