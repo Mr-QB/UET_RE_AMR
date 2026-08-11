@@ -1,9 +1,13 @@
+/**
+ * @file main.cpp
+ * @brief Entry point bridging ROS2 and the hoverboard over serial.
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #include <Arduino.h>
 #include "hover_protocol.h"
 #include "ros_protocol.h"
-
-// The ESP32 acts as a bridge between ROS 2 and the hoverboard via serial communication.
-// ROS 2 <-> ESP32 <-> HoverBoard
 
 int16_t left, right;
 

@@ -1,3 +1,10 @@
+/**
+ * @file hover_protocol.h
+ * @brief Serial protocol for communicating with the hoverboard (command/feedback structs, send/receive).
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #ifndef HOVER_PROTOCOL_H
 #define HOVER_PROTOCOL_H
 

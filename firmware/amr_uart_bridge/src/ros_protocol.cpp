@@ -1,3 +1,10 @@
+/**
+ * @file ros_protocol.cpp
+ * @brief Implements ros_protocol.h.
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #include "ros_protocol.h"
 
 static uint8_t FB[FB_LEN];

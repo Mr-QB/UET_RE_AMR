@@ -1,3 +1,10 @@
+/**
+ * @file hover_protocol.cpp
+ * @brief Implements hover_protocol.h.
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #include "hover_protocol.h"
 
 #define START_FRAME 0xABCD

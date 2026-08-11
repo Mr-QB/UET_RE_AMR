@@ -1,10 +1,16 @@
+/**
+ * @file odom.h
+ * @brief Odometry class computing robot pose from wheel encoder ticks.
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #ifndef ODOM_H
 #define ODOM_H
 
 class Odom
 {
 public:
-
     Odom(float wheel_radius, float wheel_base,
          int ticks_per_rev = 90, int encoder_max = 9000);
  

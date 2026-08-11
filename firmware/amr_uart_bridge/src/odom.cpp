@@ -1,3 +1,10 @@
+/**
+ * @file odom.cpp
+ * @brief Implements odom.h.
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #include "odom.h"
 #include <math.h>
  

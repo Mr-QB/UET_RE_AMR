@@ -1,3 +1,10 @@
+/**
+ * @file ros_protocol.h
+ * @brief Wire protocol for ROS2 <-> ESP32 communication (feedback/command packet packing).
+ * @author Phuc Nguyen
+ * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
+ */
+
 #ifndef ROS_PROTOCOL_H
 #define ROS_PROTOCOL_H
 
