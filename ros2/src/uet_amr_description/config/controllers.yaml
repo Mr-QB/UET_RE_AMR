@@ -11,14 +11,18 @@ controller_manager:
 
 diff_drive_controller:
   ros__parameters:
-    left_wheel_names: ["Revolute 18"]
-    right_wheel_names: ["Revolute 17"]
+    left_wheel_names: ["Revolute 17"]
+    right_wheel_names: ["Revolute 18"]
 
-    wheel_separation: 0.45 
-    wheel_radius: 0.085     
+    wheel_separation: 0.45
+    wheel_radius: 0.085
 
     use_stamped_vel: false
-    
+
+    odom_frame_id: "odom"
+    base_frame_id: "base_link"
+    enable_odom_tf: false
+
     linear.x.has_velocity_limits: true
     linear.x.max_velocity: 1.0
     angular.z.has_velocity_limits: true

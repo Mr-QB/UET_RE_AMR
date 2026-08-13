@@ -4,6 +4,8 @@
 <xacro:arg name="use_real_hardware" default="false"/>
 
 <xacro:include filename="$(find uet_amr_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find uet_amr_description)/urdf/sensors/lidar.xacro" />
+<xacro:include filename="$(find uet_amr_description)/urdf/sensors/depth_camera.xacro" />
 <xacro:if value="$(arg use_real_hardware)">
   <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr_real.ros2control" />
 </xacro:if>
@@ -34,8 +36,8 @@
 </link>
 
 <joint name="base_footprint_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="base_footprint"/>
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
 </joint>
 
@@ -322,31 +324,17 @@
   <axis xyz="0.001715 -0.999988 -0.004578"/>
 </joint>
 
-<link name="lidar_link_1">
-  <visual>
-    <geometry>
-      <cylinder length="0.04" radius="0.038"/>
-    </geometry>
-    <material name="blue">
-      <color rgba="0.0 0.4 0.8 1.0"/>
-    </material>
-  </visual>
-  <collision>
-    <geometry>
-      <cylinder length="0.04" radius="0.038"/>
-    </geometry>
-  </collision>
-  <inertial>
-    <mass value="0.185"/>
-    <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
-  </inertial>
-</link>
-
-<joint name="lidar_joint" type="fixed">
-  <parent link="base_link"/>
-  <child  link="lidar_link_1"/>
+<xacro:lidar parent="base_link"
+             update_rate="15"
+             ray_count="800"
+             min_angle="-3.14159"
+             max_angle="3.14159"
+             min_range="0.15"
+             max_range="25.0"
+             frame_id="laser"
+             topic_name="scan">
   <origin xyz="0.25 -0.16 0.088" rpy="0 0 0"/>
-</joint>
+</xacro:lidar>
 
 <!-- <link name="lidar_link_2">
   <visual>
@@ -374,77 +362,18 @@
   <origin xyz="-0.15 -0.23 0.105" rpy="0 0 3.14159"/>
 </joint> -->
 
-<link name="imu_link">
-  <visual>
-    <geometry>
-      <box size="0.02 0.02 0.01"/>
-    </geometry>
-  </visual>
-  <inertial>
-    <mass value="0.01"/>
-    <inertia ixx="0.000001" ixy="0" ixz="0"
-              iyy="0.000001" iyz="0"
-              izz="0.000001"/>
-  </inertial>
-</link>
-
-<joint name="imu_joint" type="fixed">
-  <parent link="base_link"/>
-  <child  link="imu_link"/>
-  <origin xyz="0.26 -0.02 0.085" rpy="0 0 0"/>
-</joint>
-
-<link name="camera_link">
-<visual>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <box size="0.025 0.065 0.025"/>
-    </geometry>
-    <material name="silver_cam">
-      <color rgba="0.75 0.75 0.75 1.0"/>
-    </material>
-  </visual>
-<visual>
-    <origin xyz="0 -0.0325 0" rpy="0 0 0"/>
-    <geometry>
-      <cylinder length="0.025" radius="0.0125"/>
-    </geometry>
-    <material name="silver_cam"/>
-  </visual>
-<visual>
-    <origin xyz="0 0.0325 0" rpy="0 0 0"/>
-    <geometry>
-      <cylinder length="0.025" radius="0.0125"/>
-    </geometry>
-    <material name="silver_cam"/>
-  </visual>
-  <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <box size="0.025 0.090 0.025"/>
-    </geometry>
-  </collision>
-
-  <inertial>
-    <mass value="0.072"/>
-    <inertia ixx="0.00005" ixy="0.0" ixz="0.0" 
-              iyy="0.00001" iyz="0.0" 
-              izz="0.00005"/>
-  </inertial>
-</link>
-
-<joint name="camera_joint" type="fixed">
-  <parent link="base_link"/>
-  <child link="camera_link"/>
+<xacro:depth_camera parent="base_link"
+                    update_rate="30"
+                    horizontal_fov="1.518"
+                    image_width="848"
+                    image_height="480"
+                    clip_near="0.1"
+                    clip_far="10.0"
+                    frame_id="camera_link"
+                    topic_name="camera"
+                    imu_update_rate="100"
+                    imu_topic_name="imu/data">
   <origin xyz="0.25 0.0 0.08" rpy="0 0 0"/>
-</joint>
-
-<link name="camera_depth_frame"></link>
-
-<joint name="camera_depth_joint" type="fixed">
-  <parent link="camera_link"/>
-  <child link="camera_depth_frame"/>
-  <origin xyz="0 0 0" rpy="-1.570796 0 -1.570796"/>
-</joint>
+</xacro:depth_camera>
 
 </robot>

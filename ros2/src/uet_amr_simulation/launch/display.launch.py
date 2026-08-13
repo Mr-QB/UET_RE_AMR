@@ -55,10 +55,18 @@ def generate_launch_description():
         output='screen'
     )
 
+    odom_to_base_link_node = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='odom_to_base_link_publisher',
+        arguments=['--frame-id', 'odom', '--child-frame-id', 'base_link'],
+    )
+
     return LaunchDescription([
         gui_arg,
         robot_state_publisher_node,
         joint_state_publisher_node,
         joint_state_publisher_gui_node,
+        odom_to_base_link_node,
         rviz_node
     ])
