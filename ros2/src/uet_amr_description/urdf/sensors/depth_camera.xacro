@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="depth_camera"
+               params="*origin parent update_rate horizontal_fov image_width image_height clip_near clip_far frame_id topic_name imu_update_rate imu_topic_name">
+
+    <link name="${frame_id}">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.025 0.065 0.025"/>
+        </geometry>
+        <material name="silver_cam">
+          <color rgba="0.75 0.75 0.75 1.0"/>
+        </material>
+      </visual>
+      <visual>
+        <origin xyz="0 -0.0325 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.025" radius="0.0125"/>
+        </geometry>
+        <material name="silver_cam"/>
+      </visual>
+      <visual>
+        <origin xyz="0 0.0325 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.025" radius="0.0125"/>
+        </geometry>
+        <material name="silver_cam"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.025 0.090 0.025"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.072"/>
+        <inertia ixx="0.00005" ixy="0.0" ixz="0.0"
+                 iyy="0.00001" iyz="0.0"
+                 izz="0.00005"/>
+      </inertial>
+    </link>
+
+    <joint name="${frame_id}_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child  link="${frame_id}"/>
+      <xacro:insert_block name="origin"/>
+    </joint>
+
+    <link name="${frame_id}_optical"></link>
+
+    <joint name="${frame_id}_optical_joint" type="fixed">
+      <parent link="${frame_id}"/>
+      <child  link="${frame_id}_optical"/>
+      <origin xyz="0 0 0" rpy="-1.570796 0 -1.570796"/>
+    </joint>
+
+    <gazebo reference="${frame_id}">
+      <material>Gazebo/Red</material>
+      <sensor name="${frame_id}" type="rgbd_camera">
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>true</visualize>
+        <update_rate>${update_rate}</update_rate>
+        <topic>${topic_name}</topic>
+        <ignition_frame_id>${frame_id}_optical</ignition_frame_id>
+        <camera>
+          <horizontal_fov>${horizontal_fov}</horizontal_fov>
+          <image>
+            <format>R8G8B8</format>
+            <width>${image_width}</width>
+            <height>${image_height}</height>
+          </image>
+          <clip>
+            <near>${clip_near}</near>
+            <far>${clip_far}</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.007</stddev>
+          </noise>
+        </camera>
+      </sensor>
+      <sensor name="${frame_id}_imu" type="imu">
+        <always_on>true</always_on>
+        <update_rate>${imu_update_rate}</update_rate>
+        <visualize>false</visualize>
+        <topic>${imu_topic_name}</topic>
+        <ignition_frame_id>${frame_id}</ignition_frame_id>
+      </sensor>
+    </gazebo>
+
+  </xacro:macro>
+
+</robot>

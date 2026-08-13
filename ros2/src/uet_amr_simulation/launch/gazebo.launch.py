@@ -12,6 +12,7 @@ def generate_launch_description():
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
     pkg_ros_gz_rbot = get_package_share_directory('uet_amr_description')
     pkg_uet_amr_sim = get_package_share_directory('uet_amr_simulation')
+    pkg_uet_amr_localization = get_package_share_directory('uet_amr_localization')
 
 
     robot_description_file = os.path.join(pkg_ros_gz_rbot, 'urdf', 'uet_amr.xacro')
@@ -79,11 +80,19 @@ def generate_launch_description():
         output='screen'
     )
 
+    ekf_localization = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            join(pkg_uet_amr_localization, 'launch', 'ekf.launch.py')
+        ),
+        launch_arguments={'use_sim_time': 'true'}.items()
+    )
+
     return LaunchDescription([
         gazebo,
         spawn_robot,
         ros_gz_bridge,
         robot_state_publisher,
-        load_joint_state_broadcaster, 
-        load_diff_drive_controller,   
+        load_joint_state_broadcaster,
+        load_diff_drive_controller,
+        ekf_localization,
     ])
