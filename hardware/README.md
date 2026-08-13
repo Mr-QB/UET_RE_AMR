@@ -1,6 +1,6 @@
 # Hardware Documentation
 
-This directory contains the electrical schematics, PCB layouts, and mechanical CAD designs for the UET AMR platform.
+This directory contains the electrical schematics, electrical connections, PCB layouts, and mechanical CAD designs for the UET AMR platform.
 
 ---
 
@@ -42,8 +42,26 @@ git lfs install
 
 The robot architecture uses three dedicated microcontrollers:
 
-| Sub-system | Microcontroller | Primary Function | Source Directory |
-|---|---|---|---|
-| Base Controller | STM32F446RE | Motor control and encoder feedback | `firmware/base_controller` |
-| Sensor Hub | ESP32 | IMU and ultrasonic sensor fusion | `firmware/sensor_hub` |
-| Power Board | STM32F103 | Battery management system (BMS) and relays | `firmware/power_management` |
+| Sub-system      | Microcontroller | Primary Function                           | Source Directory              |
+| --------------- | --------------- | ------------------------------------------ | ----------------------------- |
+| Base Controller | STM32F446RE     | Motor control and encoder feedback         | `firmware/base_controller`  |
+| Sensor Hub      | ESP32           | IMU and ultrasonic sensor fusion           | `firmware/sensor_hub`       |
+| Power Board     | STM32F103       | Battery management system (BMS) and relays | `firmware/power_management` |
+
+---
+## Power System
+
+The robot is powered by a rechargeable battery pack.
+
+### Power Distribution
+
+| Device | Voltage | Current(max) |
+|---|---|---:|
+| Motor, Motor Driver | 36V | 10 A |
+| Jetson | 12V | 3.4 A |
+| D435i| 5V | 0.5 A |
+| RPLidar | 5V | 1.5  A |
+| ESP32 | 5V | 0.5  A |
+| LED | 5V | 0.1  A |
+
+---

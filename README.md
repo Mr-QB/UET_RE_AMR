@@ -13,6 +13,7 @@ Autonomous Mobile Robot (AMR) project developed by the Department of Robotics, U
 UET_RE_AMR is an autonomous mobile robot platform designed for research and educational purposes. The system integrates a ROS2-based software stack for navigation and high-level control with micro-ROS based firmware for low-level motor actuation, sensor feedback, and power management.
 
 Key features include:
+
 - Simultaneous Localization and Mapping (SLAM)
 - Autonomous path planning and obstacle avoidance using Nav2
 - Sensor integration including 2D LiDAR, IMU, and cameras
@@ -91,14 +92,14 @@ ros2 launch uet_amr_bringup amr_bringup.launch.py
 
 ## Documentation
 
-| Document | Description |
-|---|---|
-| [Getting Started](docs/getting_started.md) | Installation and workspace configuration guide |
-| [Architecture Guide](docs/architecture.md) | Overview of system architecture and packet flow |
-| [Hardware Setup](docs/hardware_setup.md) | Pinouts, electrical connections, and assembly |
-| [ROS2 Packages](docs/ros2/packages_overview.md) | Description of custom ROS2 packages and nodes |
-| [Firmware Flashing](docs/firmware/flashing_guide.md) | Flashing firmware onto the microcontrollers |
-| [Serial Protocol](docs/firmware/serial_protocol.md) | Low-level serial communication packet format |
+| Document                                             | Description                                     |
+| ---------------------------------------------------- | ----------------------------------------------- |
+| [Getting Started](docs/getting_started.md)           | Installation and workspace configuration guide  |
+| [Architecture Guide](docs/architecture.md)           | Overview of system architecture and packet flow |
+| [Hardware Setup](docs/hardware_setup.md)             | Pinouts, electrical connections, and assembly   |
+| [ROS2 Packages](docs/ros2/packages_overview.md)      | Description of custom ROS2 packages and nodes   |
+| [Firmware Flashing](docs/firmware/flashing_guide.md) | Flashing firmware onto the microcontrollers     |
+| [Serial Protocol](docs/firmware/serial_protocol.md)  | Low-level serial communication packet format    |
 
 ---
 
@@ -108,13 +109,13 @@ For details on branching, commit messages, and contribution guidelines, see `CON
 
 ### Component Ownership
 
-| Team | Main Directory | Working Branch |
-|---|---|---|
-| Navigation | `ros2/src/uet_amr_navigation/` | `feature/navigation-*` |
-| Perception | `ros2/src/uet_amr_perception/` | `feature/perception-*` |
-| Hardware Interface | `ros2/src/uet_amr_hardware/` | `feature/hardware-*` |
-| Firmware | `firmware/` | `feature/firmware-*` |
-| Simulation | `simulation/` | `feature/sim-*` |
+| Team               | Main Directory                 | Working Branch         |
+| ------------------ | ------------------------------ | ---------------------- |
+| Navigation         | `ros2/src/uet_amr_navigation/` | `feature/navigation-*` |
+| Perception         | `ros2/src/uet_amr_perception/` | `feature/perception-*` |
+| Hardware Interface | `ros2/src/uet_amr_hardware/`   | `feature/hardware-*`   |
+| Firmware           | `firmware/`                    | `feature/firmware-*`   |
+| Simulation         | `simulation/`                  | `feature/sim-*`        |
 
 ---
 
