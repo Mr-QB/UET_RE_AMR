@@ -45,7 +45,7 @@ default_envs = VARIANT_USART
 
 ## Configurations
 
-Update the GPIO mappings in `Inc/config.h` to match your custom controller board layout:
+  Update the control method configuration in `Inc/config.h` :
 
 ```cpp
 #define ENABLE_ODOMETRY
