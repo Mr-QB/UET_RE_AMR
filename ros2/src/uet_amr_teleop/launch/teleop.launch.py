@@ -92,7 +92,7 @@ def run_teleop_node(context, *args, **kwargs):
 
             twist = Twist()
             twist.linear.x = x * speed
-            twist.angular.z = th * turn
+            twist.angular.z = -th * turn
             pub.publish(twist)
 
     except Exception as e:

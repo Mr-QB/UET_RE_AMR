@@ -87,9 +87,13 @@ def generate_launch_description():
         launch_arguments={'use_sim_time': 'true'}.items()
     )
 
+    description_resource_path = os.path.dirname(pkg_ros_gz_rbot)
+
     return LaunchDescription([
         SetEnvironmentVariable('IGN_IP', '127.0.0.1'),
         SetEnvironmentVariable('GZ_IP', '127.0.0.1'),
+        SetEnvironmentVariable('IGN_GAZEBO_RESOURCE_PATH', description_resource_path),
+        SetEnvironmentVariable('GZ_SIM_RESOURCE_PATH', description_resource_path),
         gazebo,
         spawn_robot,
         ros_gz_bridge,

@@ -2,10 +2,11 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="uet_amr">
     <xacro:arg name="use_real_hardware" default="false"/>
     <xacro:property name="mesh_file_scale" value="0.001 0.001 0.001"/>
-    <xacro:property name="wheel_radius" value="0.075"/>
+    <xacro:property name="wheel_radius" value="0.08255"/>
     <xacro:property name="wheel_pos_z" value="0.077157"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/materials.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/parts/base.xacro"/>
+    <xacro:include filename="$(find uet_amr_description)/urdf/parts/wheel.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/sensors/lidar.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/sensors/depth_camera.xacro"/>
     <xacro:if value="$(arg use_real_hardware)">
@@ -27,8 +28,8 @@
         ixz="7.2e-05"
         mesh_file="package://uet_amr_description/meshes/base_link.stl"
         mesh_scale="${mesh_file_scale}"
-        wheel_radius="0.075"
-        wheel_pos_z="0.077157"
+        wheel_radius="${wheel_radius}"
+        wheel_pos_z="${wheel_pos_z}"
     />
     
     <xacro:wheel 
