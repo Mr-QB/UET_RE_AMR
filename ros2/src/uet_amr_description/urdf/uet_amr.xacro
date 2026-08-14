@@ -1,379 +1,321 @@
-<?xml version="1.0" ?>
-<robot name="uet_amr" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="uet_amr">
+    <xacro:arg name="use_real_hardware" default="false"/>
+    <xacro:property name="mesh_file_scale" value="0.001 0.001 0.001"/>
+    <xacro:property name="wheel_radius" value="0.075"/>
+    <xacro:property name="wheel_pos_z" value="0.077157"/>
+    <xacro:include filename="$(find uet_amr_description)/urdf/materials.xacro"/>
+    <xacro:include filename="$(find uet_amr_description)/urdf/parts/base.xacro"/>
+    <xacro:include filename="$(find uet_amr_description)/urdf/sensors/lidar.xacro"/>
+    <xacro:include filename="$(find uet_amr_description)/urdf/sensors/depth_camera.xacro"/>
+    <xacro:if value="$(arg use_real_hardware)">
+        <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr_real.ros2control"/>
+    </xacro:if>
+    <xacro:unless value="$(arg use_real_hardware)">
+        <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.ros2control"/>
+    </xacro:unless>
+    <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.gazebo"/>
+    
+    <xacro:base 
+        mass="9.278155762193999" 
+        origin_xyz="0.0025532775935351716 0.0007810393984697188 -0.007616605165089496" 
+        ixx="0.231139"
+        iyy="0.375607"
+        izz="0.561355"
+        ixy="-0.000648"
+        iyz="-0.001793"
+        ixz="7.2e-05"
+        mesh_file="package://uet_amr_description/meshes/base_link.stl"
+        mesh_scale="${mesh_file_scale}"
+        wheel_radius="0.075"
+        wheel_pos_z="0.077157"
+    />
+    
+    <xacro:wheel 
+        side="left" 
+        parent="base_link" 
+        mass="8.133156223625377" 
+        inertial_origin_xyz="-0.0001975256393499439 0.06876256340886683 0.0003191159733880039" 
+        ixx="0.014975" 
+        iyy="0.026227" 
+        izz="0.014975" 
+        ixy="-3.4e-05" 
+        iyz="5.4e-05" 
+        ixz="-0.0"
+        visual_origin_xyz="-0.001978 -0.151669 0.077157" 
+        mesh_file="package://uet_amr_description/meshes/left_wheel_1.stl" 
+        mesh_scale="${mesh_file_scale}"
+        joint_origin_xyz="0.001978 0.151669 -0.077157"
+    />
 
-<xacro:arg name="use_real_hardware" default="false"/>
+    <xacro:wheel 
+        side="right"
+        parent="base_link"
+        mass="8.133163359417004"
+        inertial_origin_xyz="0.00018681806470619271 -0.06876255933824524 -0.00031221526229738283"
+        ixx="0.014975"
+        iyy="0.026227"
+        izz="0.014975"
+        ixy="-2.9e-05"
+        iyz="5e-05"
+        ixz="-0.0"
+        visual_origin_xyz="-0.002833 0.152327 0.078549"
+        mesh_file="package://uet_amr_description/meshes/right_wheel_1.stl"
+        mesh_scale="${mesh_file_scale}"
+        joint_origin_xyz="0.002833 -0.152327 -0.078549"
+    />
+    
+    <link name="bl_caster_1">
+        <inertial>
+            <origin xyz="-0.016325683724505796 -6.209736988929682e-05 -0.02292504256915545" rpy="0 0 0"/>
+            <mass value="0.1384081385472382"/>
+            <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.213493 -0.141254 0.064203" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="0.213493 -0.141254 0.064203" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="br_caster_1">
+        <inertial>
+            <origin xyz="-0.016325165192457858 -6.199154591685074e-05 -0.02292460400344691" rpy="0 0 0"/>
+            <mass value="0.13840813854723946"/>
+            <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.212694 0.143242 0.065506" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="0.212694 0.143242 0.065506" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="fl_caster_1">
+        <inertial>
+            <origin xyz="-0.01632538566149161 -6.187397013268647e-05 -0.022924882170905936" rpy="0 0 0"/>
+            <mass value="0.13840813854723621"/>
+            <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
+        </inertial>
+        <visual>
+            <origin xyz="-0.217505 -0.142465 0.064201" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="-0.217505 -0.142465 0.064201" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="fr_caster_1">
+        <inertial>
+            <origin xyz="-0.016325867129421662 -6.17681461664299e-05 -0.022924443605240485" rpy="0 0 0"/>
+            <mass value="0.13840813854723868"/>
+            <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
+        </inertial>
+        <visual>
+            <origin xyz="-0.218305 0.142031 0.065504" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="-0.218305 0.142031 0.065504" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="fl_caster_wheel__1__1">
+        <inertial>
+            <origin xyz="2.5615176473869905e-05 -0.014999755176358459 -6.848949303683849e-05" rpy="0 0 0"/>
+            <mass value="0.9168727321007171"/>
+            <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="-0.186479 -0.157654 0.117065" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="-0.186479 -0.157654 0.117065" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="bl_caster_wheel_1">
+        <inertial>
+            <origin xyz="2.531711346762111e-05 -0.01499997857611493 -6.864989128550769e-05" rpy="0 0 0"/>
+            <mass value="0.9168727321007182"/>
+            <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.244519 -0.156443 0.117067" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="0.244519 -0.156443 0.117067" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="br_caster_wheel_1">
+        <inertial>
+            <origin xyz="-2.6164354486490904e-05 0.015000127247860873 6.878867442251801e-05" rpy="0 0 0"/>
+            <mass value="0.9168727321007177"/>
+            <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.243668 0.158053 0.118507" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="0.243668 0.158053 0.118507" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="fr_caster_wheel_1">
+        <inertial>
+            <origin xyz="-2.586629145395758e-05 0.014999350647611681 6.894907262748606e-05" rpy="0 0 0"/>
+            <mass value="0.9168727321007173"/>
+            <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="-0.18733 0.156841 0.118505" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="silver"/>
+        </visual>
+        <collision>
+            <origin xyz="-0.18733 0.156841 0.118505" rpy="0 0 0"/>
+            <geometry>
+                <mesh filename="package://uet_amr_description/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="Revolute 19" type="continuous">
+        <origin xyz="-0.213493 0.141254 -0.064203" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="bl_caster_1"/>
+        <axis xyz="-8e-06 0.004578 -0.99999"/>
+    </joint>
+    <joint name="Revolute 20" type="continuous">
+        <origin xyz="-0.212694 -0.143242 -0.065506" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="br_caster_1"/>
+        <axis xyz="-8e-06 0.004578 -0.99999"/>
+    </joint>
+    <joint name="Revolute 21" type="continuous">
+        <origin xyz="0.217505 0.142465 -0.064201" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="fl_caster_1"/>
+        <axis xyz="-8e-06 0.004578 -0.99999"/>
+    </joint>
+    <joint name="Revolute 22" type="continuous">
+        <origin xyz="0.218305 -0.142031 -0.065504" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="fr_caster_1"/>
+        <axis xyz="-8e-06 0.004578 -0.99999"/>
+    </joint>
+    <joint name="Revolute 23" type="continuous">
+        <origin xyz="-0.031026 0.015189 -0.052864" rpy="0 0 0"/>
+        <parent link="fl_caster_1"/>
+        <child link="fl_caster_wheel__1__1"/>
+        <axis xyz="0.001715 -0.999988 -0.004578"/>
+    </joint>
+    <joint name="Revolute 24" type="continuous">
+        <origin xyz="-0.031026 0.015189 -0.052864" rpy="0 0 0"/>
+        <parent link="bl_caster_1"/>
+        <child link="bl_caster_wheel_1"/>
+        <axis xyz="0.001715 -0.999988 -0.004578"/>
+    </joint>
+    <joint name="Revolute 25" type="continuous">
+        <origin xyz="-0.030974 -0.014811 -0.053001" rpy="0 0 0"/>
+        <parent link="br_caster_1"/>
+        <child link="br_caster_wheel_1"/>
+        <axis xyz="0.001715 -0.999988 -0.004578"/>
+    </joint>
+    <joint name="Revolute 26" type="continuous">
+        <origin xyz="-0.030975 -0.01481 -0.053001" rpy="0 0 0"/>
+        <parent link="fr_caster_1"/>
+        <child link="fr_caster_wheel_1"/>
+        <axis xyz="0.001715 -0.999988 -0.004578"/>
+    </joint>
 
-<xacro:include filename="$(find uet_amr_description)/urdf/materials.xacro" />
-<xacro:include filename="$(find uet_amr_description)/urdf/sensors/lidar.xacro" />
-<xacro:include filename="$(find uet_amr_description)/urdf/sensors/depth_camera.xacro" />
-<xacro:if value="$(arg use_real_hardware)">
-  <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr_real.ros2control" />
-</xacro:if>
-<xacro:unless value="$(arg use_real_hardware)">
-  <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.ros2control" />
-</xacro:unless>
-<xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.gazebo" />
+    <xacro:lidar 
+        frame_id="front_lidar"
+        parent="base_link"
+        topic_name="scan"
+        update_rate="15"
+        ray_count="800"
+        min_angle="-3.14159"
+        max_angle="3.14159"
+        min_range="0.15"
+        max_range="25.0"
+    >
+        <origin xyz="0.25 -0.16 0.088" rpy="0 0 0"/>
+    </xacro:lidar>
 
-<link name="base_link">
-  <inertial>
-    <origin xyz="0.0025532775935351716 0.0007810393984697188 -0.007616605165089496" rpy="0 0 0"/>
-    <mass value="9.278155762193999"/>
-    <inertia ixx="0.231139" iyy="0.375607" izz="0.561355" ixy="-0.000648" iyz="-0.001793" ixz="7.2e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<joint name="base_footprint_joint" type="fixed">
-    <parent link="base_footprint"/>
-    <child link="base_link"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-</joint>
-
-<link name="base_footprint">
-</link>
-
-<link name="left_wheel_1">
-  <inertial>
-    <origin xyz="-0.0001975256393499439 0.06876256340886683 0.0003191159733880039" rpy="0 0 0"/>
-    <mass value="8.133156223625377"/>
-    <inertia ixx="0.014975" iyy="0.026227" izz="0.014975" ixy="-3.4e-05" iyz="5.4e-05" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.001978 -0.151669 0.077157" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="-0.001978 -0.151669 0.077157" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/left_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="right_wheel_1">
-  <inertial>
-    <origin xyz="0.00018681806470619271 -0.06876255933824524 -0.00031221526229738283" rpy="0 0 0"/>
-    <mass value="8.133163359417004"/>
-    <inertia ixx="0.014975" iyy="0.026227" izz="0.014975" ixy="-2.9e-05" iyz="5e-05" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.002833 0.152327 0.078549" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="-0.002833 0.152327 0.078549" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/right_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="bl_caster_1">
-  <inertial>
-    <origin xyz="-0.016325683724505796 -6.209736988929682e-05 -0.02292504256915545" rpy="0 0 0"/>
-    <mass value="0.1384081385472382"/>
-    <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.213493 -0.141254 0.064203" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="0.213493 -0.141254 0.064203" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="br_caster_1">
-  <inertial>
-    <origin xyz="-0.016325165192457858 -6.199154591685074e-05 -0.02292460400344691" rpy="0 0 0"/>
-    <mass value="0.13840813854723946"/>
-    <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.212694 0.143242 0.065506" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="0.212694 0.143242 0.065506" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="fl_caster_1">
-  <inertial>
-    <origin xyz="-0.01632538566149161 -6.187397013268647e-05 -0.022924882170905936" rpy="0 0 0"/>
-    <mass value="0.13840813854723621"/>
-    <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.217505 -0.142465 0.064201" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="-0.217505 -0.142465 0.064201" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="fr_caster_1">
-  <inertial>
-    <origin xyz="-0.016325867129421662 -6.17681461664299e-05 -0.022924443605240485" rpy="0 0 0"/>
-    <mass value="0.13840813854723868"/>
-    <inertia ixx="0.000106" iyy="0.00011" izz="6.3e-05" ixy="-0.0" iyz="-0.0" ixz="-3.3e-05"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.218305 0.142031 0.065504" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="-0.218305 0.142031 0.065504" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="fl_caster_wheel__1__1">
-  <inertial>
-    <origin xyz="2.5615176473869905e-05 -0.014999755176358459 -6.848949303683849e-05" rpy="0 0 0"/>
-    <mass value="0.9168727321007171"/>
-    <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.186479 -0.157654 0.117065" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="-0.186479 -0.157654 0.117065" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fl_caster_wheel__1__1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="bl_caster_wheel_1">
-  <inertial>
-    <origin xyz="2.531711346762111e-05 -0.01499997857611493 -6.864989128550769e-05" rpy="0 0 0"/>
-    <mass value="0.9168727321007182"/>
-    <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.244519 -0.156443 0.117067" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="0.244519 -0.156443 0.117067" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/bl_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="br_caster_wheel_1">
-  <inertial>
-    <origin xyz="-2.6164354486490904e-05 0.015000127247860873 6.878867442251801e-05" rpy="0 0 0"/>
-    <mass value="0.9168727321007177"/>
-    <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="0.243668 0.158053 0.118507" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="0.243668 0.158053 0.118507" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/br_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<link name="fr_caster_wheel_1">
-  <inertial>
-    <origin xyz="-2.586629145395758e-05 0.014999350647611681 6.894907262748606e-05" rpy="0 0 0"/>
-    <mass value="0.9168727321007173"/>
-    <inertia ixx="0.000422" iyy="0.000731" izz="0.000422" ixy="-1e-06" iyz="1e-06" ixz="-0.0"/>
-  </inertial>
-  <visual>
-    <origin xyz="-0.18733 0.156841 0.118505" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-    <material name="silver"/>
-  </visual>
-  <collision>
-    <origin xyz="-0.18733 0.156841 0.118505" rpy="0 0 0"/>
-    <geometry>
-      <mesh filename="file://$(find uet_amr_description)/meshes/fr_caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
-    </geometry>
-  </collision>
-</link>
-
-<joint name="Revolute 17" type="continuous">
-  <origin xyz="0.001978 0.151669 -0.077157" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="left_wheel_1"/>
-  <axis xyz="0 1 0"/>
-</joint>
-
-<joint name="Revolute 18" type="continuous">
-  <origin xyz="0.002833 -0.152327 -0.078549" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="right_wheel_1"/>
-  <axis xyz="0 1 0"/>
-</joint>
-
-<joint name="Revolute 19" type="continuous">
-  <origin xyz="-0.213493 0.141254 -0.064203" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="bl_caster_1"/>
-  <axis xyz="-8e-06 0.004578 -0.99999"/>
-</joint>
-
-<joint name="Revolute 20" type="continuous">
-  <origin xyz="-0.212694 -0.143242 -0.065506" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="br_caster_1"/>
-  <axis xyz="-8e-06 0.004578 -0.99999"/>
-</joint>
-
-<joint name="Revolute 21" type="continuous">
-  <origin xyz="0.217505 0.142465 -0.064201" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="fl_caster_1"/>
-  <axis xyz="-8e-06 0.004578 -0.99999"/>
-</joint>
-
-<joint name="Revolute 22" type="continuous">
-  <origin xyz="0.218305 -0.142031 -0.065504" rpy="0 0 0"/>
-  <parent link="base_link"/>
-  <child link="fr_caster_1"/>
-  <axis xyz="-8e-06 0.004578 -0.99999"/>
-</joint>
-
-<joint name="Revolute 23" type="continuous">
-  <origin xyz="-0.031026 0.015189 -0.052864" rpy="0 0 0"/>
-  <parent link="fl_caster_1"/>
-  <child link="fl_caster_wheel__1__1"/>
-  <axis xyz="0.001715 -0.999988 -0.004578"/>
-</joint>
-
-<joint name="Revolute 24" type="continuous">
-  <origin xyz="-0.031026 0.015189 -0.052864" rpy="0 0 0"/>
-  <parent link="bl_caster_1"/>
-  <child link="bl_caster_wheel_1"/>
-  <axis xyz="0.001715 -0.999988 -0.004578"/>
-</joint>
-
-<joint name="Revolute 25" type="continuous">
-  <origin xyz="-0.030974 -0.014811 -0.053001" rpy="0 0 0"/>
-  <parent link="br_caster_1"/>
-  <child link="br_caster_wheel_1"/>
-  <axis xyz="0.001715 -0.999988 -0.004578"/>
-</joint>
-
-<joint name="Revolute 26" type="continuous">
-  <origin xyz="-0.030975 -0.01481 -0.053001" rpy="0 0 0"/>
-  <parent link="fr_caster_1"/>
-  <child link="fr_caster_wheel_1"/>
-  <axis xyz="0.001715 -0.999988 -0.004578"/>
-</joint>
-
-<xacro:lidar parent="base_link"
-             update_rate="15"
-             ray_count="800"
-             min_angle="-3.14159"
-             max_angle="3.14159"
-             min_range="0.15"
-             max_range="25.0"
-             frame_id="laser"
-             topic_name="scan">
-  <origin xyz="0.25 -0.16 0.088" rpy="0 0 0"/>
-</xacro:lidar>
-
-<!-- <link name="lidar_link_2">
-  <visual>
-    <geometry>
-      <cylinder length="0.04" radius="0.038"/>
-    </geometry>
-    <material name="blue">
-      <color rgba="0.0 0.4 0.8 1.0"/>
-    </material>
-  </visual>
-  <collision>
-    <geometry>
-      <cylinder length="0.04" radius="0.038"/>
-    </geometry>
-  </collision>
-  <inertial>
-    <mass value="0.185"/>
-    <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
-  </inertial>
-</link>
-
-<joint name="lidar_joint_2" type="fixed">
-  <parent link="base_link"/>
-  <child link="lidar_link_2"/>
-  <origin xyz="-0.15 -0.23 0.105" rpy="0 0 3.14159"/>
-</joint> -->
-
-<xacro:depth_camera parent="base_link"
-                    update_rate="30"
-                    horizontal_fov="1.518"
-                    image_width="848"
-                    image_height="480"
-                    clip_near="0.1"
-                    clip_far="10.0"
-                    frame_id="camera_link"
-                    topic_name="camera"
-                    imu_update_rate="100"
-                    imu_topic_name="imu/data">
-  <origin xyz="0.25 0.0 0.08" rpy="0 0 0"/>
-</xacro:depth_camera>
-
+    <!-- Rear lidar will be added later.
+    <xacro:lidar
+        frame_id="rear_lidar"
+        parent="base_link"
+        topic_name="scan_2"
+        update_rate="15"
+        ray_count="800"
+        min_angle="-3.14159"
+        max_angle="3.14159"
+        min_range="0.15"
+        max_range="25.0"
+    >
+        <origin xyz="-0.15 -0.23 0.105" rpy="0 0 3.14159"/>
+    </xacro:lidar>
+    -->
+    
+    <xacro:depth_camera
+        frame_id="camera_link"
+        parent="base_link" 
+        topic_name="camera"
+        update_rate="30"
+        horizontal_fov="1.518"
+        image_width="848"
+        image_height="480"
+        clip_near="0.1"
+        clip_far="10.0"
+        imu_update_rate="100"
+        imu_topic_name="imu/data">
+        <origin xyz="0.25 0.0 0.08" rpy="0 0 0"/>
+    </xacro:depth_camera>
 </robot>

@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="base" params="mass origin_xyz ixx iyy izz ixy iyz ixz mesh_file mesh_scale wheel_radius wheel_pos_z">
+        <link name="base_footprint"/>
+
+        <link name="base_link">
+            <inertial>
+                <origin xyz="${origin_xyz}" rpy="0 0 0"/>
+                <mass value="${mass}"/>
+                <inertia ixx="${ixx}" iyy="${iyy}" izz="${izz}" ixy="${ixy}" iyz="${iyz}" ixz="${ixz}"/>
+            </inertial>
+
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="${mesh_file}" scale="${mesh_scale}"/>
+                </geometry>
+                <material name="silver"/>
+            </visual>
+
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="${mesh_file}" scale="${mesh_scale}"/>
+                </geometry>
+            </collision>
+        </link>
+
+        <joint name="base_footprint_joint" type="fixed">
+            <parent link="base_footprint"/>
+            <child link="base_link"/>
+            <origin xyz="0 0 ${wheel_radius - wheel_pos_z}" rpy="0 0 0"/>
+        </joint>
+    </xacro:macro>
+</robot>

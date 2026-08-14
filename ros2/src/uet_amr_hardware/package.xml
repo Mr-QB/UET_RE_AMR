@@ -3,7 +3,7 @@
 <package format="3">
   <name>uet_amr_hardware</name>
   <version>0.1.0</version>
-  <description>ROS2 Hardware Interface for UET AMR — bridges MCU firmware with ros2_control</description>
+  <description>ROS2 Hardware Interface for UET AMR - bridges MCU firmware with ros2_control</description>
   <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
   <license>MIT</license>
 

@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 import xacro
@@ -88,6 +88,8 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        SetEnvironmentVariable('IGN_IP', '127.0.0.1'),
+        SetEnvironmentVariable('GZ_IP', '127.0.0.1'),
         gazebo,
         spawn_robot,
         ros_gz_bridge,

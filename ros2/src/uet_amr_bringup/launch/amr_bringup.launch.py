@@ -7,8 +7,9 @@ with the D435i's IMU via robot_localization's EKF.
 
 Note: the EKF's imu0 input expects the depth camera's synced IMU topic
 (default 'camera/camera/imu'), which is only published once
-uet_amr_bringup/launch/amr_d435i_bringup.py is also running — run both
-launch files together for a live odom->base_footprint transform.
+uet_amr_bringup/launch/sensors.launch.py (or depth_camera.launch.py) is
+also running — run both launch files together for a live
+odom->base_footprint transform.
 """
 import os
 

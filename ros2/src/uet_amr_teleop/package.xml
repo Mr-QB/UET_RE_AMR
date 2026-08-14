@@ -3,7 +3,7 @@
 <package format="3">
   <name>uet_amr_teleop</name>
   <version>0.1.0</version>
-  <description>Teleoperation for UET AMR — keyboard and joystick control</description>
+  <description>Teleoperation for UET AMR - keyboard and joystick control</description>
   <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
   <license>MIT</license>
 

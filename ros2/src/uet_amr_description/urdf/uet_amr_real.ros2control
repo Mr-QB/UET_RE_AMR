@@ -24,7 +24,7 @@
       <param name="encoder_max">9000</param>
     </hardware>
 
-    <joint name="Revolute 17">
+    <joint name="left_wheel_joint">
       <command_interface name="velocity">
         <param name="min">-10</param>
         <param name="max">10</param>
@@ -34,7 +34,7 @@
       <state_interface name="velocity"/>
     </joint>
 
-    <joint name="Revolute 18">
+    <joint name="right_wheel_joint">
       <command_interface name="velocity">
         <param name="min">-10</param>
         <param name="max">10</param>

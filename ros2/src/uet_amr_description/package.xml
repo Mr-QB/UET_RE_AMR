@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-<name>uet_amr_description</name>
-  <version>0.0.0</version>
-<description>The uet_amr_description package</description>
-  <maintainer email="todo@todo.com">author</maintainer>
-  <license>TODO: License declaration</license>
+  <name>uet_amr_description</name>
+  <version>0.1.0</version>
+  <description>Robot description and visualization assets for UET AMR</description>
+  <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
+  <license>MIT</license>
 
   <depend>xacro</depend>
   <depend>rviz2</depend>

@@ -3,7 +3,7 @@
 <package format="3">
   <name>uet_amr_perception</name>
   <version>0.1.0</version>
-  <description>Sensor processing for UET AMR — LiDAR filtering, obstacle detection</description>
+  <description>Sensor processing for UET AMR - LiDAR filtering and obstacle detection</description>
   <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
   <license>MIT</license>
 

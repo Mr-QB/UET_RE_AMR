@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="wheel" params="side parent mass inertial_origin_xyz ixx iyy izz ixy iyz ixz visual_origin_xyz mesh_file mesh_scale joint_origin_xyz">
+        <link name="${side}_wheel_link">
+            <inertial>
+                <origin xyz="${inertial_origin_xyz}" rpy="0 0 0"/>
+                <mass value="${mass}"/>
+                <inertia ixx="${ixx}" iyy="${iyy}" izz="${izz}" ixy="${ixy}" iyz="${iyz}" ixz="${ixz}"/>
+            </inertial>
+
+            <visual>
+                <origin xyz="${visual_origin_xyz}" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="${mesh_file}" scale="${mesh_scale}"/>
+                </geometry>
+                <material name="silver"/>
+            </visual>
+
+            <collision>
+                <origin xyz="${visual_origin_xyz}" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="${mesh_file}" scale="${mesh_scale}"/>
+                </geometry>
+            </collision>
+        </link>
+
+        <joint name="${side}_wheel_joint" type="continuous">
+            <axis xyz="0 1 0"/>
+            <origin xyz="${joint_origin_xyz}" rpy="0 0 0"/>
+            <parent link="${parent}"/>
+            <child link="${side}_wheel_link"/>
+        </joint>
+    </xacro:macro>
+</robot>

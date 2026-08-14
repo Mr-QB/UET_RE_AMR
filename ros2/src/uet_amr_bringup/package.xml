@@ -3,18 +3,22 @@
 <package format="3">
   <name>uet_amr_bringup</name>
   <version>0.1.0</version>
-  <description>Bringup package for UET AMR — launch files for hardware and simulation</description>
+  <description>Bringup package for UET AMR - launch files for hardware and simulation</description>
   <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>ros2launch</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>rplidar_ros</exec_depend>
   <exec_depend>uet_amr_description</exec_depend>
   <exec_depend>uet_amr_hardware</exec_depend>
   <exec_depend>uet_amr_localization</exec_depend>
   <exec_depend>uet_amr_navigation</exec_depend>
   <exec_depend>uet_amr_perception</exec_depend>
+  <exec_depend>uet_amr_simulation</exec_depend>
+  <exec_depend>rviz2</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
