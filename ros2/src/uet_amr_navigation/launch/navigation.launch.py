@@ -1,5 +1,7 @@
 """
-Launch file for slam_toolbox (async, online) + RViz visualization.
+Launch file for Nav2 localization (map_server + AMCL) and navigation
+(planner/controller/bt_navigator) against a pre-built map, plus RViz
+visualization.
 """
 import os
 from ament_index_python.packages import get_package_share_directory
@@ -14,23 +16,36 @@ from launch_ros.actions import Node
 def generate_launch_description():
     pkg_uet_amr_navigation = get_package_share_directory('uet_amr_navigation')
     pkg_uet_amr_description = get_package_share_directory('uet_amr_description')
-    pkg_slam_toolbox = get_package_share_directory('slam_toolbox')
+    pkg_nav2_bringup = get_package_share_directory('nav2_bringup')
 
-    default_params_file = os.path.join(pkg_uet_amr_navigation, 'config', 'slam.yaml')
+    default_params_file = os.path.join(pkg_uet_amr_navigation, 'config', 'nav2.yaml')
+    default_map_file = os.path.join(pkg_uet_amr_navigation, 'maps', 'warehouse.yaml')
     default_rviz_config = os.path.join(pkg_uet_amr_description, 'config', 'gazebo.rviz')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
-    slam_params_file = LaunchConfiguration('slam_params_file')
+    map_yaml_file = LaunchConfiguration('map')
+    params_file = LaunchConfiguration('params_file')
     rviz_config_file = LaunchConfiguration('rviz_config_file')
     use_rviz = LaunchConfiguration('use_rviz')
 
-    slam_toolbox_launch = IncludeLaunchDescription(
+    localization_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_slam_toolbox, 'launch', 'online_async_launch.py')
+            os.path.join(pkg_nav2_bringup, 'launch', 'localization_launch.py')
         ),
         launch_arguments={
             'use_sim_time': use_sim_time,
-            'slam_params_file': slam_params_file,
+            'map': map_yaml_file,
+            'params_file': params_file,
+        }.items()
+    )
+
+    navigation_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_nav2_bringup, 'launch', 'navigation_launch.py')
+        ),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'params_file': params_file,
         }.items()
     )
 
@@ -47,12 +62,15 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true',
                               description='Use simulation/Gazebo clock'),
-        DeclareLaunchArgument('slam_params_file', default_value=default_params_file,
-                              description='Full path to the slam_toolbox params file'),
+        DeclareLaunchArgument('map', default_value=default_map_file,
+                              description='Full path to the map yaml file to load'),
+        DeclareLaunchArgument('params_file', default_value=default_params_file,
+                              description='Full path to the Nav2 params file'),
         DeclareLaunchArgument('rviz_config_file', default_value=default_rviz_config,
                               description='Full path to the RViz config file'),
         DeclareLaunchArgument('use_rviz', default_value='true',
                               description='Whether to start RViz'),
-        slam_toolbox_launch,
+        localization_launch,
+        navigation_launch,
         rviz_node,
     ])

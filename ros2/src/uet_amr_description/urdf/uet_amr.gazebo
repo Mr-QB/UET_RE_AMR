@@ -10,61 +10,66 @@
   <gravity>true</gravity>
 </gazebo>
 
-<gazebo reference="left_wheel_1">
+<!-- Drive wheels need real traction to avoid slip corrupting odometry;
+     reference must be the wheel.xacro link name (left/right_wheel_link),
+     not the left_wheel_1/right_wheel_1 mesh filename it was previously
+     (and silently never matched, so these wheels ran on Gazebo's default
+     friction rather than either value). -->
+<gazebo reference="left_wheel_link">
+  <material>${body_color}</material>
+  <mu1>1.0</mu1>
+  <mu2>1.0</mu2>
+</gazebo>
+
+<gazebo reference="right_wheel_link">
+  <material>${body_color}</material>
+  <mu1>1.0</mu1>
+  <mu2>1.0</mu2>
+</gazebo>
+
+<gazebo reference="bl_caster_mount">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="right_wheel_1">
+<gazebo reference="br_caster_mount">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="bl_caster_1">
+<gazebo reference="fl_caster_mount">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="br_caster_1">
+<gazebo reference="fr_caster_mount">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fl_caster_1">
+<gazebo reference="fl_caster_wheel">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fr_caster_1">
+<gazebo reference="bl_caster_wheel">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fl_caster_wheel__1__1">
+<gazebo reference="br_caster_wheel">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="bl_caster_wheel_1">
-  <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
-</gazebo>
-
-<gazebo reference="br_caster_wheel_1">
-  <material>${body_color}</material>
-  <mu1>0.2</mu1>
-  <mu2>0.2</mu2>
-</gazebo>
-
-<gazebo reference="fr_caster_wheel_1">
+<gazebo reference="fr_caster_wheel">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>

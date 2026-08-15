@@ -24,10 +24,11 @@ import xacro
 
 def launch_setup(context, *args, **kwargs):
     pkg_description = get_package_share_directory('uet_amr_description')
-    pkg_hardware = get_package_share_directory('uet_amr_hardware')
 
     xacro_file = os.path.join(pkg_description, 'urdf', 'uet_amr.xacro')
-    controller_params_file = os.path.join(pkg_hardware, 'config', 'ros2_control.yaml')
+    # Shared with the simulation's ign_ros2_control plugin -- see the
+    # use_sim_time override below for why that's safe on real hardware.
+    controller_params_file = os.path.join(pkg_description, 'config', 'controllers.yaml')
 
     robot_description_config = xacro.process_file(
         xacro_file,
@@ -50,7 +51,10 @@ def launch_setup(context, *args, **kwargs):
     controller_manager_node = Node(
         package='controller_manager',
         executable='ros2_control_node',
-        parameters=[robot_description, controller_params_file],
+        # controllers.yaml hardcodes use_sim_time: true for the simulated
+        # ign_ros2_control plugin (which can't take a launch-time override);
+        # force it back to false here since this is the real-hardware node.
+        parameters=[robot_description, controller_params_file, {'use_sim_time': False}],
         output='screen',
     )
 

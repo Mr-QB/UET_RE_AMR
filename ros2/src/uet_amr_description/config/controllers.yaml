@@ -1,6 +1,11 @@
 controller_manager:
   ros__parameters:
-    update_rate: 30
+    update_rate: 100  # Hz
+    # use_sim_time is needed here (not just at the node level) because in
+    # simulation this file is loaded directly by the ign_ros2_control
+    # gazebo plugin, which has no launch-time parameter-override path.
+    # Real hardware's amr_bringup.launch.py explicitly overrides this back
+    # to false via a launch-time parameter dict.
     use_sim_time: true
 
     diff_drive_controller:
@@ -14,16 +19,39 @@ diff_drive_controller:
     left_wheel_names: ["left_wheel_joint"]
     right_wheel_names: ["right_wheel_joint"]
 
-    wheel_separation: 0.45
-    wheel_radius: 0.085
+    # Derived from the URDF's left/right wheel_joint origins (uet_amr.xacro),
+    # which come from the robot's CAD model -- these must match the true
+    # wheel geometry since diff_drive_controller uses them both to convert
+    # cmd_vel into wheel commands and to integrate wheel feedback into odom;
+    # a mismatch here (vs. e.g. a hoverboard-kit default) desyncs odom from
+    # actual motion and shows up as SLAM map drift/warping over time.
+    wheel_separation: 0.304     # [m] -- abs(left.y) + abs(right.y) wheel joint origins
+    wheel_radius: 0.08255       # [m] -- matches uet_amr.xacro's wheel_radius property
 
     use_stamped_vel: false
 
+    wheel_separation_multiplier: 1.0
+    left_wheel_radius_multiplier: 1.0
+    right_wheel_radius_multiplier: 1.0
+
+    publish_rate: 50.0          # [Hz]
     odom_frame_id: "odom"
     base_frame_id: "base_link"
-    enable_odom_tf: false
+    pose_covariance_diagonal: [0.001, 0.001, 0.0, 0.0, 0.0, 0.01]
+    twist_covariance_diagonal: [0.001, 0.0, 0.0, 0.0, 0.0, 0.01]
 
+    open_loop: false
+    enable_odom_tf: false
+    cmd_vel_timeout: 0.5        # [s]
+
+    # Velocity and acceleration limits (real-hardware's more conservative
+    # cap; raise linear.x.max_velocity for sim if faster testing is wanted)
     linear.x.has_velocity_limits: true
-    linear.x.max_velocity: 1.0
+    linear.x.max_velocity: 0.5         # [m/s]
+    linear.x.has_acceleration_limits: true
+    linear.x.max_acceleration: 1.0     # [m/s^2]
+
     angular.z.has_velocity_limits: true
-    angular.z.max_velocity: 1.0
+    angular.z.max_velocity: 1.0        # [rad/s]
+    angular.z.has_acceleration_limits: true
+    angular.z.max_acceleration: 2.0    # [rad/s^2]

@@ -10,8 +10,13 @@
       <plugin>uet_amr_hardware/AmrHardwareInterface</plugin>
       <param name="serial_port">$(arg serial_port)</param>
       <param name="baud_rate">$(arg baud_rate)</param>
-      <param name="wheel_radius">0.085</param>
-      <param name="wheel_separation">0.45</param>
+      <!-- Parsed by AmrHardwareInterface but currently unused there (it only
+           converts encoder ticks to wheel angle); diff_drive_controller's
+           copies of these two values, in controllers.yaml, are what actually
+           drive odometry/kinematics for both real hardware and sim. Kept in
+           sync here to avoid confusing future readers. -->
+      <param name="wheel_radius">0.08255</param>
+      <param name="wheel_separation">0.304</param>
       <!-- Raw hoverboard speed units per rad/s of wheel rotation. This is an
            UNCALIBRATED placeholder: the firmware's Send()/Command.speed
            range has no documented physical scale, so this must be tuned

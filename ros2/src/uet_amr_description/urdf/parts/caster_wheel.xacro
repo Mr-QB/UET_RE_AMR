@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="caster" params="
+            corner parent mesh_scale
+            mount_mass mount_inertial_origin_xyz
+            mount_ixx mount_iyy mount_izz mount_ixy mount_iyz mount_ixz
+            mount_visual_origin_xyz mount_mesh_file
+            mount_joint_origin_xyz mount_joint_axis
+            wheel_mass wheel_inertial_origin_xyz
+            wheel_ixx wheel_iyy wheel_izz wheel_ixy wheel_iyz wheel_ixz
+            wheel_visual_origin_xyz wheel_mesh_file
+            wheel_joint_origin_xyz wheel_joint_axis">
+        <link name="${corner}_caster_mount">
+            <inertial>
+                <origin xyz="${mount_inertial_origin_xyz}" rpy="0 0 0"/>
+                <mass value="${mount_mass}"/>
+                <inertia ixx="${mount_ixx}" iyy="${mount_iyy}" izz="${mount_izz}" ixy="${mount_ixy}" iyz="${mount_iyz}" ixz="${mount_ixz}"/>
+            </inertial>
+            <visual>
+                <origin xyz="${mount_visual_origin_xyz}" rpy="0 0 0"/>
+                <geometry><mesh filename="${mount_mesh_file}" scale="${mesh_scale}"/></geometry>
+                <material name="silver"/>
+            </visual>
+            <collision>
+                <origin xyz="${mount_visual_origin_xyz}" rpy="0 0 0"/>
+                <geometry><mesh filename="${mount_mesh_file}" scale="${mesh_scale}"/></geometry>
+            </collision>
+        </link>
+
+        <link name="${corner}_caster_wheel">
+            <inertial>
+                <origin xyz="${wheel_inertial_origin_xyz}" rpy="0 0 0"/>
+                <mass value="${wheel_mass}"/>
+                <inertia ixx="${wheel_ixx}" iyy="${wheel_iyy}" izz="${wheel_izz}" ixy="${wheel_ixy}" iyz="${wheel_iyz}" ixz="${wheel_ixz}"/>
+            </inertial>
+            <visual>
+                <origin xyz="${wheel_visual_origin_xyz}" rpy="0 0 0"/>
+                <geometry><mesh filename="${wheel_mesh_file}" scale="${mesh_scale}"/></geometry>
+                <material name="silver"/>
+            </visual>
+            <collision>
+                <origin xyz="${wheel_visual_origin_xyz}" rpy="0 0 0"/>
+                <geometry><mesh filename="${wheel_mesh_file}" scale="${mesh_scale}"/></geometry>
+            </collision>
+        </link>
+
+        <joint name="${corner}_caster_mount_joint" type="continuous">
+            <origin xyz="${mount_joint_origin_xyz}" rpy="0 0 0"/>
+            <parent link="${parent}"/>
+            <child link="${corner}_caster_mount"/>
+            <axis xyz="${mount_joint_axis}"/>
+        </joint>
+
+        <joint name="${corner}_caster_wheel_joint" type="continuous">
+            <origin xyz="${wheel_joint_origin_xyz}" rpy="0 0 0"/>
+            <parent link="${corner}_caster_mount"/>
+            <child link="${corner}_caster_wheel"/>
+            <axis xyz="${wheel_joint_axis}"/>
+        </joint>
+    </xacro:macro>
+</robot>

@@ -16,7 +16,6 @@
   <exec_depend>uet_amr_hardware</exec_depend>
   <exec_depend>uet_amr_localization</exec_depend>
   <exec_depend>uet_amr_navigation</exec_depend>
-  <exec_depend>uet_amr_perception</exec_depend>
   <exec_depend>uet_amr_simulation</exec_depend>
   <exec_depend>rviz2</exec_depend>
 
