@@ -1,26 +1,46 @@
+# Copyright (c) 2026 UET Robotics Club, University of Engineering and
+#                     Technology, Vietnam National University, Hanoi (VNU).
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 """
-Launch file for Nav2 localization (map_server + AMCL) and navigation
-(planner/controller/bt_navigator) against a pre-built map, plus RViz
-visualization.
+Launch file for navigation mode of UET AMR.
 """
-import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node, SetRemap
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    pkg_uet_amr_navigation = get_package_share_directory('uet_amr_navigation')
-    pkg_uet_amr_description = get_package_share_directory('uet_amr_description')
-    pkg_nav2_bringup = get_package_share_directory('nav2_bringup')
-
-    default_params_file = os.path.join(pkg_uet_amr_navigation, 'config', 'nav2.yaml')
-    default_map_file = os.path.join(pkg_uet_amr_navigation, 'maps', 'warehouse.yaml')
-    default_rviz_config = os.path.join(pkg_uet_amr_description, 'config', 'gazebo.rviz')
+    default_params_file = PathJoinSubstitution([
+        FindPackageShare('uet_amr_navigation'), 'config', 'nav2.yaml'
+    ])
+    default_map_file = PathJoinSubstitution([
+        FindPackageShare('uet_amr_navigation'), 'maps', 'warehouse.yaml'
+    ])
+    default_rviz_config = PathJoinSubstitution([
+        FindPackageShare('uet_amr_navigation'), 'rviz', 'navigation.rviz'
+    ])
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     map_yaml_file = LaunchConfiguration('map')
@@ -29,9 +49,9 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('use_rviz')
 
     localization_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_nav2_bringup, 'launch', 'localization_launch.py')
-        ),
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'localization_launch.py'])
+        ]),
         launch_arguments={
             'use_sim_time': use_sim_time,
             'map': map_yaml_file,
@@ -39,14 +59,26 @@ def generate_launch_description():
         }.items()
     )
 
-    navigation_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_nav2_bringup, 'launch', 'navigation_launch.py')
-        ),
-        launch_arguments={
-            'use_sim_time': use_sim_time,
-            'params_file': params_file,
-        }.items()
+    # nav2_bringup's navigation_launch.py hardcodes velocity_smoother's final
+    # output remap as ('cmd_vel_smoothed', 'cmd_vel'). Override just that one
+    # rule (a global SetRemap takes priority over a node's own remappings=[])
+    # so Nav2's final commanded velocity lands directly on the topic
+    # diff_drive_controller actually listens on, instead of the unused
+    # '/cmd_vel'. Scoped to this group only, so it doesn't leak into
+    # localization_launch/rviz_node below.
+    navigation_launch = GroupAction(
+        actions=[
+            SetRemap(src='cmd_vel_smoothed', dst='/diff_drive_controller/cmd_vel_unstamped'),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([
+                    PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'navigation_launch.py'])
+                ]),
+                launch_arguments={
+                    'use_sim_time': use_sim_time,
+                    'params_file': params_file,
+                }.items()
+            ),
+        ]
     )
 
     rviz_node = Node(

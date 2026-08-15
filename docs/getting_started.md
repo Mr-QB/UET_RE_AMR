@@ -97,14 +97,19 @@ Ensure your workspace is built and sourced before running:
 cd ros2
 source install/setup.bash
 
-# Launch the Gazebo simulation environment
-ros2 launch uet_amr_bringup amr_simulation.launch.py
+# Phase 1: SLAM mapping in sim (RViz launches automatically)
+ros2 launch uet_amr_bringup amr_simulation.launch.py mode:=slam
 
-# In a separate terminal: Launch Nav2 navigation
-ros2 launch uet_amr_navigation navigation.launch.py use_sim_time:=true
+# In a separate terminal: drive around with teleop to build the map
+ros2 launch uet_amr_teleop keyboard_teleop.launch.py
 
-# In a separate terminal: Run RViz2 for visualization
-ros2 run rviz2 rviz2 -d ros2/src/uet_amr_description/rviz/amr.rviz
+# Once you've mapped the area, save it (see uet_amr_navigation/maps/README.md)
+ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
+
+# Phase 2: Nav2 navigation against the saved map
+ros2 launch uet_amr_bringup amr_simulation.launch.py mode:=nav
+
+# In RViz, use "2D Goal Pose" to send navigation goals.
 ```
 
 ---
@@ -133,8 +138,19 @@ pio device monitor
 # Start the micro-ROS agent to bridge communications
 ./tools/start_microros_agent.sh
 
-# Launch the hardware bringup stack
-ros2 launch uet_amr_bringup amr_bringup.launch.py
+# Phase 1: SLAM mapping on real hardware (base + sensors + slam_toolbox + RViz)
+ros2 launch uet_amr_bringup amr_hardware.launch.py mode:=slam serial_port:=/dev/ttyUSB0
+
+# In a separate terminal: drive around with teleop to build the map
+ros2 launch uet_amr_teleop keyboard_teleop.launch.py
+
+# Once you've mapped the area, save it (see uet_amr_navigation/maps/README.md)
+ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
+
+# Phase 2: Nav2 navigation against the saved map
+ros2 launch uet_amr_bringup amr_hardware.launch.py mode:=nav
+
+# In RViz, use "2D Goal Pose" to send navigation goals.
 ```
 
 ---

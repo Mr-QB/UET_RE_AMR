@@ -10,7 +10,7 @@ Autonomous Mobile Robot (AMR) project developed by the Department of Robotics, U
 
 ## Overview
 
-UET_RE_AMR is an autonomous mobile robot platform designed for research and educational purposes. The system integrates a ROS2-based software stack for navigation and high-level control with micro-ROS based firmware for low-level motor actuation, sensor feedback, and power management.
+UET_RE_AMR is an autonomous mobile robot platform designed for research and educational purposes. The system integrates a ROS2-based software stack for navigation and high-level control with MCU firmware for low-level motor actuation, sensor feedback, and power management, communicating over a direct UART link.
 
 Key features include:
 - Simultaneous Localization and Mapping (SLAM)
@@ -24,16 +24,24 @@ Key features include:
 
 ```
 UET_RE_AMR/
-├── ros2/           # ROS2 workspace (navigation, perception, control)
-├── firmware/       # Embedded firmware (STM32/ESP32)
-├── hardware/       # Schematics, PCB layouts, CAD models
-├── simulation/     # Gazebo simulation environments and models
-├── docs/           # Technical documentation and guides
-├── tools/          # System configuration and utility scripts
-└── docker/         # Containerized development environments
+├── ros2/src/
+│   ├── uet_amr_bringup/        # Top-level launch files (simulation & hardware)
+│   ├── uet_amr_description/    # URDF, meshes, and RViz configs
+│   ├── uet_amr_hardware/       # ros2_control hardware interface
+│   ├── uet_amr_localization/   # EKF sensor fusion (wheel odom + IMU)
+│   ├── uet_amr_msgs/           # Custom messages, services, and actions
+│   ├── uet_amr_navigation/     # Nav2 stack + slam_toolbox configuration
+│   ├── uet_amr_simulation/     # Gazebo worlds and simulation launch files
+│   ├── uet_amr_teleop/         # Keyboard / joystick teleoperation
+│   └── third_party/            # Vendored/submoduled packages (e.g. rplidar_ros)
+├── firmware/
+│   ├── amr_hoverboard_controller/  # STM32 motor control & wheel odometry firmware
+│   └── amr_uart_bridge/            # ESP32 UART bridge for sensors/status
+├── hardware/    # Schematics, PCB layouts, CAD models, BOM
+├── docs/        # Technical documentation and guides
+├── tools/       # Setup and utility scripts (dev/prod environment setup)
+└── docker/      # Containerized development environment
 ```
-
-For detailed software architecture details, refer to `docs/architecture.md`.
 
 ---
 
@@ -94,29 +102,27 @@ ros2 launch uet_amr_bringup amr_bringup.launch.py
 | Document | Description |
 |---|---|
 | [Getting Started](docs/getting_started.md) | Installation and workspace configuration guide |
-| [Architecture Guide](docs/architecture.md) | Overview of system architecture and packet flow |
-| [Hardware Setup](docs/hardware_setup.md) | Pinouts, electrical connections, and assembly |
-| [ROS2 Packages](docs/ros2/packages_overview.md) | Description of custom ROS2 packages and nodes |
-| [Firmware Flashing](docs/firmware/flashing_guide.md) | Flashing firmware onto the microcontrollers |
-| [Serial Protocol](docs/firmware/serial_protocol.md) | Low-level serial communication packet format |
+| [D435i Guide](docs/d435i_guide.md) | Setup and usage of the Intel RealSense D435i depth camera |
+| [Navigation Package](ros2/src/uet_amr_navigation/README.md) | SLAM -> save map -> Nav2 workflow |
+| [Hardware Docs](hardware/README.md) | Schematics, PCB layouts, CAD models, and BOM |
+| [Hoverboard Controller Firmware](firmware/amr_hoverboard_controller/README.md) | STM32 motor control firmware |
+| [UART Bridge Firmware](firmware/amr_uart_bridge/README.md) | ESP32 UART bridge for sensors/status |
 
 ---
 
 ## Team & Contribution Workflow
 
-For details on branching, commit messages, and contribution guidelines, see `CONTRIBUTING.md`.
+For details on branching, commit messages, and contribution guidelines, see [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
-### Component Ownership
+## Acknowledgements
 
-| Team | Main Directory | Working Branch |
-|---|---|---|
-| Navigation | `ros2/src/uet_amr_navigation/` | `feature/navigation-*` |
-| Perception | `ros2/src/uet_amr_perception/` | `feature/perception-*` |
-| Hardware Interface | `ros2/src/uet_amr_hardware/` | `feature/hardware-*` |
-| Firmware | `firmware/` | `feature/firmware-*` |
-| Simulation | `simulation/` | `feature/sim-*` |
+UET_RE_AMR builds on the work of several open-source projects and communities:
 
----
+- **[linorobot2](https://github.com/linorobot/linorobot2)** — the overall system architecture and ROS2 integration approach for this project were inspired by linorobot2's design.
+- **[hoverboard-firmware-hack-FOC](https://github.com/EFeru/hoverboard-firmware-hack-FOC)** by [EFeru](https://github.com/EFeru) — the base for `firmware/amr_hoverboard_controller`, adapted with a custom communication protocol and motor control logic for this platform. Licensed under GPL-3.0; see [`firmware/amr_hoverboard_controller/LICENSE`](firmware/amr_hoverboard_controller/LICENSE).
+- **[rplidar_ros](https://github.com/Slamtec/rplidar_ros)** by Slamtec — vendored as a submodule at `ros2/src/third_party/rplidar_ros` for LiDAR driver support.
+- **[Nav2](https://github.com/ros-planning/navigation2)**, **[slam_toolbox](https://github.com/SteveMacenski/slam_toolbox)**, and **[robot_localization](https://github.com/cra-ros-pkg/robot_localization)** — the ROS2 navigation, SLAM, and sensor-fusion stacks this project is built on top of.
+
 
 ## License
 
