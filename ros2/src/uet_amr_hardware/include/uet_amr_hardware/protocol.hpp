@@ -1,5 +1,22 @@
 // Copyright (c) 2024 UET Robotics & Electronics Club
-// Licensed under the MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #pragma once
 
@@ -76,72 +93,72 @@ namespace uet_amr_hardware
 namespace protocol
 {
 
-constexpr uint8_t kHeader = 0xAA;
-constexpr size_t kFeedbackPacketLen = 16;
-constexpr size_t kCommandFrameLen = 8;
+    constexpr uint8_t kHeader = 0xAA;
+    constexpr size_t kFeedbackPacketLen = 16;
+    constexpr size_t kCommandFrameLen = 8;
 
-// XOR-fold checksum matching the firmware's checksum16(): byte i is XORed
-// into the low half of the accumulator if i is even, the high half if odd.
-uint16_t checksum16(const uint8_t * data, size_t len);
+    // XOR-fold checksum matching the firmware's checksum16(): byte i is XORed
+    // into the low half of the accumulator if i is even, the high half if odd.
+    uint16_t checksum16(const uint8_t * data, size_t len);
 
-// Decoded master->slave command values. A bitfield struct purely for
-// readable field names/widths -- mirrors the firmware's CommandPacket in
-// ros_protocol.h.
-struct CommandPacket
-{
-  int32_t speed_l : 8;
-  int32_t speed_r : 8;
-  uint32_t reserved : 32;
-};
+    // Decoded master->slave command values. A bitfield struct purely for
+    // readable field names/widths -- mirrors the firmware's CommandPacket in
+    // ros_protocol.h.
+    struct CommandPacket
+    {
+        int32_t speed_l : 8;
+        int32_t speed_r : 8;
+        uint32_t reserved : 32;
+    };
 
-// Builds a master->slave command frame (8 bytes): header, left, right,
-// reserved, checksum. left/right are the raw command sent as-is (truncated
-// to int8 on the wire); the firmware clamps them to -100..100 on its side.
-struct CommandFrame
-{
-  uint8_t bytes[kCommandFrameLen];
-};
-CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right);
+    // Builds a master->slave command frame (8 bytes): header, left, right,
+    // reserved, checksum. left/right are the raw command sent as-is (truncated
+    // to int8 on the wire); the firmware clamps them to -100..100 on its side.
+    struct CommandFrame
+    {
+        uint8_t bytes[kCommandFrameLen];
+    };
+    CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right);
 
-// Decoded slave->master feedback packet. A bitfield struct purely for
-// readable field names/widths -- populated field-by-field from the manual
-// bit-unpack in FeedbackParser::feed(), never by reinterpreting raw bytes.
-struct FeedbackPacket
-{
-  uint32_t sys_status : 2;
-  int32_t speed_l : 8;
-  int32_t speed_r : 8;
-  uint32_t en_tick_l : 14;
-  uint32_t en_tick_r : 14;
-  uint32_t temp_c : 7;
-  uint32_t current_a : 11;  // raw; divide by 100.0f for Amps
-  uint32_t battery : 7;
-  uint32_t charging : 1;
-  uint32_t optional_1 : 6;
-  uint32_t optional_2 : 16;
-};
+    // Decoded slave->master feedback packet. A bitfield struct purely for
+    // readable field names/widths -- populated field-by-field from the manual
+    // bit-unpack in FeedbackParser::feed(), never by reinterpreting raw bytes.
+    struct FeedbackPacket
+    {
+        uint32_t sys_status : 2;
+        int32_t speed_l : 8;
+        int32_t speed_r : 8;
+        uint32_t en_tick_l : 14;
+        uint32_t en_tick_r : 14;
+        uint32_t temp_c : 7;
+        uint32_t current_a : 11; // raw; divide by 100.0f for Amps
+        uint32_t battery : 7;
+        uint32_t charging : 1;
+        uint32_t optional_1 : 6;
+        uint32_t optional_2 : 16;
+    };
 
-// Byte-fed parser for slave->master feedback packets (header 0xAA, fixed
-// length kFeedbackPacketLen). Resyncs on the next header byte whenever a
-// checksum fails, mirroring the firmware's own tolerant receive behavior.
-class FeedbackParser
-{
-public:
-  // Feed one received byte. Returns true exactly when a full,
-  // checksum-valid packet has just been assembled; packet() is valid only
-  // immediately after a call that returned true.
-  bool feed(uint8_t byte);
+    // Byte-fed parser for slave->master feedback packets (header 0xAA, fixed
+    // length kFeedbackPacketLen). Resyncs on the next header byte whenever a
+    // checksum fails, mirroring the firmware's own tolerant receive behavior.
+    class FeedbackParser
+    {
+    public:
+        // Feed one received byte. Returns true exactly when a full,
+        // checksum-valid packet has just been assembled; packet() is valid only
+        // immediately after a call that returned true.
+        bool feed(uint8_t byte);
 
-  const FeedbackPacket & packet() const {return packet_;}
+        const FeedbackPacket & packet() const {return packet_;}
 
-private:
-  enum class State {WaitHeader, WaitBody};
+    private:
+        enum class State {WaitHeader, WaitBody};
 
-  State state_{State::WaitHeader};
-  uint8_t body_[kFeedbackPacketLen]{};
-  uint8_t body_index_{0};
-  FeedbackPacket packet_{};
-};
+        State state_{State::WaitHeader};
+        uint8_t body_[kFeedbackPacketLen]{};
+        uint8_t body_index_{0};
+        FeedbackPacket packet_{};
+    };
 
 }  // namespace protocol
 }  // namespace uet_amr_hardware

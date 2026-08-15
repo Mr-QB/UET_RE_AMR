@@ -27,49 +27,49 @@
   <mu2>1.0</mu2>
 </gazebo>
 
-<gazebo reference="bl_caster_mount">
+<gazebo reference="bl_caster_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="br_caster_mount">
+<gazebo reference="br_caster_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fl_caster_mount">
+<gazebo reference="fl_caster_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fr_caster_mount">
+<gazebo reference="fr_caster_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fl_caster_wheel">
+<gazebo reference="fl_caster_wheel__1__1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="bl_caster_wheel">
+<gazebo reference="bl_caster_wheel_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="br_caster_wheel">
+<gazebo reference="br_caster_wheel_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>
 </gazebo>
 
-<gazebo reference="fr_caster_wheel">
+<gazebo reference="fr_caster_wheel_1">
   <material>${body_color}</material>
   <mu1>0.2</mu1>
   <mu2>0.2</mu2>

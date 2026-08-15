@@ -1,5 +1,22 @@
 // Copyright (c) 2024 UET Robotics & Electronics Club
-// Licensed under the MIT License
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #include "uet_amr_hardware/protocol.hpp"
 
@@ -10,106 +27,106 @@ namespace uet_amr_hardware
 namespace protocol
 {
 
-uint16_t checksum16(const uint8_t * data, size_t len)
-{
-  uint16_t c = 0;
-  for (size_t i = 0; i < len; i++) {
-    c ^= static_cast<uint16_t>(data[i]) << ((i & 1u) * 8u);
-  }
-  return c;
-}
-
-namespace
-{
-// The wire frame packs speed as int8 (see CommandPacket), so clamp to
-// -100..100 here rather than relying on the implementation-defined result
-// of truncating an out-of-range int16 to int8.
-int8_t clampToInt8Speed(int16_t speed)
-{
-  if (speed > 100) {return 100;}
-  if (speed < -100) {return -100;}
-  return static_cast<int8_t>(speed);
-}
-}  // namespace
-
-CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
-{
-  CommandFrame frame{};
-  frame.bytes[0] = kHeader;
-  frame.bytes[1] = static_cast<uint8_t>(clampToInt8Speed(speed_left));
-  frame.bytes[2] = static_cast<uint8_t>(clampToInt8Speed(speed_right));
-  frame.bytes[3] = 0;  // reserved
-  frame.bytes[4] = 0;  // reserved
-  frame.bytes[5] = 0;  // reserved
-  frame.bytes[6] = 0;  // reserved
-
-  // Plain byte-wise XOR of bytes [0..6], matching the firmware's R_Receive()
-  // in ros_protocol.cpp -- NOT checksum16(), which is the 16-bit
-  // alternating fold used only for the 16-byte feedback packet.
-  uint8_t checksum = 0;
-  for (size_t i = 0; i < 7; ++i) {
-    checksum ^= frame.bytes[i];
-  }
-  frame.bytes[7] = checksum;
-  return frame;
-}
-
-bool FeedbackParser::feed(uint8_t b)
-{
-  switch (state_) {
-    case State::WaitHeader:
-      if (b == kHeader) {
-        body_[0] = b;
-        body_index_ = 1;
-        state_ = State::WaitBody;
-      }
-      break;
-
-    case State::WaitBody:
-      body_[body_index_++] = b;
-      if (body_index_ >= kFeedbackPacketLen) {
-        state_ = State::WaitHeader;
-
-        const uint16_t expected = checksum16(body_, kFeedbackPacketLen - 2);
-        const uint16_t received = static_cast<uint16_t>(
-          body_[kFeedbackPacketLen - 2] | (body_[kFeedbackPacketLen - 1] << 8));
-        if (received != expected) {
-          break;  // checksum mismatch, drop and resync on the next header
+    uint16_t checksum16(const uint8_t * data, size_t len)
+    {
+        uint16_t c = 0;
+        for (size_t i = 0; i < len; i++) {
+            c ^= static_cast<uint16_t>(data[i]) << ((i & 1u) * 8u);
         }
+        return c;
+    }
 
-        const uint32_t w1 = static_cast<uint32_t>(body_[0]) |
-          (static_cast<uint32_t>(body_[1]) << 8) |
-          (static_cast<uint32_t>(body_[2]) << 16) |
-          (static_cast<uint32_t>(body_[3]) << 24);
-        const uint32_t w2 = static_cast<uint32_t>(body_[4]) |
-          (static_cast<uint32_t>(body_[5]) << 8) |
-          (static_cast<uint32_t>(body_[6]) << 16) |
-          (static_cast<uint32_t>(body_[7]) << 24);
-        const uint32_t w3 = static_cast<uint32_t>(body_[8]) |
-          (static_cast<uint32_t>(body_[9]) << 8) |
-          (static_cast<uint32_t>(body_[10]) << 16) |
-          (static_cast<uint32_t>(body_[11]) << 24);
-        const uint32_t optional_2 = static_cast<uint32_t>(body_[12]) |
-          (static_cast<uint32_t>(body_[13]) << 8);
+    namespace
+    {
+        // The wire frame packs speed as int8 (see CommandPacket), so clamp to
+        // -100..100 here rather than relying on the implementation-defined result
+        // of truncating an out-of-range int16 to int8.
+        int8_t clampToInt8Speed(int16_t speed)
+        {
+            if (speed > 100) {return 100;}
+            if (speed < -100) {return -100;}
+            return static_cast<int8_t>(speed);
+        }
+    }  // namespace
 
-        packet_.sys_status = (w1 >> 8) & 0x3;
-        packet_.speed_l = static_cast<int8_t>((w1 >> 16) & 0xFF);
-        packet_.speed_r = static_cast<int8_t>((w1 >> 24) & 0xFF);
-        packet_.en_tick_l = w2 & 0x3FFF;
-        packet_.en_tick_r = (w2 >> 14) & 0x3FFF;
-        packet_.temp_c = w3 & 0x7F;
-        packet_.current_a = (w3 >> 7) & 0x7FF;
-        packet_.battery = (w3 >> 18) & 0x7F;
-        packet_.charging = (w3 >> 25) & 0x1;
-        packet_.optional_1 = (w3 >> 26) & 0x3F;
-        packet_.optional_2 = optional_2;
+    CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
+    {
+        CommandFrame frame{};
+        frame.bytes[0] = kHeader;
+        frame.bytes[1] = static_cast<uint8_t>(clampToInt8Speed(speed_left));
+        frame.bytes[2] = static_cast<uint8_t>(clampToInt8Speed(speed_right));
+        frame.bytes[3] = 0; // reserved
+        frame.bytes[4] = 0; // reserved
+        frame.bytes[5] = 0; // reserved
+        frame.bytes[6] = 0; // reserved
 
-        return true;
-      }
-      break;
-  }
-  return false;
-}
+        // Plain byte-wise XOR of bytes [0..6], matching the firmware's R_Receive()
+        // in ros_protocol.cpp -- NOT checksum16(), which is the 16-bit
+        // alternating fold used only for the 16-byte feedback packet.
+        uint8_t checksum = 0;
+        for (size_t i = 0; i < 7; ++i) {
+            checksum ^= frame.bytes[i];
+        }
+        frame.bytes[7] = checksum;
+        return frame;
+    }
+
+    bool FeedbackParser::feed(uint8_t b)
+    {
+        switch (state_) {
+          case State::WaitHeader:
+              if (b == kHeader) {
+                  body_[0] = b;
+                  body_index_ = 1;
+                  state_ = State::WaitBody;
+              }
+              break;
+
+          case State::WaitBody:
+              body_[body_index_++] = b;
+              if (body_index_ >= kFeedbackPacketLen) {
+                  state_ = State::WaitHeader;
+
+                  const uint16_t expected = checksum16(body_, kFeedbackPacketLen - 2);
+                  const uint16_t received = static_cast<uint16_t>(
+                      body_[kFeedbackPacketLen - 2] | (body_[kFeedbackPacketLen - 1] << 8));
+                  if (received != expected) {
+                      break; // checksum mismatch, drop and resync on the next header
+                  }
+
+                  const uint32_t w1 = static_cast<uint32_t>(body_[0]) |
+                      (static_cast<uint32_t>(body_[1]) << 8) |
+                      (static_cast<uint32_t>(body_[2]) << 16) |
+                      (static_cast<uint32_t>(body_[3]) << 24);
+                  const uint32_t w2 = static_cast<uint32_t>(body_[4]) |
+                      (static_cast<uint32_t>(body_[5]) << 8) |
+                      (static_cast<uint32_t>(body_[6]) << 16) |
+                      (static_cast<uint32_t>(body_[7]) << 24);
+                  const uint32_t w3 = static_cast<uint32_t>(body_[8]) |
+                      (static_cast<uint32_t>(body_[9]) << 8) |
+                      (static_cast<uint32_t>(body_[10]) << 16) |
+                      (static_cast<uint32_t>(body_[11]) << 24);
+                  const uint32_t optional_2 = static_cast<uint32_t>(body_[12]) |
+                      (static_cast<uint32_t>(body_[13]) << 8);
+
+                  packet_.sys_status = (w1 >> 8) & 0x3;
+                  packet_.speed_l = static_cast<int8_t>((w1 >> 16) & 0xFF);
+                  packet_.speed_r = static_cast<int8_t>((w1 >> 24) & 0xFF);
+                  packet_.en_tick_l = w2 & 0x3FFF;
+                  packet_.en_tick_r = (w2 >> 14) & 0x3FFF;
+                  packet_.temp_c = w3 & 0x7F;
+                  packet_.current_a = (w3 >> 7) & 0x7FF;
+                  packet_.battery = (w3 >> 18) & 0x7F;
+                  packet_.charging = (w3 >> 25) & 0x1;
+                  packet_.optional_1 = (w3 >> 26) & 0x3F;
+                  packet_.optional_2 = optional_2;
+
+                  return true;
+              }
+              break;
+        }
+        return false;
+    }
 
 }  // namespace protocol
 }  // namespace uet_amr_hardware
