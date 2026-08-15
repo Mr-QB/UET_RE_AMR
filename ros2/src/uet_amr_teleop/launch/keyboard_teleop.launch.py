@@ -20,47 +20,16 @@
 # DEALINGS IN THE SOFTWARE.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
-
-CONFIG_BY_CONTROLLER = {
-    'ps4': 'joy_teleop.yaml',
-    'xbox': 'joy_teleop_xbox.yaml',
-}
-
-
-def launch_setup(context, *args, **kwargs):
-    controller = LaunchConfiguration('controller').perform(context)
-    joy_config_path = PathJoinSubstitution(
-        [FindPackageShare('uet_amr_teleop'), 'config', CONFIG_BY_CONTROLLER[controller]]
-    )
-
-    return [
-        Node(
-            package='joy',
-            executable='joy_node',
-            name='joy_node',
-        ),
-
-        Node(
-            package='teleop_twist_joy',
-            executable='teleop_node',
-            name='teleop_twist_joy',
-            parameters=[joy_config_path],
-            remappings=[('/cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')],
-        ),
-    ]
 
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'controller',
-            default_value='ps4',
-            choices=list(CONFIG_BY_CONTROLLER.keys()),
-            description='Gamepad type driving axis/sign mapping.',
+        Node(
+            package='uet_amr_teleop',
+            executable='keyboard_teleop',
+            name='uet_amr_teleop_keyboard',
+            output='screen',
+            emulate_tty=True,
         ),
-        OpaqueFunction(function=launch_setup),
     ])

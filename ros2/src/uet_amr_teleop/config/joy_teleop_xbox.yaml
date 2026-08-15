@@ -1,17 +1,18 @@
-# Generic PlayStation Layout
+# Generic Xbox Layout
+teleop_twist_joy:
   ros__parameters:
     axis_linear:
       x: 1          # left stick vertical
     scale_linear:
-      x: 0.3        # slowed down from 0.5 to reduce drift at full deflection
+      x: 0.3
     scale_linear_turbo:
       x: 0.6
 
     axis_angular:
       yaw: 0        # left stick horizontal (single-stick control)
     scale_angular:
-      yaw: -0.6     # negated: positive axis (right) must produce a right turn; slowed from -1.0
+      yaw: 0.6      # positive: -0.6 confirmed inverted on hardware, flipped back
     scale_angular_turbo:
-      yaw: -0.9
+      yaw: 0.9
 
     require_enable_button: false
