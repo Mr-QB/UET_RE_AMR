@@ -19,6 +19,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+"""
+Launch file for controller teleoperation of UET AMR.
+"""
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -26,7 +29,7 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 CONFIG_BY_CONTROLLER = {
-    'ps4': 'joy_teleop.yaml',
+    'ps': 'joy_teleop_ps.yaml',
     'xbox': 'joy_teleop_xbox.yaml',
 }
 
@@ -58,7 +61,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'controller',
-            default_value='ps4',
+            default_value='ps',
             choices=list(CONFIG_BY_CONTROLLER.keys()),
             description='Gamepad type driving axis/sign mapping.',
         ),
