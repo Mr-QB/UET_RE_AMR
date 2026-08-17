@@ -29,6 +29,13 @@
             <origin xyz="${joint_origin_xyz}" rpy="0 0 0"/>
             <parent link="${parent}"/>
             <child link="${side}_wheel_link"/>
+            <!-- Torque cap below the wheel's own traction limit (~6.1 Nm at mu=1.0,
+                 ~30kg robot) so a blocked wheel stalls instead of spinning/slipping
+                 forever and corrupting odom via diff_drive_controller. Still >4x the
+                 ~1.2 Nm needed for normal max-acceleration driving. Approximate —
+                 based on an assumed 50/50 front/drive load split, not a full static
+                 analysis; retune if it feels sluggish or still slips at the wall. -->
+            <limit effort="5" velocity="10"/>
         </joint>
     </xacro:macro>
 </robot>
