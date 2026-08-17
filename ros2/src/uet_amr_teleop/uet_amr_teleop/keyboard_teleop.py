@@ -33,6 +33,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import os
 import sys
 import select
 import termios
@@ -80,16 +81,22 @@ SPEED_BINDINGS = {
 }
 
 
-def get_key(settings):
-    tty.setraw(sys.stdin.fileno())
-    ready, _, _ = select.select([sys.stdin], [], [], 0.1)
-    key = sys.stdin.read(1) if ready else ''
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+def get_key(settings, tty_file):
+    tty.setraw(tty_file.fileno())
+    ready, _, _ = select.select([tty_file], [], [], 0.1)
+    key = tty_file.read(1) if ready else ''
+    termios.tcsetattr(tty_file.fileno(), termios.TCSADRAIN, settings)
     return key
 
 
 def main():
-    settings = termios.tcgetattr(sys.stdin)
+    # Mở trực tiếp /dev/tty để tránh lỗi Inappropriate ioctl khi chạy qua ros2 launch
+    try:
+        tty_file = open('/dev/tty', 'r')
+    except Exception:
+        tty_file = sys.stdin
+
+    settings = termios.tcgetattr(tty_file.fileno())
 
     rclpy.init()
     node = rclpy.create_node('uet_amr_teleop_keyboard')
@@ -105,7 +112,7 @@ def main():
         print(f"currently:\tspeed {speed:.2f}\tturn {turn:.2f}")
 
         while rclpy.ok():
-            key = get_key(settings)
+            key = get_key(settings, tty_file)
 
             if key in MOVE_BINDINGS.keys():
                 x = MOVE_BINDINGS[key][0]
@@ -130,7 +137,9 @@ def main():
     finally:
         twist = Twist()
         pub.publish(twist)
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+        termios.tcsetattr(tty_file.fileno(), termios.TCSADRAIN, settings)
+        if tty_file is not sys.stdin:
+            tty_file.close()
         node.destroy_node()
         rclpy.shutdown()
 

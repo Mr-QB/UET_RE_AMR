@@ -18,7 +18,7 @@ def generate_launch_description():
 
     world_arg = DeclareLaunchArgument(
         'world',
-        default_value='warehouse',
+        default_value='turtlebot3_house',
         description="World to load (file stem under worlds/): 'warehouse' or 'turtlebot3_house'"
     )
     x_pose_arg = DeclareLaunchArgument(
