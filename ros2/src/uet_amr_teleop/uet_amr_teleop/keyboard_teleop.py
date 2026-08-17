@@ -90,7 +90,6 @@ def get_key(settings, tty_file):
 
 
 def main():
-    # Mở trực tiếp /dev/tty để tránh lỗi Inappropriate ioctl khi chạy qua ros2 launch
     try:
         tty_file = open('/dev/tty', 'r')
     except Exception:

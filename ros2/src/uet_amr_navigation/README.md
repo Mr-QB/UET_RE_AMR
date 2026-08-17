@@ -14,7 +14,7 @@ ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
 ```
 
 Run this from a second terminal *while* `slam.launch.py` (or
-`amr_simulation.launch.py`/`amr_hardware.launch.py` with `mode:=slam`) is
+`amr_simulation.launch.py`/`amr_bringup.launch.py` with `mode:=slam`) is
 still running -- it saves whatever `slam_toolbox` has published on `/map` at
 that moment.
 
