@@ -1,4 +1,5 @@
 # Generic PlayStation Layout
+teleop_twist_joy:
   ros__parameters:
     axis_linear:
       x: 1          # left stick vertical
@@ -10,8 +11,8 @@
     axis_angular:
       yaw: 0        # left stick horizontal (single-stick control)
     scale_angular:
-      yaw: -0.6     # negated: positive axis (right) must produce a right turn; slowed from -1.0
+      yaw: 0.6     # negated: positive axis (right) must produce a right turn; slowed from -1.0
     scale_angular_turbo:
-      yaw: -0.9
+      yaw: 0.9
 
     require_enable_button: false
