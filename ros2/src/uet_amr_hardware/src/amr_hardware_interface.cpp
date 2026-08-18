@@ -170,17 +170,53 @@ bool AmrHardwareInterface::sendCommand(int16_t speed_left, int16_t speed_right)
     }
     protocol::CommandFrame frame = protocol::encodeCommandFrame(speed_left, speed_right);
 
+    const auto deadline = std::chrono::steady_clock::now() + kWriteTimeout;
     size_t written = 0;
     while (written < sizeof(frame.bytes)) {
         ssize_t n = ::write(serial_fd_, frame.bytes + written, sizeof(frame.bytes) - written);
         if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
-                continue;
+            if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+                RCLCPP_ERROR_THROTTLE(
+                    logger(), steady_clock_, 1000,
+                    "write() to '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
+                return false;
             }
-            RCLCPP_ERROR_THROTTLE(
-                logger(), steady_clock_, 1000,
-                "write() to '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
-            return false;
+
+            // TX buffer full (or a signal interrupted the write) -- wait for
+            // POLLOUT instead of busy-spinning, bounded by deadline so a
+            // stalled port can't hang the RT thread indefinitely.
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) {
+                RCLCPP_ERROR_THROTTLE(
+                    logger(), steady_clock_, 1000,
+                    "write() to '%s' timed out after %ldms", serial_port_.c_str(),
+                    static_cast<long>(kWriteTimeout.count()));
+                return false;
+            }
+            const auto remaining =
+                std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+
+            pollfd pfd{};
+            pfd.fd = serial_fd_;
+            pfd.events = POLLOUT;
+            int ret = ::poll(&pfd, 1, static_cast<int>(remaining.count()));
+            if (ret < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                RCLCPP_ERROR_THROTTLE(
+                    logger(), steady_clock_, 1000,
+                    "poll() on '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
+                return false;
+            }
+            if (ret == 0) {
+                RCLCPP_ERROR_THROTTLE(
+                    logger(), steady_clock_, 1000,
+                    "write() to '%s' timed out after %ldms", serial_port_.c_str(),
+                    static_cast<long>(kWriteTimeout.count()));
+                return false;
+            }
+            continue;
         }
         written += static_cast<size_t>(n);
     }
@@ -463,7 +499,9 @@ hardware_interface::return_type AmrHardwareInterface::write(
     // Fire-and-forget every cycle (even zero velocity) -- firmware never
     // replies to a command frame, and this is what keeps its no-traffic
     // watchdog fed.
-    sendCommand(left_speed, right_speed);
+    if (!sendCommand(left_speed, right_speed)) {
+        return hardware_interface::return_type::ERROR;
+    }
 
     return hardware_interface::return_type::OK;
 }
