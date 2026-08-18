@@ -9,36 +9,39 @@ navigation against a pre-built map, plus an RViz2 window scoped to that
 mode. Mirrors uet_amr_simulation/amr_simulation.launch.py's mode:=slam|nav
 structure with use_sim_time forced false.
 """
-import os
-
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import EqualsSubstitution, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import Command, EqualsSubstitution, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
-import xacro
+
+PKG_DESCRIPTION = FindPackageShare('uet_amr_description')
 
 
-def launch_setup(context, *args, **kwargs):
-    pkg_description = get_package_share_directory('uet_amr_description')
+def generate_launch_description():
+    default_map_file = PathJoinSubstitution([
+        FindPackageShare('uet_amr_navigation'), 'maps', 'warehouse.yaml'
+    ])
 
-    xacro_file = os.path.join(pkg_description, 'urdf', 'uet_amr.xacro')
+    xacro_file = PathJoinSubstitution([PKG_DESCRIPTION, 'urdf', 'uet_amr.xacro'])
     # Shared with the simulation's ign_ros2_control plugin -- see the
     # use_sim_time override below for why that's safe on real hardware.
-    controller_params_file = os.path.join(pkg_description, 'config', 'controllers.yaml')
+    controller_params_file = PathJoinSubstitution([PKG_DESCRIPTION, 'config', 'controllers.yaml'])
 
-    robot_description_config = xacro.process_file(
-        xacro_file,
-        mappings={
-            'use_real_hardware': 'true',
-            'serial_port': LaunchConfiguration('serial_port').perform(context),
-            'baud_rate': LaunchConfiguration('baud_rate').perform(context),
-        },
-    )
-    robot_description = {'robot_description': robot_description_config.toxml()}
+    robot_description = {
+        'robot_description': ParameterValue(
+            Command([
+                'xacro ', xacro_file,
+                ' use_real_hardware:=true',
+                ' serial_port:=', LaunchConfiguration('serial_port'),
+                ' baud_rate:=', LaunchConfiguration('baud_rate'),
+            ]),
+            value_type=str,
+        )
+    }
 
     robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -70,11 +73,10 @@ def launch_setup(context, *args, **kwargs):
         arguments=['diff_drive_controller', '--controller-manager', '/controller_manager'],
     )
 
-    pkg_uet_amr_localization = get_package_share_directory('uet_amr_localization')
     ekf_localization = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_uet_amr_localization, 'launch', 'ekf.launch.py')
-        ),
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('uet_amr_localization'), 'launch', 'ekf.launch.py'])
+        ]),
         launch_arguments={
             'use_sim_time': 'false',
             'imu_topic': 'camera/camera/imu',
@@ -157,25 +159,6 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
-    return [
-        robot_state_publisher,
-        controller_manager_node,
-        joint_state_broadcaster_spawner,
-        diff_drive_controller_spawner,
-        ekf_localization,
-        sensors_launch,
-        slam_launch,
-        nav_launch,
-        slam_rviz_node,
-        nav_rviz_node,
-    ]
-
-
-def generate_launch_description():
-    default_map_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'maps', 'warehouse.yaml'
-    ])
-
     return LaunchDescription([
         DeclareLaunchArgument(
             'serial_port',
@@ -198,5 +181,14 @@ def generate_launch_description():
                                   "'nav': run Nav2 localization (AMCL) + navigation against "
                                   "the map given by the 'map' argument."
                               )),
-        OpaqueFunction(function=launch_setup),
+        robot_state_publisher,
+        controller_manager_node,
+        joint_state_broadcaster_spawner,
+        diff_drive_controller_spawner,
+        ekf_localization,
+        sensors_launch,
+        slam_launch,
+        nav_launch,
+        slam_rviz_node,
+        nav_rviz_node,
     ])

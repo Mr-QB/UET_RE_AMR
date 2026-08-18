@@ -1,15 +1,14 @@
-import os
-
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('uet_amr_localization')
-    ekf_config = os.path.join(pkg_share, 'config', 'ekf.yaml')
+    ekf_config = PathJoinSubstitution(
+        [FindPackageShare('uet_amr_localization'), 'config', 'ekf.yaml']
+    )
 
     use_sim_time_arg = DeclareLaunchArgument(
         'use_sim_time',
