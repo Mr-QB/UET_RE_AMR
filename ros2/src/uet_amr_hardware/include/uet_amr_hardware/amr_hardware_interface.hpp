@@ -121,11 +121,6 @@ private:
     std::chrono::steady_clock::time_point last_feedback_time_;
     static constexpr std::chrono::milliseconds kFeedbackTimeout{500};
 
-    // Bounds sendCommand()'s write retry loop so a stalled TX side (wedged
-    // USB-serial adapter, cable pull mid-write) can't spin the RT thread
-    // forever. 8 bytes onto an open TX buffer is normally near-instant.
-    static constexpr std::chrono::milliseconds kWriteTimeout{200};
-
     // Wrap-aware encoder tick tracking (see wrapTickDelta()/applyFeedback()).
     bool have_last_ticks_{false};
     int last_tick_l_{0};
