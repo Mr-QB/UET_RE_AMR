@@ -98,7 +98,7 @@ cd ros2
 source install/setup.bash
 
 # Phase 1: SLAM mapping in sim (RViz launches automatically)
-ros2 launch uet_amr_bringup amr_simulation.launch.py mode:=slam
+ros2 launch uet_amr_simulation amr_simulation.launch.py mode:=slam
 
 # In a separate terminal: drive around with teleop to build the map
 ros2 launch uet_amr_teleop keyboard_teleop.launch.py
@@ -107,7 +107,7 @@ ros2 launch uet_amr_teleop keyboard_teleop.launch.py
 ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
 
 # Phase 2: Nav2 navigation against the saved map
-ros2 launch uet_amr_bringup amr_simulation.launch.py mode:=nav
+ros2 launch uet_amr_simulation amr_simulation.launch.py mode:=nav
 
 # In RViz, use "2D Goal Pose" to send navigation goals.
 ```
@@ -139,7 +139,7 @@ pio device monitor
 ./tools/start_microros_agent.sh
 
 # Phase 1: SLAM mapping on real hardware (base + sensors + slam_toolbox + RViz)
-ros2 launch uet_amr_bringup amr_hardware.launch.py mode:=slam serial_port:=/dev/ttyUSB0
+ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=slam serial_port:=/dev/ttyUSB0
 
 # In a separate terminal: drive around with teleop to build the map
 ros2 launch uet_amr_teleop keyboard_teleop.launch.py
@@ -148,7 +148,7 @@ ros2 launch uet_amr_teleop keyboard_teleop.launch.py
 ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
 
 # Phase 2: Nav2 navigation against the saved map
-ros2 launch uet_amr_bringup amr_hardware.launch.py mode:=nav
+ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=nav
 
 # In RViz, use "2D Goal Pose" to send navigation goals.
 ```
