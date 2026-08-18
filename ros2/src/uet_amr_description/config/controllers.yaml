@@ -4,8 +4,9 @@ controller_manager:
     # use_sim_time is needed here (not just at the node level) because in
     # simulation this file is loaded directly by the ign_ros2_control
     # gazebo plugin, which has no launch-time parameter-override path.
-    # Real hardware's amr_bringup.launch.py explicitly overrides this back
-    # to false via a launch-time parameter dict.
+    # Real hardware's amr_bringup*.launch.py explicitly override this back to
+    # false via a real_hardware_overrides.yaml parameter file (see there for
+    # why it must be a file, not a launch-time parameter dict).
     use_sim_time: true
 
     diff_drive_controller:

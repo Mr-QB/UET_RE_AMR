@@ -1,0 +1,20 @@
+# controllers.yaml hardcodes use_sim_time: true because the simulated
+# ign_ros2_control plugin loads it directly with no launch-time override path.
+# Real-hardware bringup layers this file on top to force it back to false.
+#
+# This MUST be a plain params file, not a launch-time Python parameter dict:
+# launch_ros only scopes a dict to controller_manager's exact node name if the
+# Node action is given an explicit name= *and* namespace=, and doing that
+# makes launch_ros emit an unscoped `-r __node:=... -r __ns:=...` remap --
+# which renames every node ros2_control_node creates internally (including
+# each dynamically-loaded controller's own node), not just controller_manager
+# itself. Every controller then silently gets its own node renamed to
+# "controller_manager" too, so their parameter overrides (scoped to their real
+# names, e.g. "diff_drive_controller:") never match and they fall back to
+# compiled-in defaults -- diff_drive_controller's wheel_separation defaults to
+# 0.0, which fails its own declare-time floating_point_range check (must be
+# >0) and aborts controller init. A plain file entry here, with no Node
+# name=/namespace=, avoids that remap entirely.
+controller_manager:
+  ros__parameters:
+    use_sim_time: false
