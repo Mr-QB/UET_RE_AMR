@@ -29,6 +29,21 @@ init_submodules() {
   git submodule update --init --recursive ros2/src/third_party
 }
 
+# Installs the vendored RPLidar udev rule so the sensor always enumerates as
+# the fixed /dev/rplidar symlink (matches uet_amr_bringup/launch/lidar.launch.py's
+# serial_port param) instead of a shifting /dev/ttyUSBX. Requires init_submodules
+# to have run first, since the rule ships inside the rplidar_ros submodule.
+setup_rplidar_udev() {
+  echo -e "${YELLOW}Installing RPLidar udev rule (device -> /dev/rplidar)...${NC}"
+  local rules_src="$REPO_ROOT/ros2/src/third_party/rplidar_ros/scripts/rplidar.rules"
+  if [ ! -f "$rules_src" ]; then
+    echo "  (rplidar.rules not found at $rules_src -- skipping, run init_submodules first)"
+    return
+  fi
+  sudo cp "$rules_src" /etc/udev/rules.d/rplidar.rules
+  sudo udevadm control --reload && sudo udevadm trigger
+}
+
 # $1: "true" (default) to include uet_amr_simulation (Gazebo sim deps),
 #     "false" to skip it — for production/robot machines that don't run
 #     simulation and may lack arm64 apt binaries for ros_gz_sim / ign_ros2_control.
