@@ -348,8 +348,8 @@ void AmrHardwareInterface::applyFeedback(
         return;
     }
 
-    const int delta_l = wrapTickDelta(pkt.en_tick_l, last_tick_l_);
-    const int delta_r = wrapTickDelta(pkt.en_tick_r, last_tick_r_);
+    const int delta_l = -wrapTickDelta(pkt.en_tick_l, last_tick_l_);
+    const int delta_r = -wrapTickDelta(pkt.en_tick_r, last_tick_r_);
     last_tick_l_ = pkt.en_tick_l;
     last_tick_r_ = pkt.en_tick_r;
 
