@@ -180,7 +180,7 @@
         clip_near="0.1"
         clip_far="10.0"
         imu_update_rate="100"
-        imu_topic_name="imu/data">
+        imu_topic_name="camera/camera/imu">
         <origin xyz="0.25 0.0 0.08" rpy="0 0 0"/>
     </xacro:depth_camera>
 </robot>

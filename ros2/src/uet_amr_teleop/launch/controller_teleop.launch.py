@@ -23,24 +23,17 @@
 Launch file for controller teleoperation of UET AMR.
 """
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-CONFIG_BY_CONTROLLER = {
-    'ps': 'joy_teleop_ps.yaml',
-    'xbox': 'joy_teleop_xbox.yaml',
-}
 
-
-def launch_setup(context, *args, **kwargs):
-    controller = LaunchConfiguration('controller').perform(context)
+def generate_launch_description():
     joy_config_path = PathJoinSubstitution(
-        [FindPackageShare('uet_amr_teleop'), 'config', CONFIG_BY_CONTROLLER[controller]]
+        [FindPackageShare('uet_amr_teleop'), 'config', 'joy_teleop.yaml']
     )
 
-    return [
+    return LaunchDescription([
         Node(
             package='joy',
             executable='joy_node',
@@ -54,16 +47,4 @@ def launch_setup(context, *args, **kwargs):
             parameters=[joy_config_path],
             remappings=[('/cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')],
         ),
-    ]
-
-
-def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument(
-            'controller',
-            default_value='ps',
-            choices=list(CONFIG_BY_CONTROLLER.keys()),
-            description='Gamepad type driving axis/sign mapping.',
-        ),
-        OpaqueFunction(function=launch_setup),
     ])

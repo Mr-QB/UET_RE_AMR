@@ -22,6 +22,6 @@ k/l : increase/decrease only linear speed by 10%
 ## Controller (joystick)
 
 ```bash
-# default to ps,can be changed to controller:=xbox
-ros2 launch uet_amr_teleop controller_teleop.launch.py controller:=ps
+# Works with Xbox and PlayStation gamepads -- same axis layout via the joy driver.
+ros2 launch uet_amr_teleop controller_teleop.launch.py
 ```

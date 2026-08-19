@@ -14,7 +14,7 @@ ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
 ```
 
 Run this from a second terminal *while* `slam.launch.py` (or
-`amr_simulation.launch.py`/`amr_bringup.launch.py` with `mode:=slam`) is
+`simulation.launch.py`/`amr_bringup.launch.py` with `mode:=slam`) is
 still running -- it saves whatever `slam_toolbox` has published on `/map` at
 that moment.
 
@@ -22,7 +22,7 @@ Save directly into `maps/` in the source tree (not the colcon `install/`
 share/ copy) using the exact path above, then `colcon build --symlink-install`
 so the installed copy picks it up. This produces `warehouse.pgm` +
 `warehouse.yaml`, matching the default `map` argument already hardcoded in
-`navigation.launch.py` and `amr_simulation.launch.py` -- no other file needs
+`navigation.launch.py` and `simulation.launch.py` -- no other file needs
 to change once you save under this name.
 
 If you build a different map (e.g. a different room), pass a different name

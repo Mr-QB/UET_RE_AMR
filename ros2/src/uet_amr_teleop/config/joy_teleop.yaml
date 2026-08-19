@@ -1,4 +1,5 @@
-# Generic Xbox Layout
+# Generic gamepad layout (Xbox/PlayStation share the same left-stick axis
+# mapping via the joy driver).
 teleop_twist_joy:
   ros__parameters:
     axis_linear:
@@ -9,9 +10,9 @@ teleop_twist_joy:
       x: 0.6
 
     axis_angular:
-      yaw: 0        # left stick horizontal (single-stick control)
+      yaw: 0
     scale_angular:
-      yaw: 0.6      # positive: -0.6 confirmed inverted on hardware, flipped back
+      yaw: 0.6
     scale_angular_turbo:
       yaw: 0.9
 

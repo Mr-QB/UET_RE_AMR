@@ -84,7 +84,7 @@ source install/setup.bash
 To launch the robot model in a Gazebo simulation environment:
 
 ```bash
-ros2 launch uet_amr_simulation amr_simulation.launch.py
+ros2 launch uet_amr_simulation simulation.launch.py
 ```
 
 ### Running on Physical Hardware

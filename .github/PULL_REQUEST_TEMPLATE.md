@@ -41,7 +41,7 @@ Closes #<!-- issue number -->
 <!-- Hướng dẫn reviewer cách test thay đổi này -->
 ```bash
 # Ví dụ:
-ros2 launch uet_amr_simulation amr_simulation.launch.py
+ros2 launch uet_amr_simulation simulation.launch.py
 ```
 
 ## 📸 Screenshots / Demo

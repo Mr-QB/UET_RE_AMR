@@ -6,7 +6,7 @@ robot_localization's EKF (fusing wheel odometry with the D435i's IMU),
 sensors (lidar + depth camera, uet_amr_bringup/launch/sensors.launch.py),
 and, depending on mode:=slam|nav, either slam_toolbox or Nav2 localization +
 navigation against a pre-built map, plus an RViz2 window scoped to that
-mode. Mirrors uet_amr_simulation/amr_simulation.launch.py's mode:=slam|nav
+mode. Mirrors uet_amr_simulation/simulation.launch.py's mode:=slam|nav
 structure with use_sim_time forced false.
 """
 from launch import LaunchDescription
