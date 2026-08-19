@@ -95,7 +95,13 @@ def generate_launch_description():
         package='ros_gz_bridge', 
         executable='parameter_bridge',
         arguments=[
-            '/scan@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan',
+            # Bridged directly onto /scan_corrected (not /scan): Gazebo's lidar
+            # plugin computes a whole scan in one physics step, so it has none
+            # of the real RPLidar's ~100-200ms sweep-time motion distortion
+            # that /scan_corrected exists to remove on real hardware (see
+            # uet_amr_bringup/src/scan_deskew_node.cpp) -- slam.yaml/nav2.yaml
+            # expect /scan_corrected either way.
+            '/scan_corrected@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan',
             '/camera/image@sensor_msgs/msg/Image[ignition.msgs.Image',
             '/camera/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloudPacked',
             '/imu/data@sensor_msgs/msg/Imu[ignition.msgs.IMU',

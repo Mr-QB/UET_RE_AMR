@@ -37,7 +37,7 @@ amcl:
     z_max: 0.05
     z_rand: 0.5
     z_short: 0.05
-    scan_topic: scan
+    scan_topic: scan_corrected
 
 bt_navigator:
   ros__parameters:
@@ -147,7 +147,7 @@ local_costmap:
         mark_threshold: 0
         observation_sources: scan pointcloud
         scan:
-          topic: /scan
+          topic: /scan_corrected
           max_obstacle_height: 2.0
           clearing: True
           marking: True
@@ -202,7 +202,7 @@ global_costmap:
         mark_threshold: 0
         observation_sources: scan pointcloud
         scan:
-          topic: /scan
+          topic: /scan_corrected
           max_obstacle_height: 2.0
           clearing: True
           marking: True

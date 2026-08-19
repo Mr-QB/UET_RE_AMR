@@ -53,6 +53,6 @@ diff_drive_controller:
     linear.x.max_acceleration: 1.0     # [m/s^2]
 
     angular.z.has_velocity_limits: true
-    angular.z.max_velocity: 1.0        # [rad/s]
+    angular.z.max_velocity: 0.6        # [rad/s]
     angular.z.has_acceleration_limits: true
-    angular.z.max_acceleration: 2.0    # [rad/s^2]
+    angular.z.max_acceleration: 1.2    # [rad/s^2]
