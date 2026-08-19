@@ -82,9 +82,19 @@ build_workspace() {
   source /opt/ros/humble/setup.bash
   rosdep update --rosdistro=humble
 
+  local skip_keys=""
   if [ "$include_simulation" = "false" ]; then
-    rosdep install --from-paths src --ignore-src -r -y \
-      --skip-keys "ros_gz_sim ros_gz_bridge ign_ros2_control"
+    skip_keys="ros_gz_sim ros_gz_bridge ign_ros2_control"
+  fi
+  if is_jetson; then
+    # librealsense2 is built from source manually on Jetson (see
+    # docs/jetson_realsense_setup.md); letting rosdep resolve it would apt-install
+    # the incompatible generic librealsense2-dev on top of it and clobber the build.
+    skip_keys="$skip_keys librealsense2"
+  fi
+
+  if [ -n "$skip_keys" ]; then
+    rosdep install --from-paths src --ignore-src -r -y --skip-keys "$skip_keys"
   else
     rosdep install --from-paths src --ignore-src -r -y
   fi
