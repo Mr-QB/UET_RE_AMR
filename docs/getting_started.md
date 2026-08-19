@@ -135,9 +135,6 @@ pio device monitor
 ## 7. Running on the Robot Hardware
 
 ```bash
-# Start the micro-ROS agent to bridge communications
-./tools/start_microros_agent.sh
-
 # Phase 1: SLAM mapping on real hardware (base + sensors + slam_toolbox + RViz)
 ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=slam serial_port:=/dev/ttyUSB0
 

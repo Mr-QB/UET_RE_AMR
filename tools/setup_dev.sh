@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # UET AMR — Developer Environment Setup Script
-# Full setup: ROS2 workspace + low-level firmware toolchain (PlatformIO, micro-ROS)
+# Full setup: ROS2 workspace + low-level firmware toolchain (PlatformIO)
 # Run once on a new Ubuntu 22.04 machine / WSL2
 # =============================================================================
 
@@ -10,24 +10,19 @@ echo "🤖 UET AMR — Setting up developer environment..."
 
 source "$(dirname "$0")/common.sh"
 
-echo -e "${YELLOW}[1/6] Installing ROS2 Humble dependencies...${NC}"
+echo -e "${YELLOW}[1/5] Installing ROS2 Humble dependencies...${NC}"
 install_ros2_deps
 
-echo -e "${YELLOW}[2/6] Installing RPLidar udev rule...${NC}"
+echo -e "${YELLOW}[2/5] Installing RPLidar udev rule...${NC}"
 setup_rplidar_udev
 
-echo -e "${YELLOW}[3/6] Installing ROS2 workspace dependencies...${NC}"
-echo -e "${YELLOW}[4/6] Building ROS2 workspace...${NC}"
+echo -e "${YELLOW}[3/5] Installing ROS2 workspace dependencies...${NC}"
+echo -e "${YELLOW}[4/5] Building ROS2 workspace...${NC}"
 build_workspace
 
 # ----------- PlatformIO -----------
-echo -e "${YELLOW}[5/6] Installing PlatformIO...${NC}"
+echo -e "${YELLOW}[5/5] Installing PlatformIO...${NC}"
 pip install --quiet platformio
-
-# ----------- micro-ROS agent -----------
-echo -e "${YELLOW}[6/6] Installing micro-ROS agent...${NC}"
-pip install --quiet micro-ros-agent 2>/dev/null || \
-  echo "  (Optional: install micro-ROS agent manually if needed)"
 
 setup_bashrc
 
