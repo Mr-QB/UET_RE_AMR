@@ -9,16 +9,9 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>rclcpp</depend>
-  <depend>sensor_msgs</depend>
-  <depend>laser_geometry</depend>
-  <depend>tf2</depend>
-  <depend>tf2_ros</depend>
-
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>realsense2_camera</exec_depend>
   <exec_depend>rplidar_ros</exec_depend>
-  <exec_depend>pointcloud_to_laserscan</exec_depend>
   <exec_depend>uet_amr_description</exec_depend>
   <exec_depend>uet_amr_hardware</exec_depend>
   <exec_depend>uet_amr_localization</exec_depend>

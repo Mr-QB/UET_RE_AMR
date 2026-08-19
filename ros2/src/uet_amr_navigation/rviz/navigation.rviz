@@ -143,7 +143,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /scan_corrected
+        Value: /scan
       Use Fixed Frame: true
       Use rainbow: true
       Value: true

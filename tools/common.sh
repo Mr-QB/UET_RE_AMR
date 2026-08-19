@@ -25,8 +25,6 @@ install_ros2_deps() {
     ros-humble-slam-toolbox
     ros-humble-diff-drive-controller
     ros-humble-joint-state-broadcaster
-    ros-humble-laser-geometry
-    ros-humble-pointcloud-to-laserscan
   )
   if is_jetson; then
     echo "  (Jetson detected -- skipping ros-humble-realsense2-camera, see setup_realsense_jetson)"
