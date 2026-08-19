@@ -2,3 +2,7 @@
 	path = ros2/src/third_party/rplidar_ros
 	url = https://github.com/Slamtec/rplidar_ros.git
 	branch = ros2
+[submodule "ros2/src/third_party/realsense-ros"]
+	path = ros2/src/third_party/realsense-ros
+	url = https://github.com/IntelRealSense/realsense-ros.git
+	branch = ros2-master

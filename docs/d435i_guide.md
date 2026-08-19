@@ -14,6 +14,9 @@ This guide provides step-by-step instructions for installing drivers, optimizing
 
 ## 2. Driver and ROS2 Humble Wrapper Installation
 
+> **Running on a Jetson?** The steps below (apt `librealsense2-dkms`/`ros-humble-realsense2-camera`)
+> don't work on Jetson — see [Jetson RealSense Setup](jetson_realsense_setup.md) instead.
+
 For Ubuntu 22.04 users, ensure the following packages are installed:
 
 ```bash

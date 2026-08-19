@@ -103,6 +103,7 @@ ros2 launch uet_amr_bringup amr_bringup.launch.py
 |---|---|
 | [Getting Started](docs/getting_started.md) | Installation and workspace configuration guide |
 | [D435i Guide](docs/d435i_guide.md) | Setup and usage of the Intel RealSense D435i depth camera |
+| [Jetson RealSense Setup](docs/jetson_realsense_setup.md) | Using RealSense on Jetson (source-built librealsense2) |
 | [Navigation Package](ros2/src/uet_amr_navigation/README.md) | SLAM -> save map -> Nav2 workflow |
 | [Hardware Docs](hardware/README.md) | Schematics, PCB layouts, CAD models, and BOM |
 | [Hoverboard Controller Firmware](firmware/amr_hoverboard_controller/README.md) | STM32 motor control firmware |

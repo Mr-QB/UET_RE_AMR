@@ -13,11 +13,11 @@ source "$(dirname "$0")/common.sh"
 echo -e "${YELLOW}[1/5] Installing ROS2 Humble dependencies...${NC}"
 install_ros2_deps
 
-echo -e "${YELLOW}[2/5] Initializing third-party submodules...${NC}"
-init_submodules
-
-echo -e "${YELLOW}[3/5] Installing RPLidar udev rule...${NC}"
+echo -e "${YELLOW}[2/5] Installing RPLidar udev rule...${NC}"
 setup_rplidar_udev
+
+echo -e "${YELLOW}[3/5] Setting up RealSense ROS2 wrapper (Jetson: from source)...${NC}"
+setup_realsense_jetson
 
 echo -e "${YELLOW}[4/5] Installing ROS2 workspace dependencies...${NC}"
 echo -e "${YELLOW}[5/5] Building ROS2 workspace...${NC}"
