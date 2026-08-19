@@ -1,13 +1,7 @@
 controller_manager:
   ros__parameters:
-    update_rate: 100  # Hz
-    # use_sim_time is needed here (not just at the node level) because in
-    # simulation this file is loaded directly by the ign_ros2_control
-    # gazebo plugin, which has no launch-time parameter-override path.
-    # Real hardware's amr_bringup*.launch.py explicitly override this back to
-    # false via a real_hardware_overrides.yaml parameter file (see there for
-    # why it must be a file, not a launch-time parameter dict).
-    use_sim_time: true
+    update_rate: 100 # [Hz]
+    use_sim_time: false
 
     diff_drive_controller:
       type: diff_drive_controller/DiffDriveController
@@ -26,8 +20,8 @@ diff_drive_controller:
     # cmd_vel into wheel commands and to integrate wheel feedback into odom;
     # a mismatch here (vs. e.g. a hoverboard-kit default) desyncs odom from
     # actual motion and shows up as SLAM map drift/warping over time.
-    wheel_separation: 0.304     # [m] -- abs(left.y) + abs(right.y) wheel joint origins
-    wheel_radius: 0.08255       # [m] -- matches uet_amr.xacro's wheel_radius property
+    wheel_separation: 0.304 # [m] -- abs(left.y) + abs(right.y) wheel joint origins
+    wheel_radius: 0.08255   # [m] -- matches uet_amr.xacro's wheel_radius property
 
     use_stamped_vel: false
 
@@ -35,7 +29,7 @@ diff_drive_controller:
     left_wheel_radius_multiplier: 1.0
     right_wheel_radius_multiplier: 1.0
 
-    publish_rate: 50.0          # [Hz]
+    publish_rate: 50.0 # [Hz]
     odom_frame_id: "odom"
     base_frame_id: "base_link"
     pose_covariance_diagonal: [0.001, 0.001, 0.0, 0.0, 0.0, 0.01]
@@ -43,7 +37,7 @@ diff_drive_controller:
 
     open_loop: false
     enable_odom_tf: false
-    cmd_vel_timeout: 0.5        # [s]
+    cmd_vel_timeout: 0.5 # [s]
 
     # Velocity and acceleration limits (real-hardware's more conservative
     # cap; raise linear.x.max_velocity for sim if faster testing is wanted)

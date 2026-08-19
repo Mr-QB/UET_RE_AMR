@@ -34,6 +34,9 @@
       filename="ign_ros2_control-system"
       name="ign_ros2_control::IgnitionROS2ControlPlugin">
       <parameters>$(find uet_amr_description)/config/controllers.yaml</parameters>
+      <!-- Layered on top of controllers.yaml to force use_sim_time back to
+           true for sim; see controllers_sim_overrides.yaml. -->
+      <parameters>$(find uet_amr_description)/config/controllers_sim_overrides.yaml</parameters>
     </plugin>
   </gazebo>
 
