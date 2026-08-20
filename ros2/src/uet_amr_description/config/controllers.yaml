@@ -14,18 +14,12 @@ diff_drive_controller:
     left_wheel_names: ["left_wheel_joint"]
     right_wheel_names: ["right_wheel_joint"]
 
-    # Derived from the URDF's left/right wheel_joint origins (uet_amr.xacro),
-    # which come from the robot's CAD model -- these must match the true
-    # wheel geometry since diff_drive_controller uses them both to convert
-    # cmd_vel into wheel commands and to integrate wheel feedback into odom;
-    # a mismatch here (vs. e.g. a hoverboard-kit default) desyncs odom from
-    # actual motion and shows up as SLAM map drift/warping over time.
-    wheel_separation: 0.304 # [m] -- abs(left.y) + abs(right.y) wheel joint origins
+    wheel_separation: 0.45  # [m] -- measured on the real robot
     wheel_radius: 0.08255   # [m] -- matches uet_amr.xacro's wheel_radius property
 
     use_stamped_vel: false
 
-    wheel_separation_multiplier: 1.0
+    wheel_separation_multiplier: 0.713 # calibrated on the real robot
     left_wheel_radius_multiplier: 1.0
     right_wheel_radius_multiplier: 1.0
 
