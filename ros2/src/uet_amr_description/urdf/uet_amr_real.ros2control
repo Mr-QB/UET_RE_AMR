@@ -16,7 +16,7 @@
            drive odometry/kinematics for both real hardware and sim. Kept in
            sync here to avoid confusing future readers. -->
       <param name="wheel_radius">0.08255</param>
-      <param name="wheel_separation">0.304</param>
+      <param name="wheel_separation">0.45</param>
       <!-- Raw hoverboard speed units per rad/s of wheel rotation. This is an
            UNCALIBRATED placeholder: the firmware's Send()/Command.speed
            range has no documented physical scale, so this must be tuned
