@@ -19,7 +19,7 @@ diff_drive_controller:
 
     use_stamped_vel: false
 
-    wheel_separation_multiplier: 0.5365 # calibrated on the real robot
+    wheel_separation_multiplier: 1.0
     left_wheel_radius_multiplier: 1.0
     right_wheel_radius_multiplier: 1.0
 
