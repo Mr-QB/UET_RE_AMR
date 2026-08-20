@@ -141,11 +141,9 @@ private:
     std::vector<double> wheel_velocity_commands_;
 
     // Parameters
-    double wheel_radius_;       // meters; must match firmware's Odom wheel radius
-    double wheel_separation_;   // meters; must match firmware's Odom wheel base
     double motor_command_scale_; // raw hoverboard speed units per rad/s of wheel rotation
-    int ticks_per_rev_;         // encoder ticks per wheel revolution; must match firmware's Odom
-    int encoder_max_;           // encoder wrap modulus; must match firmware's Odom
+    int ticks_per_rev_;          // encoder ticks per wheel revolution; must match firmware's Odom
+    int encoder_max_;            // encoder wrap modulus; must match firmware's Odom
 };
 
 }  // namespace uet_amr_hardware

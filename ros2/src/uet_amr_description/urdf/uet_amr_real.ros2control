@@ -8,19 +8,28 @@
       <plugin>uet_amr_hardware/AmrHardwareInterface</plugin>
       <param name="serial_port">$(arg serial_port)</param>
       <param name="baud_rate">$(arg baud_rate)</param>
-      <!-- Parsed by AmrHardwareInterface but currently unused there (it only
-           converts encoder ticks to wheel angle); diff_drive_controller's
-           copies of these two values, in controllers.yaml, are what actually
-           drive odometry/kinematics for both real hardware and sim. Kept in
-           sync here to avoid confusing future readers. -->
-      <param name="wheel_radius">0.08255</param>
-      <param name="wheel_separation">0.45</param>
-      <!-- Raw hoverboard speed units per rad/s of wheel rotation. This is an
-           UNCALIBRATED placeholder: the firmware's Send()/Command.speed
-           range has no documented physical scale, so this must be tuned
-           empirically against the real robot before trusting closed-loop
-           velocity commands. -->
-      <param name="motor_command_scale">100.0</param>
+      <!-- wheel_radius/wheel_separation are not declared here: AmrHardwareInterface
+           only converts encoder ticks to wheel angle and doesn't need them.
+           diff_drive_controller's copies, in controllers.yaml, are the sole
+           source of truth for both real hardware and sim. -->
+      <!-- Raw hoverboard speed units per rad/s of wheel rotation.
+           The mainboard runs CTRL_TYP_SEL=FOC_CTRL / CTRL_MOD_REQ=SPD_MODE
+           (amr_hoverboard_controller/Inc/config.h) with no VARIANT_* override
+           active, so it already closes the velocity loop itself using Hall
+           sensor feedback (rtY_Left/Right.n_mot) -- no feedback loop is
+           needed on the ROS/ESP32 side, this scale only needs to convert
+           rad/s to whatever units r_inpTgt expects.
+           N_MOT_MAX=1000 is documented in config.h as [rpm], and r_inpTgt/
+           n_max share the same <<4 fixed-point convention, consistent with
+           raw units being mechanical RPM 1:1 -- giving 60/(2*pi) ~= 9.5493
+           raw units per rad/s. This is a derived starting point, not yet
+           confirmed on hardware: verify by commanding a known rad/s and
+           checking the measured wheel RPM matches.
+           Separately, the wire protocol clamps commands to +/-100
+           (protocol.cpp::clampToInt8Speed / firmware's ros_protocol.cpp
+           R_Receive), so today's practical top speed is ~100 RPM regardless
+           of this scale -- out of the mainboard's 1000 RPM ceiling. -->
+      <param name="motor_command_scale">9.5493</param>
       <!-- Must match firmware's Odom(wheel_radius, wheel_base, ticks_per_rev,
            encoder_max) constants in hoverboardSerial.h. -->
       <param name="ticks_per_rev">90</param>

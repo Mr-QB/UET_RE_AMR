@@ -75,8 +75,6 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
     // Read parameters from URDF ros2_control tag
     serial_port_ = info_.hardware_parameters.at("serial_port");
     baud_rate_ = std::stoi(info_.hardware_parameters.at("baud_rate"));
-    wheel_radius_ = std::stod(info_.hardware_parameters.at("wheel_radius"));
-    wheel_separation_ = std::stod(info_.hardware_parameters.at("wheel_separation"));
     motor_command_scale_ = std::stod(info_.hardware_parameters.at("motor_command_scale"));
     ticks_per_rev_ = std::stoi(info_.hardware_parameters.at("ticks_per_rev"));
     encoder_max_ = std::stoi(info_.hardware_parameters.at("encoder_max"));
