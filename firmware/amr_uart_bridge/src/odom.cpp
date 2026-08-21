@@ -1,17 +1,36 @@
+// Copyright (c) 2026 UET Robotics Club, University of Engineering and
+//                    Technology, Vietnam National University, Hanoi (VNU).
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+
 /**
  * @file odom.cpp
  * @brief Implements odom.h.
  * @author Phuc Nguyen
- * @copyright Copyright (c) 2026 Department of Robotics, University of Engineering and Technology, Vietnam National University, Hanoi
  */
-
 #include "odom.h"
 #include <math.h>
- 
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
 #endif
- 
+
 Odom::Odom(float wheel_radius, float wheel_base,
            int ticks_per_rev, int encoder_max)
     : wheel_radius_(wheel_radius),
@@ -25,7 +44,7 @@ Odom::Odom(float wheel_radius, float wheel_base,
 {
     dist_per_tick_ = (2.0f * M_PI * wheel_radius_) / (float)ticks_per_rev_;
 }
- 
+
 void Odom::reset(float x, float y, float theta)
 {
     x_ = x;
@@ -37,19 +56,19 @@ void Odom::reset(float x, float y, float theta)
     last_dc_ = 0.0f;
     last_dtheta_ = 0.0f;
 }
- 
+
 void Odom::setPose(float x, float y, float theta)
 {
     x_ = x;
     y_ = y;
     theta_ = normalizeAngle(theta);
 }
- 
+
 int Odom::wrapDelta(int current, int previous) const
 {
     int delta = current - previous;
     int half = encoder_max_ / 2;
- 
+
     if (delta > half)
     {
         delta -= encoder_max_;
@@ -60,29 +79,29 @@ int Odom::wrapDelta(int current, int previous) const
     }
     return delta;
 }
- 
+
 float Odom::normalizeAngle(float angle) const
 {
     while (angle > M_PI)  angle -= 2.0f * M_PI;
     while (angle < -M_PI) angle += 2.0f * M_PI;
     return angle;
 }
- 
+
 void Odom::integrate(float dl, float dr)
 {
-    float dc = (dl + dr) / 2.0f;             
-    float dtheta = (dr - dl) / wheel_base_;  
+    float dc = (dl + dr) / 2.0f;
+    float dtheta = (dr - dl) / wheel_base_;
 
     float theta_mid = theta_ + dtheta / 2.0f;
- 
+
     x_ += dc * cosf(theta_mid);
     y_ += dc * sinf(theta_mid);
     theta_ = normalizeAngle(theta_ - dtheta);
- 
+
     last_dc_ = dc;
     last_dtheta_ = dtheta;
 }
- 
+
 void Odom::updateFromEncoder(int left_encoder, int right_encoder)
 {
     if (first_update_)
@@ -94,50 +113,50 @@ void Odom::updateFromEncoder(int left_encoder, int right_encoder)
         last_dtheta_ = 0.0f;
         return;
     }
- 
+
     int delta_left_ticks  = wrapDelta(left_encoder, last_left_enc_);
     int delta_right_ticks = wrapDelta(right_encoder, last_right_enc_);
- 
+
     last_left_enc_  = left_encoder;
     last_right_enc_ = right_encoder;
- 
+
     float dl = delta_left_ticks  * dist_per_tick_;
     float dr = delta_right_ticks * dist_per_tick_;
- 
+
     integrate(dl, dr);
 }
- 
+
 void Odom::updateFromVelocity(float left_rpm, float right_rpm, float dt)
 {
     float v_left  = (left_rpm  / 60.0f) * (2.0f * M_PI * wheel_radius_);
     float v_right = (right_rpm / 60.0f) * (2.0f * M_PI * wheel_radius_);
- 
+
     float dl = v_left  * dt;
     float dr = v_right * dt;
- 
+
     integrate(dl, dr);
 }
- 
+
 float Odom::getX() const
 {
     return x_;
 }
- 
+
 float Odom::getY() const
 {
     return -y_;
 }
- 
+
 float Odom::getTheta() const
 {
     return theta_;
 }
- 
+
 float Odom::getLastLinearDisplacement() const
 {
     return last_dc_;
 }
- 
+
 float Odom::getLastAngularDisplacement() const
 {
     return last_dtheta_;
