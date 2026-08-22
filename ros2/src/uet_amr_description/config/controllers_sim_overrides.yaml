@@ -5,7 +5,3 @@ controller_manager:
 diff_drive_controller:
   ros__parameters:
     wheel_separation: 0.304 # [m] -- measured on CAD/URDF
-    # controllers.yaml's wheel_separation_multiplier calibrates out real-robot
-    # wheel slip -- sim's wheel_separation above is already exact, so keep
-    # the multiplier neutral here.
-    wheel_separation_multiplier: 1.0
