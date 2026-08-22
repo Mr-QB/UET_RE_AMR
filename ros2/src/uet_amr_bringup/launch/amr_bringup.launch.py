@@ -107,6 +107,14 @@ def generate_launch_description():
         ])
     )
 
+    foxglove_bridge = Node(
+        package='foxglove_bridge',
+        executable='foxglove_bridge',
+        name='foxglove_bridge',
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('publish_ws')),
+    )
+
     mode = LaunchConfiguration('mode')
     is_slam_mode = EqualsSubstitution(mode, 'slam')
     is_nav_mode = EqualsSubstitution(mode, 'nav')
@@ -190,6 +198,8 @@ def generate_launch_description():
                               description="Full path to the map yaml file to load in mode:=nav"),
         DeclareLaunchArgument('rviz', default_value='true',
                               description='Launch RViz2 alongside the hardware bringup'),
+        DeclareLaunchArgument('publish_ws', default_value='true',
+                      description='Publish ROS topics/services over websocket via Foxglove Bridge'),
         DeclareLaunchArgument('mode', default_value='slam',
                               choices=['slam', 'nav'],
                               description=(
@@ -202,6 +212,7 @@ def generate_launch_description():
         controller_spawner,
         ekf_localization,
         sensors_launch,
+        foxglove_bridge,
         slam_launch,
         nav_launch,
         slam_rviz_node,
