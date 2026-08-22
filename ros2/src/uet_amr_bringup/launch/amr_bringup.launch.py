@@ -196,7 +196,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument('map', default_value=default_map_file,
                               description="Full path to the map yaml file to load in mode:=nav"),
-        DeclareLaunchArgument('rviz', default_value='true',
+        DeclareLaunchArgument('rviz', default_value='false',
                               description='Launch RViz2 alongside the hardware bringup'),
         DeclareLaunchArgument('publish_ws', default_value='true',
                       description='Publish ROS topics/services over websocket via Foxglove Bridge'),
