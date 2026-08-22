@@ -33,14 +33,22 @@ diff_drive_controller:
     enable_odom_tf: false
     cmd_vel_timeout: 0.5 # [s]
 
-    # Velocity and acceleration limits (real-hardware's more conservative
-    # cap; raise linear.x.max_velocity for sim if faster testing is wanted)
     linear.x.has_velocity_limits: true
     linear.x.has_acceleration_limits: true
-    linear.x.max_velocity: 0.4         # [m/s]
-    linear.x.max_acceleration: 0.2     # [m/s^2]
+    linear.x.has_deceleration_limits: true
+    linear.x.has_jerk_limits: true
+
+    linear.x.max_velocity: 0.4          # [m/s]
+    linear.x.max_acceleration: 0.6      # [m/s^2]
+    linear.x.max_deceleration: -0.4     # [m/s^2]
+    linear.x.max_jerk: 1.5              # [m/s^3]
 
     angular.z.has_velocity_limits: true
     angular.z.has_acceleration_limits: true
-    angular.z.max_velocity: 2.0        # [rad/s]
-    angular.z.max_acceleration: 4.0    # [rad/s^2]
+    angular.z.has_deceleration_limits: true
+    angular.z.has_jerk_limits: true
+
+    angular.z.max_velocity: 1.0         # [rad/s]
+    angular.z.max_acceleration: 1.8     # [rad/s^2]
+    angular.z.max_deceleration: -1.2    # [rad/s^2]
+    angular.z.max_jerk: 3.0             # [rad/s^3]
