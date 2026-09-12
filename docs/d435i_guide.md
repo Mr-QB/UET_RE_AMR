@@ -76,11 +76,11 @@ In a new terminal, run the SLAM node configured to handle the Realsense topics:
 
 ```bash
 ros2 launch rtabmap_launch rtabmap.launch.py \
-    rtabmap_args:="--delete_db_on_start" \
+    rtabmap_args:="--delete_db_on_start --RGBD/LinearUpdate 0.0 --RGBD/AngularUpdate 0.0" \
     rgb_topic:=/camera/camera/color/image_raw \
     depth_topic:=/camera/camera/aligned_depth_to_color/image_raw \
     camera_info_topic:=/camera/camera/color/camera_info \
-    frame_id:=camera_link \
+    frame_id:=base_footprint \
     approx_sync:=true \
     approx_sync_max_interval:=0.05 \
     topic_queue_size:=100 \
