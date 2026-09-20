@@ -35,21 +35,27 @@ install_ros2_deps() {
   sudo apt-get install -y -q "${packages[@]}"
 }
 
-# Initializes the rplidar_ros submodule and installs its vendored udev rule so
-# the sensor always enumerates as the fixed /dev/rplidar symlink (matches
-# uet_amr_bringup/launch/lidar.launch.py's serial_port param) instead of a
-# shifting /dev/ttyUSBX.
 setup_rplidar_udev() {
   echo -e "${YELLOW}Initializing rplidar_ros submodule...${NC}"
   cd "$REPO_ROOT"
   git submodule update --init --recursive ros2/src/third_party/rplidar_ros
 
-  echo -e "${YELLOW}Installing RPLidar udev rule (device -> /dev/rplidar)...${NC}"
   local rules_src="$REPO_ROOT/ros2/src/third_party/rplidar_ros/scripts/rplidar.rules"
   if [ ! -f "$rules_src" ]; then
     echo "  (rplidar.rules not found at $rules_src -- skipping)"
     return
   fi
+
+  # Check if running inside container/distrobox
+  if [ -f /run/.containerenv ] || [ -f /.dockerenv ] || [ -n "$DISTROBOX_ENTERED" ]; then
+    echo -e "${YELLOW}[Container detected] Skipping udev rule install inside container.${NC}"
+    echo -e "Run this once on HOST to install udev rule:"
+    echo -e "  sudo cp \"$rules_src\" /etc/udev/rules.d/rplidar.rules"
+    echo -e "  sudo udevadm control --reload && sudo udevadm trigger"
+    return
+  fi
+
+  echo -e "${YELLOW}Installing RPLidar udev rule (device -> /dev/rplidar)...${NC}"
   sudo cp "$rules_src" /etc/udev/rules.d/rplidar.rules
   sudo udevadm control --reload && sudo udevadm trigger
 }

@@ -23,13 +23,15 @@ def generate_launch_description():
         launch_arguments={
             'camera_name': 'camera',
             'camera_namespace': 'camera',
+            # ARM NEON vector extension param:
+            'pointcloud__neon_.enable': 'true',
             'pointcloud.enable': 'true',
             'enable_gyro': 'true',
             'enable_accel': 'true',
             'unite_imu_method': '2',
             'align_depth.enable': 'true',
-            'depth_module.depth_profile': '848x480x30',
-            'rgb_camera.color_profile': '848x480x30',
+            'depth_module.depth_profile': '640x480x15',
+            'rgb_camera.color_profile': '640x480x15',
             'enable_sync': 'true',
             'clip_distance': '3.0',
             'spatial_filter.enable': 'true',

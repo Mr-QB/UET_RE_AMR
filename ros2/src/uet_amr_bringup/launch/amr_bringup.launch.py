@@ -95,7 +95,6 @@ def generate_launch_description():
     is_slam_mode = EqualsSubstitution(mode, 'slam')
     is_nav_mode = EqualsSubstitution(mode, 'nav')
     use_rviz = LaunchConfiguration('rviz')
-    use_rtabmap = LaunchConfiguration('use_rtabmap')
 
     slam_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -117,28 +116,6 @@ def generate_launch_description():
             'use_sim_time': 'false',
             'map': LaunchConfiguration('map'),
             'use_rviz': 'false',
-        }.items()
-    )
-
-    # rtabmap launch 
-    rtabmap_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('rtabmap_launch'), 'launch', 'rtabmap.launch.py'])
-        ]),
-        condition=IfCondition(use_rtabmap),
-        launch_arguments={
-            'rtabmap_args': '--delete_db_on_start --RGBD/LinearUpdate 0.0 --RGBD/AngularUpdate 0.0',
-            'rgb_topic': '/camera/camera/color/image_raw',
-            'depth_topic': '/camera/camera/aligned_depth_to_color/image_raw',
-            'camera_info_topic': '/camera/camera/color/camera_info',
-            'frame_id': 'base_footprint',
-            'approx_sync': 'true',
-            'approx_sync_max_interval': '0.05',
-            'topic_queue_size': '100',
-            'sync_queue_size': '100',
-            'qos': '2',
-            'viz': 'true',
-            'use_sim_time': 'false',
         }.items()
     )
 
@@ -191,11 +168,6 @@ def generate_launch_description():
                               description='Launch RViz2 alongside the hardware bringup'),
         DeclareLaunchArgument('publish_ws', default_value='true',
                       description='Publish ROS topics/services over websocket via Foxglove Bridge'),
-        DeclareLaunchArgument(
-            'use_rtabmap',
-            default_value='true',
-            description='Launch RTAB-Map alongside bringup'
-        ),
         DeclareLaunchArgument('mode', default_value='slam',
                               choices=['slam', 'nav'],
                               description=(
@@ -211,7 +183,6 @@ def generate_launch_description():
         foxglove_bridge,
         slam_launch,
         nav_launch,
-        rtabmap_launch,
         slam_rviz_node,
         nav_rviz_node,
     ])

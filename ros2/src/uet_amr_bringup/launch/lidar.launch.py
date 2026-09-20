@@ -14,8 +14,7 @@ def generate_launch_description():
         parameters=[{
             'channel_type': 'serial',
             # Stable symlink from /etc/udev/rules.d/rplidar.rules (matches on
-            # the RPLidar's CP210x vendor/product ID) -- NOT /dev/ttyUSB0,
-            # which is the AMR base controller MCU's CH340 adapter.
+            # the RPLidar's CP210x vendor/product ID)
             'serial_port': '/dev/rplidar',
             'serial_baudrate': 256000,
             'frame_id': 'front_lidar',
