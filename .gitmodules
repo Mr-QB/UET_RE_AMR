@@ -6,3 +6,15 @@
 	path = ros2/src/third_party/realsense-ros
 	url = https://github.com/IntelRealSense/realsense-ros.git
 	branch = ros2-master
+[submodule "ros2/src/third_party/isaac_ros_common"]
+	path = ros2/src/third_party/isaac_ros_common
+	url = https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+	branch = release-3.2
+[submodule "ros2/src/third_party/isaac_ros_nvblox"]
+	path = ros2/src/third_party/isaac_ros_nvblox
+	url = https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nvblox.git
+	branch = release-3.2
+[submodule "ros2/src/third_party/isaac_ros_nitros"]
+	path = ros2/src/third_party/isaac_ros_nitros
+	url = https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros.git
+	branch = release-3.2

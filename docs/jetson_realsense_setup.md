@@ -20,8 +20,8 @@ and skips this apt package — see `is_jetson()` / `install_ros2_deps()` in
    The key point is building with `-DFORCE_RSUSB_BACKEND=true`, which avoids
    needing to patch/rebuild the L4T kernel.
 
-2. **Run `tools/setup_prod.sh`.** Once it detects Jetson, it pulls in
-   `realsense-ros` (the ROS 2 wrapper) as workspace source —
+2. **Run `tools/setup_prod.sh`.** Once it detects Jetson, it initializes the
+   `realsense-ros` (the ROS 2 wrapper) submodule as workspace source —
    `ros2/src/third_party/realsense-ros` — instead of relying on the apt ROS
    package. `colcon build` then compiles it against the `librealsense2` you
    installed in step 1, and `rosdep install` is told to skip the `librealsense2`

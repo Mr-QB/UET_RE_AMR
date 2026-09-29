@@ -1,0 +1,7 @@
+# Extra `docker run` args for run_dev.sh (see docker/isaac_ros/README.md).
+# Only add what run_dev.sh doesn't already do by default (DISPLAY, network
+# host, ROS_DOMAIN_ID are already handled) -- do not add `-e DISPLAY=$DISPLAY`
+# here, it breaks docker run when $DISPLAY is unset.
+
+# Serial link to the STM32/ESP32 firmware
+--device=/dev/ttyUSB0

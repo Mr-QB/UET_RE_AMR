@@ -1,0 +1,23 @@
+
+# nvblox_node parameters for UET AMR's D435i.
+#
+# Camera input topics are set via remappings in launch/nvblox.launch.py, not
+# here (nvblox_node's camera_0/depth, camera_0/color topics are fixed names,
+# see isaac_ros_nvblox's nvblox_ros/include/nvblox_ros/nvblox_node.hpp).
+#
+# global_frame ("odom") and pose_frame ("base_link") are left at nvblox_ros's
+# own defaults -- both already exist in this robot's TF tree (published by
+# uet_amr_localization's EKF and uet_amr_description's URDF respectively), so
+# nvblox's use_tf_transforms lookup works against our existing localization
+# stack without any VSLAM node (see docs/adr/0003-nvblox-pose-from-ekf-not-vslam.md).
+/**:
+  ros__parameters:
+    use_tf_transforms: true
+    num_cameras: 1
+    # This robot's RPLidar is a 2D scanner (LaserScan), not the 3D
+    # point-cloud lidar nvblox's use_lidar path expects -- leave it out of
+    # the reconstruction; the D435i depth stream is nvblox's only input.
+    use_lidar: false
+    voxel_size: 0.05
+    map_clearing_frame_id: "base_link"
+    esdf_slice_bounds_visualization_attachment_frame_id: "base_link"

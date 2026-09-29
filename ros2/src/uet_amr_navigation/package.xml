@@ -4,7 +4,7 @@
   <name>uet_amr_navigation</name>
   <version>0.1.0</version>
   <description>Nav2-based navigation stack configuration for UET AMR</description>
-  <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
+  <maintainer email="robotics@uet.vnu.edu.vn">Department of Robotics</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -15,6 +15,15 @@
   <exec_depend>nav2_planner</exec_depend>
   <exec_depend>nav2_controller</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
+
+  <!-- Runtime-optional: only used when navigation.launch.py's use_nvblox:=true
+       (default when an NVIDIA GPU is detected). Not a build dependency, since
+       nvblox_nav2's costmap plugin is loaded by class name string at
+       runtime, so this package builds fine even when nvblox_ros/nvblox_nav2
+       are skipped (no GPU; see tools/common.sh). -->
+  <exec_depend>nvblox_ros</exec_depend>
+  <exec_depend>nvblox_nav2</exec_depend>
+  <exec_depend>nvblox_msgs</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

@@ -4,7 +4,7 @@
   <name>uet_amr_bringup</name>
   <version>0.1.0</version>
   <description>Bringup package for UET AMR - launch files for hardware and simulation</description>
-  <maintainer email="robotics@uet.vnu.edu.vn">UET Robotics Club</maintainer>
+  <maintainer email="robotics@uet.vnu.edu.vn">Department of Robotics</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

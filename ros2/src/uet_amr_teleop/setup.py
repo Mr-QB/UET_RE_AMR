@@ -17,7 +17,7 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='UET Robotics Club',
+    maintainer='Department of Robotics',
     maintainer_email='robotics@uet.vnu.edu.vn',
     description='Teleoperation for UET AMR - keyboard and joystick control',
     license='MIT',

@@ -51,6 +51,11 @@ chmod +x tools/setup_dev.sh tools/setup_prod.sh
 ./tools/setup_prod.sh
 ```
 
+Both scripts initialize the `rplidar_ros` submodule (and, on Jetson,
+`realsense-ros`) under `ros2/src/third_party/` if you didn't clone with
+`--recurse-submodules`. For the Isaac ROS + GPU Docker workflow instead, see
+[`isaac_ros_setup.md`](isaac_ros_setup.md).
+
 ### Manual Installation Steps (Alternative)
 
 If you prefer to install dependencies manually:

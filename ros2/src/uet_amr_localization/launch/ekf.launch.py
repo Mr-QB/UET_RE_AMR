@@ -1,4 +1,4 @@
-# Copyright (c) 2026 UET Robotics Club, University of Engineering and
+# Copyright (c) 2026 Department of Robotics, University of Engineering and
 #                    Technology, Vietnam National University, Hanoi (VNU).
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
