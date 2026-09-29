@@ -9,23 +9,23 @@ NC='\033[0m'
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Isaac ROS packages this workspace can never build, regardless of GPU:
-# isaac_ros_nvblox (the meta-package) and nvblox_examples_bringup both
-# <depend> on NVIDIA's people-detection/segmentation model-install packages
-# (isaac_ros_peoplenet_models_install etc.), which aren't vendored here -- we
-# only use isaac_ros_nvblox's nvblox_ros/nvblox_nav2/nvblox_msgs packages, not
-# the example bringup or its model downloads. Determined by walking the real
-# package.xml dependency graph across ros2/src/third_party/ (94 packages).
+# Isaac ROS meta/example packages: <depend> on NVIDIA's people-detection
+# model-install packages (isaac_ros_peoplenet_models_install etc.), which
+# rosdep can only resolve via apt from NVIDIA's Isaac ROS repo -- present
+# inside the isaac_ros_common Docker image (verified: builds there with no
+# skipping needed), absent on a plain native machine. Always skipped by
+# build_workspace() below (the native path); not used by the Docker build in
+# tools/setup_isaac_ros.sh, which builds these fine as-is.
 ISAAC_ROS_ALWAYS_SKIP=(isaac_ros_nvblox nvblox_examples_bringup)
 
-# Isaac ROS / NITROS packages that need CUDA Toolkit + NVIDIA's GXF binaries
-# to build -- i.e. must be built inside the isaac_ros_common Docker image
-# (see tools/setup_isaac_ros.sh), never natively. Skipped (with everything
-# that transitively depends on them, via --packages-skip-by-dep) when no GPU
-# is present. nvblox_nav2/nvblox_msgs/nvblox_ros_common have no CUDA
-# dependency and are NOT in this list -- they build fine everywhere, so the
-# Nav2 costmap plugin is always available (just inert without nvblox_ros
-# actually running).
+# Isaac ROS / NITROS packages needing CUDA Toolkit + NVIDIA's GXF binaries --
+# same story: only buildable inside the isaac_ros_common Docker image, which
+# has the toolchain and apt repo. Always skipped by build_workspace() below,
+# regardless of has_nvidia_gpu -- a native machine lacks the Isaac ROS apt
+# repo either way, GPU or not. nvblox_nav2/nvblox_msgs/nvblox_ros_common have
+# no CUDA dependency and are NOT in this list -- they build fine natively, so
+# the Nav2 costmap plugin is always available (just inert without nvblox_ros
+# actually running, which only happens inside the container).
 ISAAC_ROS_GPU_PACKAGES=(nvblox_ros isaac_ros_gxf isaac_ros_managed_nitros)
 
 is_jetson() {
@@ -43,14 +43,26 @@ init_submodule() {
   local path="ros2/src/third_party/$1"
   cd "$REPO_ROOT"
   if [ -d "$path/.git" ]; then
-    echo "  ($1 already checked out -- skipping)"
-    return
+    echo "  ($1 already checked out -- skipping clone)"
+  else
+    echo -e "${YELLOW}Initializing $1 submodule...${NC}"
+    # --recursive: isaac_ros_nvblox nests its own submodule at
+    # nvblox_ros/nvblox_core (the core C++/CUDA library) -- a plain --init
+    # would leave that directory empty and break its CMake configure step.
+    git submodule update --init --recursive "$path"
   fi
-  echo -e "${YELLOW}Initializing $1 submodule...${NC}"
-  # --recursive: isaac_ros_nvblox nests its own submodule at
-  # nvblox_ros/nvblox_core (the core C++/CUDA library) -- a plain --init
-  # would leave that directory empty and break its CMake configure step.
-  git submodule update --init --recursive "$path"
+
+  # Isaac ROS repos ship prebuilt binaries (e.g. isaac_ros_gxf's
+  # libgxf_core.so) via Git LFS. Without this, the checkout is just LFS
+  # pointer text files -- CMake/ld happily "links" against them and fails
+  # with a cryptic "syntax error" at build time instead of a missing-file
+  # error. Always run this, even if the submodule was already checked out
+  # (e.g. via `git clone --recurse-submodules` on a machine where `git lfs
+  # install --global` was never run) -- `git lfs install --local` + `pull`
+  # per submodule (each is its own git context) fetches the real binaries.
+  if command -v git-lfs >/dev/null 2>&1; then
+    (cd "$path" && git lfs install --local >/dev/null && git lfs pull)
+  fi
 }
 
 install_ros2_deps() {
@@ -139,16 +151,17 @@ build_workspace() {
     skip_keys+=(librealsense2)
   fi
   if [ -d "$REPO_ROOT/ros2/src/third_party/isaac_ros_nvblox" ]; then
+    # This is the native (non-Docker) build path. NITROS/nvblox packages need
+    # NVIDIA's Isaac ROS apt repo, which only exists inside the
+    # isaac_ros_common Docker image (see tools/setup_isaac_ros.sh) -- a
+    # native machine doesn't have it regardless of GPU presence, so skip all
+    # of it unconditionally here (has_nvidia_gpu doesn't change buildability
+    # natively, only whether nvblox would be worth running at all).
     # --packages-skip only skips the named packages; --packages-skip-by-dep
-    # additionally skips everything that transitively depends on them (see
-    # ISAAC_ROS_ALWAYS_SKIP / ISAAC_ROS_GPU_PACKAGES above) -- both are needed
-    # since a package that depends on a skipped one would otherwise fail.
-    skip_packages+=("${ISAAC_ROS_ALWAYS_SKIP[@]}")
-    skip_by_dep+=("${ISAAC_ROS_ALWAYS_SKIP[@]}")
-    if ! has_nvidia_gpu; then
-      skip_packages+=("${ISAAC_ROS_GPU_PACKAGES[@]}")
-      skip_by_dep+=("${ISAAC_ROS_GPU_PACKAGES[@]}")
-    fi
+    # additionally skips everything that transitively depends on them.
+    local isaac_ros_skip=("${ISAAC_ROS_ALWAYS_SKIP[@]}" "${ISAAC_ROS_GPU_PACKAGES[@]}")
+    skip_packages+=("${isaac_ros_skip[@]}")
+    skip_by_dep+=("${isaac_ros_skip[@]}")
   fi
 
   if [ "${#skip_keys[@]}" -gt 0 ]; then

@@ -6,6 +6,10 @@ ros2/.colcon_build_cache/
 ros2/**/__pycache__/
 ros2/**/*.pyc
 
+# Isaac ROS model assets, downloaded at rosdep-install/build time by
+# isaac_ros_peoplenet_models_install etc. (hundreds of MB, not source).
+ros2/isaac_ros_assets/
+
 # Colcon
 COLCON_IGNORE
 

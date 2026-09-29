@@ -12,6 +12,11 @@ Use this when you need `nvblox_ros`; use the native flow otherwise.
 
 - **x86_64**: NVIDIA GPU, [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), Docker, 32+ GB free disk.
 - **Jetson**: JetPack, Docker, a 128+ GB NVMe SSD (the stock eMMC/SD card isn't enough once the base images are pulled).
+- `git-lfs` installed (`apt install git-lfs`) — the Isaac ROS repos ship
+  prebuilt binaries (e.g. `isaac_ros_gxf`'s `libgxf_core.so`) via Git LFS.
+  `tools/setup_isaac_ros.sh` runs `git lfs pull` for you, but only if the
+  `git-lfs` binary exists; without it you'll get a cryptic linker "syntax
+  error" at build time instead of the real binary.
 - Sanity check either way: `docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi`.
 
 No GPU? Everything still builds — `uet_amr_navigation` just falls back to the
@@ -36,16 +41,14 @@ Inside the container:
 
 ```bash
 rosdep install --from-paths src --ignore-src -r -y
-colcon build --symlink-install \
-  --packages-skip isaac_ros_nvblox nvblox_examples_bringup \
-  --packages-skip-by-dep isaac_ros_nvblox nvblox_examples_bringup
+colcon build --symlink-install
 source install/setup.bash
 ros2 launch uet_amr_navigation navigation.launch.py use_nvblox:=true
 ```
 
-(That `--packages-skip` pair is permanent, not a GPU thing — those two
-packages need NVIDIA's people-detection model downloads, which we don't
-vendor and don't need.)
+No `--packages-skip` needed — the container's apt sources already carry
+NVIDIA's people-detection model-install packages that `isaac_ros_nvblox`/
+`nvblox_examples_bringup` depend on, so `rosdep` resolves them as binaries.
 
 Start the micro-ROS agent separately, on the host — the container doesn't
 run it for you:
@@ -86,18 +89,32 @@ Code doesn't build it for you. On Jetson, change `"image"` to
 
 ## No-GPU fallback
 
-`tools/common.sh`'s `has_nvidia_gpu` gates the build. Without a GPU,
-`build_workspace()` skips `nvblox_ros`, `isaac_ros_gxf`, and
-`isaac_ros_managed_nitros` (plus everything depending on them). `nvblox_nav2`
-and `nvblox_msgs` have no CUDA dependency and always build, so the costmap
-plugin is available even when nvblox itself isn't running.
+This section is about the **native** build (`tools/setup_dev.sh`/
+`setup_prod.sh`), not the Docker container above — inside the container,
+everything just builds, no skipping needed.
 
-Not yet verified against a real build — no GPU/Docker toolchain in dev. The
-skip lists in `tools/common.sh` may need small fixes on the first real run.
+Natively, `build_workspace()` in `tools/common.sh` always skips `nvblox_ros`,
+`isaac_ros_gxf`, `isaac_ros_managed_nitros`, `isaac_ros_nvblox`, and
+`nvblox_examples_bringup` (plus everything depending on them) — not because
+of GPU presence, but because these need NVIDIA's Isaac ROS apt repo, which
+only exists inside the Docker image, not on a plain machine. `nvblox_nav2`
+and `nvblox_msgs` have no CUDA dependency and always build natively, so the
+costmap plugin is available even without the container.
+
+If a native build still breaks on an Isaac ROS package, it's almost
+certainly a missing package name in `ISAAC_ROS_ALWAYS_SKIP`/
+`ISAAC_ROS_GPU_PACKAGES` in `tools/common.sh`.
 
 ---
 
 ## Troubleshooting
+
+**Linker "syntax error" on a `.so` file** (e.g.
+`libgxf_core.so:1: syntax error`) — that file is a Git LFS pointer, not the
+real binary (`git-lfs` wasn't installed, or `git lfs pull` never ran for that
+submodule). Fix: `cd ros2/src/third_party/<repo> && git lfs install --local
+&& git lfs pull`, then rebuild. `tools/setup_isaac_ros.sh` does this for you,
+but only if `git-lfs` is installed on your machine.
 
 **`run_dev.sh` not found** — the vendored layout may have moved past
 `release-3.2`. Check NVIDIA's current docs against the pin in `.gitmodules`.
