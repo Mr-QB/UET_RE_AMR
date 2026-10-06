@@ -101,8 +101,10 @@ private:
     // send -- the firmware only speaks when it has something to say.
     bool waitForFeedback(std::chrono::milliseconds timeout);
 
-    // Applies one decoded feedback packet to wheel_positions_/velocities_.
-    void applyFeedback(const protocol::FeedbackPacket & pkt, const rclcpp::Duration & period);
+    // Applies one decoded feedback packet to wheel_positions_ and the
+    // per-cycle angle accumulators. Velocity is derived once per read() cycle
+    // from the accumulators, since several packets can arrive in one cycle.
+    void applyFeedback(const protocol::FeedbackPacket & pkt);
 
     // Publishes battery/current/temperature from one decoded feedback packet.
     // No voltage: the wire protocol only forwards a computed percentage, not
@@ -127,6 +129,11 @@ private:
     int last_tick_l_{0};
     int last_tick_r_{0};
 
+    // Wheel angle accumulated since the last velocity update (see read()).
+    double accum_rad_l_{0.0};
+    double accum_rad_r_{0.0};
+    std::chrono::steady_clock::time_point last_velocity_update_;
+
     // Battery status publishing. Owns a bare node (never spun -- publish()
     // needs no executor) since SystemInterface has no node of its own.
     rclcpp::Node::SharedPtr node_;
@@ -142,7 +149,11 @@ private:
     std::vector<double> wheel_velocity_commands_;
 
     // Parameters
-    double motor_command_scale_; // raw hoverboard speed units per rad/s of wheel rotation
+    // Raw hoverboard speed units per rad/s of wheel rotation. The hoverboard
+    // responds differently to its common-mode (straight) and differential
+    // (turning) channels, so each has its own measured gain.
+    double motor_command_scale_linear_;
+    double motor_command_scale_angular_;
     int ticks_per_rev_;          // encoder ticks per wheel revolution; must match firmware's Odom
     int encoder_max_;            // encoder wrap modulus; must match firmware's Odom
 };

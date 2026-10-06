@@ -76,7 +76,10 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
     // Read parameters from URDF ros2_control tag
     serial_port_ = info_.hardware_parameters.at("serial_port");
     baud_rate_ = std::stoi(info_.hardware_parameters.at("baud_rate"));
-    motor_command_scale_ = std::stod(info_.hardware_parameters.at("motor_command_scale"));
+    motor_command_scale_linear_ =
+        std::stod(info_.hardware_parameters.at("motor_command_scale_linear"));
+    motor_command_scale_angular_ =
+        std::stod(info_.hardware_parameters.at("motor_command_scale_angular"));
     ticks_per_rev_ = std::stoi(info_.hardware_parameters.at("ticks_per_rev"));
     encoder_max_ = std::stoi(info_.hardware_parameters.at("encoder_max"));
 
@@ -263,6 +266,9 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
 
     have_last_ticks_ = false; // don't compute a bogus delta against a stale sample
     last_feedback_time_ = std::chrono::steady_clock::now();
+    last_velocity_update_ = last_feedback_time_;
+    accum_rad_l_ = 0.0;
+    accum_rad_r_ = 0.0;
     RCLCPP_INFO(logger(), "Hardware activated.");
     return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -335,8 +341,7 @@ int AmrHardwareInterface::wrapTickDelta(int current, int previous) const
     return delta;
 }
 
-void AmrHardwareInterface::applyFeedback(
-    const protocol::FeedbackPacket & pkt, const rclcpp::Duration & period)
+void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
 {
     publishBatteryStatus(pkt);
 
@@ -359,11 +364,8 @@ void AmrHardwareInterface::applyFeedback(
     const double new_left_pos = wheel_positions_[0] + delta_l * rad_per_tick;
     const double new_right_pos = wheel_positions_[1] + delta_r * rad_per_tick;
 
-    const double dt = period.seconds();
-    if (dt > 1e-6) {
-        wheel_velocities_[0] = (new_left_pos - wheel_positions_[0]) / dt;
-        wheel_velocities_[1] = (new_right_pos - wheel_positions_[1]) / dt;
-    }
+    accum_rad_l_ += new_left_pos - wheel_positions_[0];
+    accum_rad_r_ += new_right_pos - wheel_positions_[1];
     wheel_positions_[0] = new_left_pos;
     wheel_positions_[1] = new_right_pos;
 }
@@ -390,7 +392,7 @@ void AmrHardwareInterface::publishBatteryStatus(const protocol::FeedbackPacket &
 
 hardware_interface::return_type AmrHardwareInterface::read(
     const rclcpp::Time & /*time*/,
-    const rclcpp::Duration & period)
+    const rclcpp::Duration & /*period*/)
 {
     if (serial_fd_ < 0) {
         return hardware_interface::return_type::ERROR;
@@ -417,7 +419,7 @@ hardware_interface::return_type AmrHardwareInterface::read(
         }
         for (ssize_t i = 0; i < n; ++i) {
             if (feedback_parser_.feed(buf[i])) {
-                applyFeedback(feedback_parser_.packet(), period);
+                applyFeedback(feedback_parser_.packet());
                 got_packet = true;
             }
         }
@@ -426,6 +428,14 @@ hardware_interface::return_type AmrHardwareInterface::read(
     const auto now = std::chrono::steady_clock::now();
     if (got_packet) {
         last_feedback_time_ = now;
+        const double dt = std::chrono::duration<double>(now - last_velocity_update_).count();
+        if (dt > 1e-6) {
+            wheel_velocities_[0] = accum_rad_l_ / dt;
+            wheel_velocities_[1] = accum_rad_r_ / dt;
+        }
+        accum_rad_l_ = 0.0;
+        accum_rad_r_ = 0.0;
+        last_velocity_update_ = now;
         return hardware_interface::return_type::OK;
     }
 
@@ -445,8 +455,12 @@ hardware_interface::return_type AmrHardwareInterface::write(
     const rclcpp::Time & /*time*/,
     const rclcpp::Duration & /*period*/)
 {
-    const double left_raw = wheel_velocity_commands_[0] * motor_command_scale_;
-    const double right_raw = wheel_velocity_commands_[1] * motor_command_scale_;
+    // The hoverboard mixes (L+R)/2 as speed and (R-L)/2 as steer with
+    // different effective gains, so scale the two components separately.
+    const double common = 0.5 * (wheel_velocity_commands_[0] + wheel_velocity_commands_[1]);
+    const double diff = 0.5 * (wheel_velocity_commands_[1] - wheel_velocity_commands_[0]);
+    const double left_raw = common * motor_command_scale_linear_ - diff * motor_command_scale_angular_;
+    const double right_raw = common * motor_command_scale_linear_ + diff * motor_command_scale_angular_;
 
     const int16_t left_speed = static_cast<int16_t>(
         std::clamp(left_raw, -32768.0, 32767.0));

@@ -12,8 +12,8 @@ teleop_twist_joy:
     axis_angular:
       yaw: 0
     scale_angular:
-      yaw: 0.6
-    scale_angular_turbo:
       yaw: 0.9
+    scale_angular_turbo:
+      yaw: 1.0
 
     require_enable_button: false

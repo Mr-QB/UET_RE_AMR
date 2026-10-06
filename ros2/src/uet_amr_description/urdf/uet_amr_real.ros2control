@@ -8,7 +8,11 @@
       <plugin>uet_amr_hardware/AmrHardwareInterface</plugin>
       <param name="serial_port">$(arg serial_port)</param>
       <param name="baud_rate">$(arg baud_rate)</param>
-      <param name="motor_command_scale">25</param>
+      <!-- Measured 2026-10-06 on the real robot: the hoverboard turns ~94% of
+           commanded at a combined gain of 37, but drives straight at ~2x
+           commanded, so straight and turning need separate gains. -->
+      <param name="motor_command_scale_linear">18.5</param>
+      <param name="motor_command_scale_angular">39.5</param>
       <!-- Must match firmware's Odom(wheel_radius, wheel_base, ticks_per_rev,
            encoder_max) constants in hoverboardSerial.h. -->
       <param name="ticks_per_rev">90</param>
