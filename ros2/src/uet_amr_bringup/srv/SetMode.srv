@@ -1,0 +1,12 @@
+# Target operating mode: "slam" or "nav".
+string mode
+# Required when mode is "nav". Ignored when mode is "slam".
+string map_yaml
+# When leaving SLAM, save the occupancy map and SLAM Toolbox pose graph first.
+bool save_current_map
+# Map basename (without extension), written under the manager's map_directory.
+string map_name
+---
+bool success
+string message
+string current_mode

@@ -4,16 +4,15 @@ ros2_control_node (loading the uet_amr_hardware/AmrHardwareInterface plugin
 over serial), joint_state_broadcaster + diff_drive_controller spawners,
 robot_localization's EKF (fusing wheel odometry with the D435i's IMU),
 sensors (lidar + depth camera, uet_amr_bringup/launch/sensors.launch.py),
-and, depending on mode:=slam|nav, either slam_toolbox or Nav2 localization +
-navigation against a pre-built map, plus an RViz2 window scoped to that
-mode. Mirrors uet_amr_simulation/simulation.launch.py's mode:=slam|nav
-structure with use_sim_time forced false.
+and an amr_mode_manager that starts SLAM or Nav2 and switches them at runtime
+through /amr/set_mode. The selected mode can optionally start its RViz window.
+Hardware, localization, and sensors stay alive during mode changes.
 """
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, EqualsSubstitution, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -91,64 +90,19 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('publish_ws')),
     )
 
-    mode = LaunchConfiguration('mode')
-    is_slam_mode = EqualsSubstitution(mode, 'slam')
-    is_nav_mode = EqualsSubstitution(mode, 'nav')
-    use_rviz = LaunchConfiguration('rviz')
-
-    slam_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uet_amr_navigation'), 'launch', 'slam.launch.py'])
-        ]),
-        condition=IfCondition(is_slam_mode),
-        launch_arguments={
-            'use_sim_time': 'false',
-            'use_rviz': 'false',
-        }.items()
-    )
-
-    nav_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uet_amr_navigation'), 'launch', 'navigation.launch.py'])
-        ]),
-        condition=IfCondition(is_nav_mode),
-        launch_arguments={
-            'use_sim_time': 'false',
-            'map': LaunchConfiguration('map'),
-            'use_rviz': 'false',
-        }.items()
-    )
-
-    slam_rviz_node = GroupAction(
-        condition=IfCondition(is_slam_mode),
-        actions=[
-            Node(
-                package='rviz2',
-                executable='rviz2',
-                name='rviz2',
-                arguments=['-d', PathJoinSubstitution(
-                    [FindPackageShare('uet_amr_navigation'), 'rviz', 'slam.rviz'])],
-                parameters=[{'use_sim_time': False}],
-                condition=IfCondition(use_rviz),
-                output='screen',
-            ),
-        ]
-    )
-
-    nav_rviz_node = GroupAction(
-        condition=IfCondition(is_nav_mode),
-        actions=[
-            Node(
-                package='rviz2',
-                executable='rviz2',
-                name='rviz2',
-                arguments=['-d', PathJoinSubstitution(
-                    [FindPackageShare('uet_amr_navigation'), 'rviz', 'navigation.rviz'])],
-                parameters=[{'use_sim_time': False}],
-                condition=IfCondition(use_rviz),
-                output='screen',
-            ),
-        ]
+    mode_manager = Node(
+        package='uet_amr_bringup',
+        executable='amr_mode_manager.py',
+        name='amr_mode_manager',
+        output='screen',
+        parameters=[{
+            'initial_mode': LaunchConfiguration('mode'),
+            'initial_map': LaunchConfiguration('map'),
+            'map_directory': LaunchConfiguration('map_directory'),
+            'use_rviz': LaunchConfiguration('rviz'),
+            'use_nvblox': LaunchConfiguration('use_nvblox'),
+            'use_sim_time': False,
+        }],
     )
 
     return LaunchDescription([
@@ -163,9 +117,15 @@ def generate_launch_description():
             description='Serial baud rate (firmware/amr_uart_bridge is fixed at 921600)'
         ),
         DeclareLaunchArgument('map', default_value=default_map_file,
-                              description="Full path to the map yaml file to load in mode:=nav"),
+                              description="Map YAML to load at startup in mode:=nav"),
+        DeclareLaunchArgument(
+            'map_directory',
+            default_value='',
+            description='Root directory for maps saved by /amr/set_mode; each map gets its own subdirectory'),
         DeclareLaunchArgument('rviz', default_value='false',
                               description='Launch RViz2 alongside the hardware bringup'),
+        DeclareLaunchArgument('use_nvblox', default_value='',
+                              description='Override Nav2 use_nvblox (empty means auto-detect)'),
         DeclareLaunchArgument('publish_ws', default_value='true',
                       description='Publish ROS topics/services over websocket via Foxglove Bridge'),
         DeclareLaunchArgument('mode', default_value='slam',
@@ -181,8 +141,5 @@ def generate_launch_description():
         ekf_localization,
         sensors_launch,
         foxglove_bridge,
-        slam_launch,
-        nav_launch,
-        slam_rviz_node,
-        nav_rviz_node,
+        mode_manager,
     ])
