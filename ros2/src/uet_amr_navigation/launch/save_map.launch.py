@@ -3,7 +3,7 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     ExecuteProcess,
-    LogError,
+    LogInfo,
     OpaqueFunction,
     RegisterEventHandler,
 )
@@ -58,7 +58,7 @@ def generate_launch_description():
             target_action=save_map_cmd,
             on_exit=lambda event, context: [serialize_map_cmd]
             if event.returncode == 0
-            else [LogError(msg=f'map_saver_cli failed with exit code {event.returncode}; not serializing pose graph')],
+            else [LogInfo(msg=f'map_saver_cli failed with exit code {event.returncode}; not serializing pose graph')],
         )
     )
 
