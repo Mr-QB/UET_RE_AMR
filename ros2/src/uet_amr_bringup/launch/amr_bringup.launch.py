@@ -100,7 +100,10 @@ def generate_launch_description():
             'initial_map': LaunchConfiguration('map'),
             'map_directory': LaunchConfiguration('map_directory'),
             'use_rviz': LaunchConfiguration('rviz'),
-            'use_nvblox': LaunchConfiguration('use_nvblox'),
+            # Keep this as a string because amr_mode_manager declares and
+            # parses the override as the strings "true"/"false".
+            'use_nvblox': ParameterValue(
+                LaunchConfiguration('use_nvblox'), value_type=str),
             'use_sim_time': False,
         }],
     )
