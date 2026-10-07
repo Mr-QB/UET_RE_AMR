@@ -21,7 +21,9 @@ class AmrModeManager(Node):
         self.declare_parameter('initial_map', '')
         self.declare_parameter('map_directory', 'auto')
         self.declare_parameter('use_rviz', False)
-        self.declare_parameter('use_nvblox', 'auto')
+        # NVBlox is only available inside the Isaac ROS Docker environment.
+        # Do not infer it from Jetson hardware when this bringup runs natively.
+        self.declare_parameter('use_nvblox', 'false')
         self.declare_parameter('startup_grace_sec', 3.0)
         self.declare_parameter('shutdown_timeout_sec', 10.0)
         self.declare_parameter('save_timeout_sec', 45.0)
