@@ -80,6 +80,9 @@ class AmrModeManager(Node):
         return command
 
     def _start_mode(self, mode, map_yaml=''):
+        if mode == 'nav' and self._ros_node_is_running('slam_toolbox'):
+            raise RuntimeError(
+                'Cannot start Nav2 while /slam_toolbox is still running; refusing to run two /map publishers')
         if mode == 'nav' and not os.path.isfile(map_yaml):
             raise RuntimeError(f'Map YAML does not exist: {map_yaml}')
         process = subprocess.Popen(
@@ -99,21 +102,62 @@ class AmrModeManager(Node):
         if process is None:
             self._mode = 'stopped'
             return
+        stopped_mode = self._mode
+        process_group = process.pid
         if process.poll() is None:
             try:
-                os.killpg(process.pid, signal.SIGINT)
+                os.killpg(process_group, signal.SIGINT)
                 process.wait(timeout=self._shutdown_timeout)
             except subprocess.TimeoutExpired:
                 self.get_logger().warning('Launch did not stop after SIGINT; sending SIGTERM')
-                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    os.killpg(process_group, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
                 try:
                     process.wait(timeout=3.0)
                 except subprocess.TimeoutExpired:
                     self.get_logger().error('Launch did not stop after SIGTERM; sending SIGKILL')
-                    os.killpg(process.pid, signal.SIGKILL)
+                    try:
+                        os.killpg(process_group, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                     process.wait(timeout=3.0)
+
+        # ros2 launch can exit before all of its child nodes have disappeared
+        # from the ROS graph. In particular, Nav2 and SLAM must never overlap
+        # as publishers of /map.
+        if stopped_mode == 'slam' and not self._wait_for_ros_node_exit('slam_toolbox', 3.0):
+            self.get_logger().warning('/slam_toolbox is still visible after launch shutdown; sending SIGTERM to its process group')
+            try:
+                os.killpg(process_group, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            if not self._wait_for_ros_node_exit('slam_toolbox', 2.0):
+                try:
+                    os.killpg(process_group, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                if not self._wait_for_ros_node_exit('slam_toolbox', 2.0):
+                    raise RuntimeError(
+                        '/slam_toolbox is still running; refusing to start Nav2 alongside it')
+
         self._process = None
         self._mode = 'stopped'
+
+    def _ros_node_is_running(self, node_name):
+        return any(
+            name == node_name and namespace == '/'
+            for name, namespace in self.get_node_names_and_namespaces()
+        )
+
+    def _wait_for_ros_node_exit(self, node_name, timeout_sec):
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline:
+            if not self._ros_node_is_running(node_name):
+                return True
+            time.sleep(0.2)
+        return not self._ros_node_is_running(node_name)
 
     def _save_map(self, map_name):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', map_name):
