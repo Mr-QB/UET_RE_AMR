@@ -65,8 +65,9 @@ class AmrModeManager(Node):
         self.get_logger().info('Mode service ready: /amr/set_mode (uet_amr_bringup/srv/SetMode)')
 
     def _launch_command(self, mode, map_yaml=''):
+        launch_file = 'slam.launch.py' if mode == 'slam' else 'navigation.launch.py'
         command = [
-            'ros2', 'launch', 'uet_amr_navigation', f'{mode}.launch.py',
+            'ros2', 'launch', 'uet_amr_navigation', launch_file,
             f'use_sim_time:={str(self._use_sim_time).lower()}',
             f'use_rviz:={str(self._use_rviz).lower()}',
         ]
