@@ -19,10 +19,9 @@ class AmrModeManager(Node):
         super().__init__('amr_mode_manager')
         self.declare_parameter('initial_mode', 'slam')
         self.declare_parameter('initial_map', '')
-        self.declare_parameter('map_directory', '')
+        self.declare_parameter('map_directory', 'auto')
         self.declare_parameter('use_rviz', False)
-        self.declare_parameter('use_nvblox', '')
-        self.declare_parameter('use_sim_time', False)
+        self.declare_parameter('use_nvblox', 'auto')
         self.declare_parameter('startup_grace_sec', 3.0)
         self.declare_parameter('shutdown_timeout_sec', 10.0)
         self.declare_parameter('save_timeout_sec', 45.0)
@@ -32,7 +31,7 @@ class AmrModeManager(Node):
         self._active_map = ''
         self._switch_lock = threading.Lock()
         configured_map_directory = str(self.get_parameter('map_directory').value)
-        if configured_map_directory:
+        if configured_map_directory and configured_map_directory.lower() != 'auto':
             self._map_directory = os.path.abspath(os.path.expanduser(configured_map_directory))
         else:
             from ament_index_python.packages import get_package_share_directory
