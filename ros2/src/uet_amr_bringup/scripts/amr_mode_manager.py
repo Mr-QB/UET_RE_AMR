@@ -87,12 +87,14 @@ class AmrModeManager(Node):
     def _start_mode(self, mode, map_yaml=''):
         if mode == 'nav':
             slam_pids = self._slam_toolbox_process_pids()
-            slam_node_visible = self._ros_node_is_running('slam_toolbox')
-            if slam_pids or slam_node_visible:
+            if slam_pids:
                 raise RuntimeError(
                     'Cannot start Nav2 because SLAM has not fully stopped '
-                    f'(process PID(s): {", ".join(map(str, slam_pids)) or "none"}; '
-                    f'ROS node visible: {slam_node_visible})')
+                    f'(process PID(s): {", ".join(map(str, slam_pids))})')
+            if self._ros_node_is_running('slam_toolbox'):
+                self.get_logger().warning(
+                    'ROS graph still lists /slam_toolbox, but no slam_toolbox '
+                    'process exists; treating this as stale DDS discovery')
         if mode == 'nav' and not os.path.isfile(map_yaml):
             raise RuntimeError(f'Map YAML does not exist: {map_yaml}')
         process = subprocess.Popen(
@@ -112,7 +114,7 @@ class AmrModeManager(Node):
         if process is None:
             if not self._wait_for_slam_shutdown(self._slam_shutdown_timeout):
                 raise RuntimeError(
-                    f'/slam_toolbox is still present after '
+                    f'slam_toolbox process is still running after '
                     f'{self._slam_shutdown_timeout:.1f} seconds; target mode was not started')
             self._mode = 'stopped'
             return
@@ -137,9 +139,9 @@ class AmrModeManager(Node):
 
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    # If only DDS discovery remains stale, keep the internal
-                    # state stopped but still fail this request. The caller
-                    # can retry after discovery catches up; Nav2 is not started.
+                    # A graph entry can outlive its process. Mark the mode
+                    # stopped when both the launch and slam_toolbox process
+                    # have exited, even if DDS has not expired that entry.
                     if process.poll() is not None and not self._slam_toolbox_process_pids():
                         self._process = None
                         self._mode = 'stopped'
@@ -192,9 +194,7 @@ class AmrModeManager(Node):
 
     def _slam_is_stopped(self, process=None):
         process_exited = process is None or process.poll() is not None
-        return (process_exited
-                and not self._slam_toolbox_process_pids()
-                and not self._ros_node_is_running('slam_toolbox'))
+        return process_exited and not self._slam_toolbox_process_pids()
 
     def _wait_for_slam_shutdown(self, timeout_sec):
         deadline = time.monotonic() + timeout_sec
