@@ -124,7 +124,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'map_directory',
             default_value='auto',
-            description='Root directory for maps saved by /amr/set_mode; each map gets its own subdirectory'),
+            description='Root directory for maps saved by /amr/save_map; each map gets its own subdirectory'),
         DeclareLaunchArgument('rviz', default_value='false',
                               description='Launch RViz2 alongside the hardware bringup'),
         DeclareLaunchArgument('use_nvblox', default_value='false',

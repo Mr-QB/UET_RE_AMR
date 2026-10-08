@@ -1,0 +1,7 @@
+# Map basename (without extension), saved in its own directory.
+string map_name
+---
+bool success
+string message
+# Absolute path to the saved map YAML; empty when saving fails.
+string map_yaml

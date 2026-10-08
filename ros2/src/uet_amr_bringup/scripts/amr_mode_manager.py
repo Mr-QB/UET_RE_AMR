@@ -11,7 +11,7 @@ import time
 import rclpy
 from rclpy.node import Node
 
-from uet_amr_bringup.srv import SetMode
+from uet_amr_msgs.srv import SaveMap, SetMode
 
 
 class AmrModeManager(Node):
@@ -52,7 +52,10 @@ class AmrModeManager(Node):
             self.get_parameter('slam_shutdown_timeout_sec').value)
         self._save_timeout = float(self.get_parameter('save_timeout_sec').value)
 
-        self._service = self.create_service(SetMode, '/amr/set_mode', self._set_mode)
+        self._set_mode_service = self.create_service(
+            SetMode, '/amr/set_mode', self._set_mode)
+        self._save_map_service = self.create_service(
+            SaveMap, '/amr/save_map', self._save_map_callback)
         self._monitor = self.create_timer(1.0, self._monitor_process)
 
         initial_mode = str(self.get_parameter('initial_mode').value)
@@ -67,7 +70,9 @@ class AmrModeManager(Node):
         else:
             self.get_logger().error(f'Invalid initial_mode {initial_mode!r}; expected slam or nav')
 
-        self.get_logger().info('Mode service ready: /amr/set_mode (uet_amr_bringup/srv/SetMode)')
+        self.get_logger().info(
+            'Services ready: /amr/set_mode (uet_amr_msgs/srv/SetMode), '
+            '/amr/save_map (uet_amr_msgs/srv/SaveMap)')
 
     def _launch_command(self, mode, map_yaml=''):
         launch_file = 'slam.launch.py' if mode == 'slam' else 'navigation.launch.py'
@@ -280,6 +285,29 @@ class AmrModeManager(Node):
                 + ', '.join(stale_or_missing))
         return map_base + '.yaml'
 
+    def _save_map_callback(self, request, response):
+        if not self._switch_lock.acquire(blocking=False):
+            response.success = False
+            response.message = 'A mode transition or map save is already in progress'
+            response.map_yaml = ''
+            return response
+
+        try:
+            self._monitor_process()
+            if (self._mode != 'slam' or self._process is None
+                    or self._process.poll() is not None):
+                raise RuntimeError('Map can only be saved while SLAM mode is running')
+            response.map_yaml = self._save_map(request.map_name)
+            response.success = True
+            response.message = f'Map saved to {response.map_yaml}'
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            response.success = False
+            response.message = str(exc)
+            response.map_yaml = ''
+        finally:
+            self._switch_lock.release()
+        return response
+
     def _set_mode(self, request, response):
         if not self._switch_lock.acquire(blocking=False):
             response.success = False
@@ -292,19 +320,10 @@ class AmrModeManager(Node):
             if target not in ('slam', 'nav'):
                 raise RuntimeError('mode must be "slam" or "nav"')
             self._monitor_process()
-            saving_new_map = self._mode == 'slam' and request.save_current_map
-            if target == 'nav' and not request.map_yaml and not saving_new_map:
+            if target == 'nav' and not request.map_yaml:
                 raise RuntimeError('map_yaml is required when switching to nav mode')
 
             if target == self._mode and self._process is not None and self._process.poll() is None:
-                if target == 'slam' and request.save_current_map:
-                    if not request.map_name:
-                        raise RuntimeError('map_name is required when save_current_map is true')
-                    saved_yaml = self._save_map(request.map_name)
-                    response.success = True
-                    response.message = f'Map and pose graph saved; map YAML: {saved_yaml}'
-                    response.current_mode = self._mode
-                    return response
                 response.success = True
                 response.message = f'Already running {target} mode'
                 response.current_mode = self._mode
@@ -313,10 +332,6 @@ class AmrModeManager(Node):
             map_yaml = os.path.abspath(os.path.expanduser(request.map_yaml)) if request.map_yaml else ''
             old_mode = self._mode
             old_map = self._active_map
-            if self._mode == 'slam' and target == 'nav' and request.save_current_map:
-                if not request.map_name:
-                    raise RuntimeError('map_name is required when save_current_map is true')
-                map_yaml = self._save_map(request.map_name)
 
             self._stop_mode()
             try:
