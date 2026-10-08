@@ -26,6 +26,7 @@ class AmrModeManager(Node):
         self.declare_parameter('use_nvblox', 'false')
         self.declare_parameter('startup_grace_sec', 3.0)
         self.declare_parameter('shutdown_timeout_sec', 10.0)
+        self.declare_parameter('slam_shutdown_timeout_sec', 5.0)
         self.declare_parameter('save_timeout_sec', 45.0)
 
         self._mode = 'stopped'
@@ -47,6 +48,8 @@ class AmrModeManager(Node):
         self._use_sim_time = bool(self.get_parameter('use_sim_time').value)
         self._startup_grace = float(self.get_parameter('startup_grace_sec').value)
         self._shutdown_timeout = float(self.get_parameter('shutdown_timeout_sec').value)
+        self._slam_shutdown_timeout = float(
+            self.get_parameter('slam_shutdown_timeout_sec').value)
         self._save_timeout = float(self.get_parameter('save_timeout_sec').value)
 
         self._service = self.create_service(SetMode, '/amr/set_mode', self._set_mode)
@@ -82,9 +85,14 @@ class AmrModeManager(Node):
         return command
 
     def _start_mode(self, mode, map_yaml=''):
-        if mode == 'nav' and self._ros_node_is_running('slam_toolbox'):
-            raise RuntimeError(
-                'Cannot start Nav2 while /slam_toolbox is still running; refusing to run two /map publishers')
+        if mode == 'nav':
+            slam_pids = self._slam_toolbox_process_pids()
+            slam_node_visible = self._ros_node_is_running('slam_toolbox')
+            if slam_pids or slam_node_visible:
+                raise RuntimeError(
+                    'Cannot start Nav2 because SLAM has not fully stopped '
+                    f'(process PID(s): {", ".join(map(str, slam_pids)) or "none"}; '
+                    f'ROS node visible: {slam_node_visible})')
         if mode == 'nav' and not os.path.isfile(map_yaml):
             raise RuntimeError(f'Map YAML does not exist: {map_yaml}')
         process = subprocess.Popen(
@@ -102,10 +110,62 @@ class AmrModeManager(Node):
     def _stop_mode(self):
         process = self._process
         if process is None:
+            if not self._wait_for_slam_shutdown(self._slam_shutdown_timeout):
+                raise RuntimeError(
+                    f'/slam_toolbox is still present after '
+                    f'{self._slam_shutdown_timeout:.1f} seconds; target mode was not started')
             self._mode = 'stopped'
             return
         stopped_mode = self._mode
         process_group = process.pid
+
+        if stopped_mode == 'slam':
+            deadline = time.monotonic() + self._slam_shutdown_timeout
+            term_sent = False
+            kill_sent = False
+            try:
+                os.killpg(process_group, signal.SIGINT)
+            except ProcessLookupError:
+                pass
+
+            while True:
+                if self._slam_is_stopped(process):
+                    self._process = None
+                    self._mode = 'stopped'
+                    self._active_map = ''
+                    return
+
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    # If only DDS discovery remains stale, keep the internal
+                    # state stopped but still fail this request. The caller
+                    # can retry after discovery catches up; Nav2 is not started.
+                    if process.poll() is not None and not self._slam_toolbox_process_pids():
+                        self._process = None
+                        self._mode = 'stopped'
+                        self._active_map = ''
+                    raise RuntimeError(
+                        f'SLAM did not stop completely within '
+                        f'{self._slam_shutdown_timeout:.1f} seconds; Nav2 was not started')
+
+                if remaining <= 1.0 and not kill_sent:
+                    self.get_logger().warning(
+                        'SLAM is still running near the shutdown deadline; sending SIGKILL')
+                    try:
+                        os.killpg(process_group, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    kill_sent = True
+                elif remaining <= 2.0 and not term_sent:
+                    self.get_logger().warning(
+                        'SLAM has not stopped yet; sending SIGTERM')
+                    try:
+                        os.killpg(process_group, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    term_sent = True
+                time.sleep(min(0.1, remaining))
+
         if process.poll() is None:
             try:
                 os.killpg(process_group, signal.SIGINT)
@@ -126,32 +186,56 @@ class AmrModeManager(Node):
                         pass
                     process.wait(timeout=3.0)
 
-        # ros2 launch can exit before all of its child nodes have disappeared
-        # from the ROS graph. In particular, Nav2 and SLAM must never overlap
-        # as publishers of /map.
-        if stopped_mode == 'slam' and not self._wait_for_ros_node_exit('slam_toolbox', 3.0):
-            self.get_logger().warning('/slam_toolbox is still visible after launch shutdown; sending SIGTERM to its process group')
-            try:
-                os.killpg(process_group, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            if not self._wait_for_ros_node_exit('slam_toolbox', 2.0):
-                try:
-                    os.killpg(process_group, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                if not self._wait_for_ros_node_exit('slam_toolbox', 2.0):
-                    raise RuntimeError(
-                        '/slam_toolbox is still running; refusing to start Nav2 alongside it')
-
         self._process = None
         self._mode = 'stopped'
+        self._active_map = ''
+
+    def _slam_is_stopped(self, process=None):
+        process_exited = process is None or process.poll() is not None
+        return (process_exited
+                and not self._slam_toolbox_process_pids()
+                and not self._ros_node_is_running('slam_toolbox'))
+
+    def _wait_for_slam_shutdown(self, timeout_sec):
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline:
+            if self._slam_is_stopped():
+                return True
+            time.sleep(0.1)
+        return self._slam_is_stopped()
 
     def _ros_node_is_running(self, node_name):
         return any(
             name == node_name and namespace == '/'
             for name, namespace in self.get_node_names_and_namespaces()
         )
+
+    @staticmethod
+    def _slam_toolbox_process_pids():
+        """Return PIDs of standalone slam_toolbox processes on this host."""
+        pids = []
+        try:
+            entries = os.scandir('/proc')
+        except OSError:
+            return pids
+
+        with entries:
+            for entry in entries:
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    with open(os.path.join(entry.path, 'cmdline'), 'rb') as cmdline_file:
+                        argv = [part.decode(errors='ignore') for part in
+                                cmdline_file.read().split(b'\0') if part]
+                except OSError:
+                    continue
+                if not argv:
+                    continue
+                executable = os.path.basename(argv[0])
+                if (executable in ('async_slam_toolbox_node', 'sync_slam_toolbox_node')
+                        or '__node:=slam_toolbox' in argv):
+                    pids.append(int(entry.name))
+        return pids
 
     def _wait_for_ros_node_exit(self, node_name, timeout_sec):
         deadline = time.monotonic() + timeout_sec
