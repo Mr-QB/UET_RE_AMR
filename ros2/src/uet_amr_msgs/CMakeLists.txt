@@ -10,7 +10,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BatteryStatus.msg"
   "msg/WheelOdom.msg"
   "msg/MotorStatus.msg"
-  "srv/SetVelocity.srv"
   "srv/SetMode.srv"
   "srv/SaveMap.srv"
   "action/NavigateTo.action"
