@@ -1,0 +1,8 @@
+# Target operating mode: "slam" or "nav".
+string mode
+# Required when mode is "nav". Ignored when mode is "slam".
+string map_yaml
+---
+bool success
+string message
+string current_mode
