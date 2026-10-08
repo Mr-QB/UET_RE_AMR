@@ -9,6 +9,8 @@ import threading
 import time
 
 import rclpy
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 
 from uet_amr_msgs.srv import SaveMap, SetMode
@@ -52,10 +54,15 @@ class AmrModeManager(Node):
             self.get_parameter('slam_shutdown_timeout_sec').value)
         self._save_timeout = float(self.get_parameter('save_timeout_sec').value)
 
+        # Services run in their own reentrant group so a long switch or map
+        # save does not block the other service or the monitor timer; the
+        # _switch_lock turns a concurrent request into an immediate rejection.
+        service_group = ReentrantCallbackGroup()
         self._set_mode_service = self.create_service(
-            SetMode, '/amr/set_mode', self._set_mode)
+            SetMode, '/amr/set_mode', self._set_mode, callback_group=service_group)
         self._save_map_service = self.create_service(
-            SaveMap, '/amr/save_map', self._save_map_callback)
+            SaveMap, '/amr/save_map', self._save_map_callback,
+            callback_group=service_group)
         self._monitor = self.create_timer(1.0, self._monitor_process)
 
         initial_mode = str(self.get_parameter('initial_mode').value)
@@ -250,6 +257,21 @@ class AmrModeManager(Node):
             time.sleep(0.2)
         return not self._ros_node_is_running(node_name)
 
+    @staticmethod
+    def _terminate_process_group(process, grace_sec=5.0):
+        """Stop a launch and every child in its process group."""
+        try:
+            os.killpg(process.pid, signal.SIGINT)
+            process.wait(timeout=grace_sec)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            pass
+        # The leader can exit while children linger, so always sweep the group.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait(timeout=3.0)
+
     def _save_map(self, map_name):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', map_name):
             raise RuntimeError('map_name may contain only letters, numbers, underscore, and hyphen')
@@ -261,15 +283,20 @@ class AmrModeManager(Node):
             path: os.stat(path).st_mtime_ns if os.path.exists(path) else None
             for path in output_files
         }
-        save_process = subprocess.run(
+        save_process = subprocess.Popen(
             ['ros2', 'launch', 'uet_amr_navigation', 'save_map.launch.py',
              f'map_filename:={map_name}', f'map_directory:={map_directory}'],
-            timeout=self._save_timeout * 2,
-            check=False,
+            start_new_session=True,
         )
-        if save_process.returncode != 0:
-            raise RuntimeError(
-                f'save_map.launch.py failed with exit code {save_process.returncode}')
+        try:
+            returncode = save_process.wait(timeout=self._save_timeout * 2)
+        except subprocess.TimeoutExpired:
+            # Kill the whole group so map_saver_cli and the serializer cannot
+            # outlive the launch and write partial files later.
+            self._terminate_process_group(save_process)
+            raise
+        if returncode != 0:
+            raise RuntimeError(f'save_map.launch.py failed with exit code {returncode}')
 
         # The launch serializes the pose graph after map_saver_cli completes.
         # Verify that each expected output was created or updated by this call.
@@ -293,7 +320,7 @@ class AmrModeManager(Node):
             return response
 
         try:
-            self._monitor_process()
+            self._check_process()
             if (self._mode != 'slam' or self._process is None
                     or self._process.poll() is not None):
                 raise RuntimeError('Map can only be saved while SLAM mode is running')
@@ -319,7 +346,7 @@ class AmrModeManager(Node):
             target = request.mode.strip().lower()
             if target not in ('slam', 'nav'):
                 raise RuntimeError('mode must be "slam" or "nav"')
-            self._monitor_process()
+            self._check_process()
             if target == 'nav' and not request.map_yaml:
                 raise RuntimeError('map_yaml is required when switching to nav mode')
 
@@ -330,16 +357,21 @@ class AmrModeManager(Node):
                 return response
 
             map_yaml = os.path.abspath(os.path.expanduser(request.map_yaml)) if request.map_yaml else ''
+            # Fail before stopping anything so a bad map cannot cost a live SLAM session.
+            if target == 'nav' and not os.path.isfile(map_yaml):
+                raise RuntimeError(f'Map YAML does not exist: {map_yaml}')
             old_mode = self._mode
             old_map = self._active_map
 
-            self._stop_mode()
             try:
+                self._stop_mode()
                 self._start_mode(target, map_yaml)
             except (OSError, RuntimeError):
-                # A failed target launch should not leave the robot without a
-                # mode when the previous mode can be restarted.
-                if old_mode in ('slam', 'nav'):
+                # A failed stop or target launch should not leave the robot
+                # without a mode. Restart the old mode only when it is no
+                # longer tracked as running; if the stop failed with the old
+                # process still alive, a second launch would duplicate it.
+                if old_mode in ('slam', 'nav') and self._process is None:
                     try:
                         self._start_mode(old_mode, old_map)
                     except (OSError, RuntimeError) as recovery_error:
@@ -356,26 +388,48 @@ class AmrModeManager(Node):
             self._switch_lock.release()
         return response
 
-    def _monitor_process(self):
+    def _check_process(self):
+        """Reset state if the launch died. Caller must hold _switch_lock."""
         if self._process is not None and self._process.poll() is not None:
             code = self._process.returncode
             self.get_logger().error(f'{self._mode} launch exited unexpectedly (exit code {code})')
             self._process = None
             self._mode = 'stopped'
+            self._active_map = ''
+
+    def _monitor_process(self):
+        # Skip while a switch or save owns the state; it checks the process itself.
+        if not self._switch_lock.acquire(blocking=False):
+            return
+        try:
+            self._check_process()
+        finally:
+            self._switch_lock.release()
 
     def destroy_node(self):
-        self._stop_mode()
+        try:
+            self._stop_mode()
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.get_logger().error(f'Could not stop {self._mode} mode cleanly: {exc}')
+            if self._process is not None:
+                try:
+                    self._terminate_process_group(self._process, grace_sec=1.0)
+                except (OSError, subprocess.TimeoutExpired) as kill_error:
+                    self.get_logger().error(f'Could not kill launch group: {kill_error}')
         return super().destroy_node()
 
 
 def main(args=None):
     rclpy.init(args=args)
     node = AmrModeManager()
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         rclpy.shutdown()
 
