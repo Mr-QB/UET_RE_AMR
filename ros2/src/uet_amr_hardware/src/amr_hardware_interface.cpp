@@ -34,7 +34,7 @@
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "uet_amr_msgs/msg/battery_status.hpp"
+#include "uet_amr_msgs/msg/hardware_status.hpp"
 
 namespace uet_amr_hardware
 {
@@ -57,8 +57,13 @@ namespace
           case 57600: return B57600;
           case 115200: return B115200;
           case 230400: return B230400;
+#ifdef B460800
           case 460800: return B460800;
           case 921600: return B921600;
+#else
+          case 460800: return 460800;
+          case 921600: return 921600;
+#endif
           default: return B0;
         }
     }
@@ -88,11 +93,11 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
     wheel_velocities_.assign(2, 0.0);
     wheel_velocity_commands_.assign(2, 0.0);
 
-    // Bare node for battery status publishing only -- never spun, since
-    // publish() needs no executor and this node has no subscriptions/services.
-    node_ = rclcpp::Node::make_shared("amr_hardware_interface_battery");
-    battery_pub_ = node_->create_publisher<uet_amr_msgs::msg::BatteryStatus>(
-        "/battery/status", 10);
+    // Bare node for status publishing only -- never spun, since publish()
+    // needs no executor and this node has no subscriptions/services.
+    node_ = rclcpp::Node::make_shared("amr_hardware_interface_status");
+    status_pub_ = node_->create_publisher<uet_amr_msgs::msg::HardwareStatus>(
+        "/hardware/status", 10);
 
     RCLCPP_INFO(
         logger(),
@@ -343,7 +348,8 @@ int AmrHardwareInterface::wrapTickDelta(int current, int previous) const
 
 void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
 {
-    publishBatteryStatus(pkt);
+    last_packet_ = pkt;
+    have_packet_ = true;
 
     if (!have_last_ticks_) {
         last_tick_l_ = pkt.en_tick_l;
@@ -370,24 +376,32 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     wheel_positions_[1] = new_right_pos;
 }
 
-void AmrHardwareInterface::publishBatteryStatus(const protocol::FeedbackPacket & pkt)
+void AmrHardwareInterface::publishHardwareStatus()
 {
-    uet_amr_msgs::msg::BatteryStatus msg;
+    const auto & pkt = last_packet_;
+    uet_amr_msgs::msg::HardwareStatus msg;
     msg.header.stamp = node_->now();
-    msg.current = static_cast<float>(pkt.current_a) / 100.0f;
-    msg.percentage = static_cast<float>(pkt.battery) / 100.0f;
-    msg.temperature = static_cast<float>(pkt.temp_c);
+    msg.sys_status = static_cast<uint8_t>(pkt.sys_status);
+    msg.battery_percentage = static_cast<float>(pkt.battery) / 100.0f;
     msg.is_charging = pkt.charging != 0;
+    msg.current = static_cast<float>(pkt.current_a) / 100.0f;
+    msg.temperature = static_cast<float>(pkt.temp_c);
+    msg.left_speed = static_cast<int8_t>(pkt.speed_l);
+    msg.right_speed = static_cast<int8_t>(pkt.speed_r);
+    msg.left_wheel_position = wheel_positions_[0];
+    msg.right_wheel_position = wheel_positions_[1];
+    msg.left_wheel_velocity = wheel_velocities_[0];
+    msg.right_wheel_velocity = wheel_velocities_[1];
 
     if (static_cast<int>(pkt.battery) <= kBatteryCriticalPercent) {
-        msg.status = "CRITICAL";
+        msg.battery_state = "CRITICAL";
     } else if (static_cast<int>(pkt.battery) <= kBatteryLowPercent) {
-        msg.status = "LOW";
+        msg.battery_state = "LOW";
     } else {
-        msg.status = "OK";
+        msg.battery_state = "OK";
     }
 
-    battery_pub_->publish(msg);
+    status_pub_->publish(msg);
 }
 
 hardware_interface::return_type AmrHardwareInterface::read(
@@ -436,6 +450,14 @@ hardware_interface::return_type AmrHardwareInterface::read(
         accum_rad_l_ = 0.0;
         accum_rad_r_ = 0.0;
         last_velocity_update_ = now;
+    }
+
+    if (have_packet_ && now - last_status_publish_ >= kStatusPeriod) {
+        publishHardwareStatus();
+        last_status_publish_ = now;
+    }
+
+    if (got_packet) {
         return hardware_interface::return_type::OK;
     }
 

@@ -7,9 +7,7 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/BatteryStatus.msg"
-  "msg/WheelOdom.msg"
-  "msg/MotorStatus.msg"
+  "msg/HardwareStatus.msg"
   "srv/SetMode.srv"
   "srv/SaveMap.srv"
   "action/NavigateTo.action"

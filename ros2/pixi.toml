@@ -1,0 +1,58 @@
+[workspace]
+name = "uet-amr-ros2"
+description = "UET AMR ROS 2 Humble workspace (RoboStack)"
+channels = ["https://prefix.dev/robostack-humble", "conda-forge"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
+
+[dependencies]
+# Build tooling
+python = "3.11.*"
+colcon-common-extensions = "*"
+cmake = "*"
+ninja = "*"
+pkg-config = "*"
+compilers = "*"
+setuptools = "<80"
+catkin_pkg = "*"
+empy = "==3.3.4"
+lark = "*"
+numpy = "*"
+
+# ROS 2 core
+ros-humble-ros-base = "*"
+ros-humble-rviz2 = "*"
+ros-humble-xacro = "*"
+ros-humble-robot-state-publisher = "*"
+ros-humble-joint-state-publisher = "*"
+ros-humble-joint-state-publisher-gui = "*"
+ros-humble-foxglove-bridge = "*"
+
+# Control, localization, SLAM, navigation
+ros-humble-ros2-control = "*"
+ros-humble-ros2-controllers = "*"
+ros-humble-robot-localization = "*"
+ros-humble-slam-toolbox = "*"
+ros-humble-nav2-bringup = "*"
+
+# Teleop
+ros-humble-joy = "*"
+ros-humble-teleop-twist-joy = "*"
+ros-humble-teleop-twist-keyboard = "*"
+
+[activation]
+# Sources install/setup.sh when it exists (after `pixi run build`).
+scripts = ["activate.sh"]
+
+[tasks]
+# NVIDIA Isaac ROS packages (third_party/isaac_ros_*) only build inside the Isaac
+# ROS Docker image, so only the uet_amr_* packages are selected here.
+build = """colcon build --symlink-install \
+  --packages-select uet_amr_msgs uet_amr_description uet_amr_hardware \
+  uet_amr_localization uet_amr_navigation uet_amr_bringup uet_amr_simulation \
+  uet_amr_teleop \
+  --cmake-args -DCMAKE_BUILD_TYPE=Release -Wno-dev \
+  -DPython_EXECUTABLE=$CONDA_PREFIX/bin/python \
+  -DPython3_EXECUTABLE=$CONDA_PREFIX/bin/python \
+  -DPython_FIND_STRATEGY=LOCATION -DPython_FIND_FRAMEWORK=NEVER \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5"""
+clean = "rm -rf build install log"

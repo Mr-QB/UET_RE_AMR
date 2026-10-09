@@ -33,7 +33,7 @@
 #include "rclcpp_lifecycle/state.hpp"
 
 #include "uet_amr_hardware/protocol.hpp"
-#include "uet_amr_msgs/msg/battery_status.hpp"
+#include "uet_amr_msgs/msg/hardware_status.hpp"
 
 namespace uet_amr_hardware
 {
@@ -53,8 +53,8 @@ namespace uet_amr_hardware
  * Topics exposed (via hardware interface):
  *   - /joint_states (via ros2_control)
  *   - /odom (via diff_drive_controller)
- *   - /battery/status (uet_amr_msgs/msg/BatteryStatus, published directly by
- *     this node from decoded feedback packets)
+ *   - /hardware/status (uet_amr_msgs/msg/HardwareStatus, published directly by
+ *     this node at 1 Hz from the latest decoded feedback packet)
  */
 class AmrHardwareInterface : public hardware_interface::SystemInterface
 {
@@ -106,10 +106,11 @@ private:
     // from the accumulators, since several packets can arrive in one cycle.
     void applyFeedback(const protocol::FeedbackPacket & pkt);
 
-    // Publishes battery/current/temperature from one decoded feedback packet.
-    // No voltage: the wire protocol only forwards a computed percentage, not
-    // the hoverboard mainboard's raw batVoltage (see protocol.hpp).
-    void publishBatteryStatus(const protocol::FeedbackPacket & pkt);
+    // Publishes the latest feedback packet plus wheel state as HardwareStatus.
+    // No battery voltage: the wire protocol only forwards a computed
+    // percentage, not the hoverboard mainboard's raw batVoltage (see
+    // protocol.hpp).
+    void publishHardwareStatus();
 
     // Signed tick delta accounting for wrap-around at encoder_max_, matching
     // the firmware's own Odom::wrapDelta().
@@ -134,10 +135,14 @@ private:
     double accum_rad_r_{0.0};
     std::chrono::steady_clock::time_point last_velocity_update_;
 
-    // Battery status publishing. Owns a bare node (never spun -- publish()
-    // needs no executor) since SystemInterface has no node of its own.
+    // Status publishing. Owns a bare node (never spun -- publish() needs no
+    // executor) since SystemInterface has no node of its own.
     rclcpp::Node::SharedPtr node_;
-    rclcpp::Publisher<uet_amr_msgs::msg::BatteryStatus>::SharedPtr battery_pub_;
+    rclcpp::Publisher<uet_amr_msgs::msg::HardwareStatus>::SharedPtr status_pub_;
+    protocol::FeedbackPacket last_packet_{};
+    bool have_packet_{false};
+    std::chrono::steady_clock::time_point last_status_publish_;
+    static constexpr std::chrono::seconds kStatusPeriod{1};
     static constexpr int kBatteryCriticalPercent = 15;
     static constexpr int kBatteryLowPercent = 30;
 

@@ -3,6 +3,7 @@ ros2/build/
 ros2/install/
 ros2/log/
 ros2/.colcon_build_cache/
+ros2/.pixi/
 ros2/**/__pycache__/
 ros2/**/*.pyc
 
