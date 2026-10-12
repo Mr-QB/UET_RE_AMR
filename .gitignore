@@ -83,3 +83,5 @@ hardware/**/*.stp
 
 # Docker
 docker/.env
+ros2/third_party/
+docker/.pkgxml/

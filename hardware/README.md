@@ -65,3 +65,16 @@ The robot is powered by a rechargeable battery pack.
 | LED | 5V | 0.1  A |
 
 ---
+
+### udev rules
+
+`udev/` has the host udev rules. `scripts/setup.sh` installs them in every mode.
+
+| Device | Name | Rule |
+|---|---|---|
+| ESP32 / STM32 (CH340/CH341/CH9102) | `/dev/esp32` | `99-esp32.rules` |
+| RPLidar | `/dev/rplidar` | `99-rplidar.rules` |
+| RealSense D435/D435i/D455 | USB access | `99-realsense.rules` |
+
+The launch files use `serial_port:=/dev/esp32` by default; override with `serial_port:=/dev/ttyUSBx`.
+Credits are in `udev/NOTICE`.

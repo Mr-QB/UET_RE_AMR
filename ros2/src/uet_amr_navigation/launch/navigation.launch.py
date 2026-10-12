@@ -35,7 +35,7 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def _has_nvidia_gpu():
-    """Mirrors tools/common.sh's has_nvidia_gpu(): used only to pick the
+    """Mirrors scripts/common.sh's has_nvidia_gpu(): used only to pick the
     default value of the use_nvblox launch argument below -- still
     overridable on the command line either way."""
     if os.path.exists('/etc/nv_tegra_release'):

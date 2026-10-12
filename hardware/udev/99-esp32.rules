@@ -1,0 +1,2 @@
+# /dev/esp32 for the ESP32/STM32 serial link (WCH CH340/CH341/CH9102, vendor 1a86). Needs the kernel driver.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", MODE:="0666", SYMLINK+="esp32"

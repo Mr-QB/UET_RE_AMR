@@ -1,0 +1,6 @@
+# Adapted from librealsense's config/99-realsense-libusb.rules
+#   https://github.com/IntelRealSense/librealsense  (Apache License 2.0, see NOTICE)
+#   Copyright (c) Intel Corporation
+# Reduced to the D435 / D435i / D455 used on this robot.
+# Intel RealSense D435 / D435i / D455: user-level USB access (librealsense RSUSB backend)
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="8086", ATTRS{idProduct}=="0b07|0b3a|0b5c", MODE:="0666", GROUP:="plugdev"
