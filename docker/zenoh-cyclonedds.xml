@@ -1,0 +1,13 @@
+<!-- Bridge-side DDS: talk to ROS nodes on this host over loopback (multicast on a
+     physical NIC is not looped back to the bridge reliably). -->
+<CycloneDDS>
+  <Domain>
+    <General>
+      <Interfaces><NetworkInterface name="lo" multicast="true"/></Interfaces>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <Peers><Peer address="localhost"/></Peers>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

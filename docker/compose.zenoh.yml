@@ -1,0 +1,16 @@
+# Zenoh bridge for ROS 2 (DDS <-> Zenoh), next to the dev container (host network).
+#   docker compose -f docker/compose.zenoh.yml up -d
+# A remote machine runs its own bridge: zenoh-bridge-ros2dds -e tcp/<robot-ip>:7447
+services:
+  zenoh-bridge:
+    image: eclipse/zenoh-bridge-ros2dds:latest
+    container_name: uet_amr_zenoh
+    network_mode: host
+    restart: unless-stopped
+    init: true
+    environment:
+      ROS_DISTRO: humble
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      CYCLONEDDS_URI: file:///etc/zenoh-cyclonedds.xml
+    volumes:
+      - ./zenoh-cyclonedds.xml:/etc/zenoh-cyclonedds.xml:ro

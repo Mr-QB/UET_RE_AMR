@@ -10,12 +10,16 @@
 #   docker-dev build          update image if needed, incremental colcon build
 #   docker-dev shell          shell in the long-lived container
 #   docker-dev run <cmd...>   run a command in it, e.g.  docker-dev run ros2 launch uet_amr_bringup amr_bringup.launch.py
-#   docker-dev down           remove the container (build/ install/ stay on disk)
+#   docker-dev down           remove the container (build/ install/ stay on disk); also stops zenoh
+#
+# --with-zenoh (before the subcommand) also starts the Zenoh <-> ROS 2 bridge container
+# (docker/compose.zenoh.yml), e.g.  docker-dev --with-zenoh run ros2 launch ...
 set -e
 source "$(dirname "$0")/../common.sh"
 
 NAME=uet_amr_dev
 WS=/workspaces/isaac_ros-dev
+ZENOH_COMPOSE="$REPO_ROOT/docker/compose.zenoh.yml"
 SRC='source /opt/ros/humble/setup.bash; [ -f install/setup.bash ] && source install/setup.bash'
 
 # The image ID changes on every `docker build` (build metadata), even when every layer is
@@ -60,17 +64,27 @@ build() {
   in_container 'colcon build --symlink-install --base-paths src --cmake-args -DCMAKE_BUILD_TYPE=Release'
 }
 
+zenoh_up() {
+  echo -e "${YELLOW}Starting zenoh bridge...${NC}"
+  docker compose -f "$ZENOH_COMPOSE" up -d
+}
+
+args=() with_zenoh=
+for a in "$@"; do [ "$a" = --with-zenoh ] && with_zenoh=1 || args+=("$a"); done
+set -- "${args[@]}"
+
 case "${1:-}" in
   "")
     echo "🤖 UET AMR — Docker development environment"
     has_nvidia_gpu || echo -e "${YELLOW}Warning: no NVIDIA GPU detected; nvblox needs one to run.${NC}"
     install_udev_rules || echo -e "${YELLOW}Warning: udev rules not installed (needs sudo); continuing.${NC}"
     dev_prepare
+    [ -n "$with_zenoh" ] && zenoh_up
     exec "$ISAAC_SCRIPTS/run_dev.sh" -d "$REPO_ROOT/ros2"
     ;;
-  build) up; build ;;
-  shell) up; in_container 'exec bash -i' ;;
-  run)   shift; up; in_container 'exec "$@"' "$@" ;;
-  down)  docker rm -f $NAME ;;
-  *)     sed -n 2,15p "$0"; exit 1 ;;
+  build) up; [ -n "$with_zenoh" ] && zenoh_up; build ;;
+  shell) up; [ -n "$with_zenoh" ] && zenoh_up; in_container 'exec bash -i' ;;
+  run)   shift; up; [ -n "$with_zenoh" ] && zenoh_up; in_container 'exec "$@"' "$@" ;;
+  down)  docker rm -f $NAME; docker compose -f "$ZENOH_COMPOSE" down ;;
+  *)     sed -n 2,19p "$0"; exit 1 ;;
 esac

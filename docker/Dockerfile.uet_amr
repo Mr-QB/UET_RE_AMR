@@ -13,4 +13,6 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update --allow-releaseinfo-change && source /opt/ros/humble/setup.bash && \
     (rosdep update || true) && \
     rosdep install --from-paths /tmp/pkgxml --ignore-src -r -y && \
+    # the base's ROS snapshot is older than apt: robot_localization needs a newer diagnostic_updater
+    apt-get install -y --only-upgrade ros-humble-diagnostic-updater && \
     rm -rf /tmp/pkgxml /var/lib/apt/lists/*
