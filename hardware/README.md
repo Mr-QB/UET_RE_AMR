@@ -74,7 +74,7 @@ The robot is powered by a rechargeable battery pack.
 |---|---|---|
 | ESP32 / STM32 (CH340/CH341/CH9102) | `/dev/esp32` | `99-esp32.rules` |
 | RPLidar | `/dev/rplidar` | `99-rplidar.rules` |
-| RealSense D435/D435i/D455 | USB access | `99-realsense.rules` |
+| RealSense D435/D435i/D455 | USB access | `99-realsense-libusb.rules` |
 
 The launch files use `serial_port:=/dev/esp32` by default; override with `serial_port:=/dev/ttyUSBx`.
 Credits are in `udev/NOTICE`.

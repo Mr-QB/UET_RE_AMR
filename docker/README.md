@@ -3,7 +3,8 @@
 Only what the Isaac ROS dev environment needs; no other Docker files live in this repo.
 
 - `Dockerfile.uet_amr` — our one layer, stacked on NVIDIA's `isaac_ros_common` layers (prebuilt base, plus
-  the RealSense layer on a Jetson). It bakes in the workspace's apt dependencies so they are not reinstalled
+  the RealSense layer on a Jetson). On a Jetson it also swaps NVIDIA's librealsense 2.55.1 / realsense-ros
+  4.51.1-isaac for 2.58.4 / 4.58.4 (2.55.1 spams IMU errors on D435i firmware 5.17.x). It bakes in the workspace's apt dependencies so they are not reinstalled
   in every container.
 - `isaac_ros_dev-dockerargs` — extra `docker run` args for NVIDIA's `run_dev.sh` (the serial device). Copied
   to `~/.isaac_ros_dev-dockerargs`, dropping any `--device` that isn't plugged in.

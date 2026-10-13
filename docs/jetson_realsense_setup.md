@@ -24,14 +24,14 @@ replace the library — **no `realsense-ros` source build is needed.**
    so an `apt upgrade` doesn't undo it.
 
 Re-running the script is safe; nothing is rebuilt once it's in place. The udev rule
-(`hardware/udev/99-realsense.rules`) is installed by the same script.
+(`hardware/udev/99-realsense-libusb.rules`) is installed by the same script.
 
 ## Docker
 
 On a Jetson, `scripts/setup.sh docker-dev` stacks NVIDIA's own `realsense` layer onto the base
 (`isaac_ros_common`'s `Dockerfile.realsense`): librealsense **v2.55.1** (RSUSB backend, CUDA) plus
 their `realsense-ros` **4.51.1-isaac** fork. It is built once and cached. The robot host needs only
-the udev rule (`hardware/udev/99-realsense.rules`, installed by `scripts/setup.sh`).
+the udev rule (`hardware/udev/99-realsense-libusb.rules`, installed by `scripts/setup.sh`).
 
 Note the version difference: bare metal runs librealsense 2.58.4 with the apt ROS wrapper 4.58.4;
 the Docker environment runs 2.55.1 with the 4.51.1-isaac wrapper.

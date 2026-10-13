@@ -19,7 +19,7 @@ def _ensure_map_directory(context):
 def generate_launch_description():
     current_dir = os.path.dirname(os.path.realpath(__file__))
     workspace_src_maps = os.path.abspath(os.path.join(current_dir, '..', 'maps'))
-    
+
     map_directory = LaunchConfiguration('map_directory')
     map_filename = LaunchConfiguration('map_filename')
 
@@ -36,16 +36,19 @@ def generate_launch_description():
 
     # 1. Lệnh lưu ảnh map (.yaml + .pgm) cho Nav2
     save_map_cmd = ExecuteProcess(
-        cmd=['ros2', 'run', 'nav2_map_server', 'map_saver_cli', 
-             '-f', full_path, 
-             '--ros-args', '-p', 'free_thresh:=0.25', '-p', 'occupied_thresh:=0.65'],
+        cmd=['ros2', 'run', 'nav2_map_server', 'map_saver_cli',
+             '-f', full_path,
+             # map_saver_cli gives up on /map after 2 s by default; DDS discovery here (zenoh bridge,
+             # several /map publishers) is sometimes slower, which made saving fail intermittently.
+             '--ros-args', '-p', 'free_thresh:=0.25', '-p', 'occupied_thresh:=0.65',
+             '-p', 'save_map_timeout:=10.0'],
         output='screen'
     )
 
     # 2. Lệnh gọi service Serialize của SLAM Toolbox để tạo 2 file (.posegraph + .data)
     serialize_map_cmd = ExecuteProcess(
-        cmd=['ros2', 'service', 'call', '/slam_toolbox/serialize_map', 
-             'slam_toolbox/srv/SerializePoseGraph', 
+        cmd=['ros2', 'service', 'call', '/slam_toolbox/serialize_map',
+             'slam_toolbox/srv/SerializePoseGraph',
              ['{filename: "', full_path, '"}']],
         output='screen'
     )

@@ -21,3 +21,10 @@
     voxel_size: 0.05
     map_clearing_frame_id: "base_link"
     esdf_slice_bounds_visualization_attachment_frame_id: "base_link"
+    # Heights are metres above the floor in the odom frame (the EKF's base_footprint sits on it).
+    # nvblox defaults (0.0-1.0 m) put the floor itself in the costmap slice, so floor depth noise
+    # showed up as obstacles in front of the robot. Start above the noise (and the chassis rocking
+    # under acceleration, which the 2D EKF cannot see), stop at robot height.
+    static_mapper.esdf_slice_min_height: 0.15
+    static_mapper.esdf_slice_max_height: 0.50
+    static_mapper.esdf_slice_height: 0.30

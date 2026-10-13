@@ -14,6 +14,7 @@
 #
 # --with-zenoh (before the subcommand) also starts the Zenoh <-> ROS 2 bridge container
 # (docker/compose.zenoh.yml), e.g.  docker-dev --with-zenoh run ros2 launch ...
+# The image is rebuilt only when docker/ or a package.xml changed; --rebuild forces it.
 set -e
 source "$(dirname "$0")/../common.sh"
 
@@ -26,15 +27,21 @@ SRC='source /opt/ros/humble/setup.bash; [ -f install/setup.bash ] && source inst
 # identical, so compare a fingerprint of the layer list instead.
 image_fp() { docker image inspect -f '{{json .RootFS.Layers}}' $DEV_IMAGE | sha256sum | cut -c1-16; }
 
-container_ok() {  # running, and created from an image with the same layers
+# The container runs as the host user, who needs the host's video/render groups to open /dev/nvmap
+# (NITROS/nvblox: "NvRmMemInitNvmap failed: Permission denied" -> CUDA error 999 otherwise).
+GPU_GROUPS=$(getent group video render | cut -d: -f3 | sort -u | tr '\n' ' ')
+
+container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}"; }
+
+container_ok() {  # running, and created from an image with the same layers and the same run options
   [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] &&
-  [ "$(docker inspect -f '{{index .Config.Labels "uet_amr.image"}}' $NAME)" = "$(image_fp)" ]
+  [ "$(docker inspect -f '{{index .Config.Labels "uet_amr.image"}}' $NAME)" = "$(container_fp)" ]
 }
 
 start_container() {
   docker rm -f $NAME >/dev/null 2>&1 || true
   local args=(
-    -d --restart unless-stopped --name $NAME --label uet_amr.image="$(image_fp)"
+    -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
     --privileged --network host --ipc=host --runtime nvidia
     --user "$(id -u):$(id -g)" -e HOME=/tmp
     -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e DISPLAY
@@ -49,13 +56,27 @@ start_container() {
       -v /usr/share/vpi3:/usr/share/vpi3)
   fi
   [ -d /dev/input ] && args+=(-v /dev/input:/dev/input)
+  local g; for g in $GPU_GROUPS; do args+=(--group-add "$g"); done
   docker run "${args[@]}" $DEV_IMAGE sleep infinity >/dev/null
 }
 
 in_container() { local t=-i; [ -t 0 ] && t=-it; docker exec $t -w $WS $NAME bash -c "$SRC; $1" _ "${@:2}"; }
 
+# Fingerprint of everything that goes into the image; the build is skipped while it is unchanged.
+image_inputs_fp() {
+  { find "$REPO_ROOT/docker" -maxdepth 1 -type f -print0
+    find "$REPO_ROOT/ros2/src" -name package.xml -not -path '*/test/*' -print0; } |
+    sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16
+}
+IMAGE_STAMP="${XDG_CACHE_HOME:-$HOME/.cache}/uet_amr_image.stamp"
+
 up() {
-  dev_build_image
+  local fp; fp=$(image_inputs_fp)
+  if [ -n "$rebuild" ] || ! docker image inspect $DEV_IMAGE >/dev/null 2>&1 ||
+     [ "$(cat "$IMAGE_STAMP" 2>/dev/null)" != "$fp" ]; then
+    dev_build_image
+    mkdir -p "$(dirname "$IMAGE_STAMP")"; echo "$fp" > "$IMAGE_STAMP"
+  fi
   container_ok || { echo -e "${YELLOW}Starting $NAME...${NC}"; start_container; }
 }
 
@@ -69,8 +90,14 @@ zenoh_up() {
   docker compose -f "$ZENOH_COMPOSE" up -d
 }
 
-args=() with_zenoh=
-for a in "$@"; do [ "$a" = --with-zenoh ] && with_zenoh=1 || args+=("$a"); done
+args=() with_zenoh= rebuild=
+for a in "$@"; do
+  case "$a" in
+    --with-zenoh) with_zenoh=1 ;;
+    --rebuild) rebuild=1 ;;
+    *) args+=("$a") ;;
+  esac
+done
 set -- "${args[@]}"
 
 case "${1:-}" in

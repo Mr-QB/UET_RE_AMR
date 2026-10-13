@@ -11,6 +11,8 @@ install_udev_rules() {
   local changed=0 rule dest
   # Old name from earlier setups; same rule as 99-rplidar.rules.
   [ -f /etc/udev/rules.d/rplidar.rules ] && sudo rm -f /etc/udev/rules.d/rplidar.rules && changed=1
+  # Renamed to librealsense's own file name (realsense-viewer looks for it).
+  [ -f /etc/udev/rules.d/99-realsense.rules ] && sudo rm -f /etc/udev/rules.d/99-realsense.rules && changed=1
   for rule in "$REPO_ROOT"/hardware/udev/*.rules; do
     dest="/etc/udev/rules.d/$(basename "$rule")"
     if ! cmp -s "$rule" "$dest"; then
