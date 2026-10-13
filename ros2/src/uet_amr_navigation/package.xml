@@ -20,7 +20,7 @@
        (default when an NVIDIA GPU is detected). Not a build dependency, since
        nvblox_nav2's costmap plugin is loaded by class name string at
        runtime, so this package builds fine even when nvblox_ros/nvblox_nav2
-       are skipped (no GPU; see tools/common.sh). -->
+       are skipped (no GPU; see scripts/common.sh). -->
   <exec_depend>nvblox_ros</exec_depend>
   <exec_depend>nvblox_nav2</exec_depend>
   <exec_depend>nvblox_msgs</exec_depend>

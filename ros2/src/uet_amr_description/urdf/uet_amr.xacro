@@ -186,6 +186,11 @@
         clip_far="10.0"
         imu_update_rate="200"
         imu_topic_name="camera/camera/imu">
-        <origin xyz="0.25 0.0 0.08" rpy="0 0 0"/>
+        <!-- Calibrated against the floor: depth points transformed through this TF must land on
+             z = 0 at every range. Lens 0.215 m above the floor (base_link is 0.005 m above
+             base_footprint, which is on the floor), tilted 1.9 deg DOWN (positive URDF pitch).
+             Any pitch error shows up as floor rising with distance, ~10 cm at 3 m for 2 deg, which
+             nvblox turns into phantom obstacles. -->
+        <origin xyz="0.25 0.0 0.210" rpy="0 0.033 0"/>
     </xacro:depth_camera>
 </robot>

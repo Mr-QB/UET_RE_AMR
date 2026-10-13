@@ -44,8 +44,8 @@ ros-humble-teleop-twist-keyboard = "*"
 scripts = ["activate.sh"]
 
 [tasks]
-# NVIDIA Isaac ROS packages (third_party/isaac_ros_*) only build inside the Isaac
-# ROS Docker image, so only the uet_amr_* packages are selected here.
+# NVIDIA Isaac ROS packages (not vendored; they come from NVIDIA's apt repo in the Isaac
+# ROS Docker image), so only the uet_amr_* packages are selected here.
 build = """colcon build --symlink-install \
   --packages-select uet_amr_msgs uet_amr_description uet_amr_hardware \
   uet_amr_localization uet_amr_navigation uet_amr_bringup uet_amr_simulation \

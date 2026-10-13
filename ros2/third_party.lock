@@ -1,0 +1,5 @@
+# name            url                                                       commit (pinned)                           [shallow ref]
+isaac_ros_common  https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git  fcf4d9e17f8f0a7f47f1d22d6a18421ce3768c01
+isaac_ros_common@x86_64  https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git  a40a017e7c12de8ce5ff5cfe4c89b6db9766e614
+rplidar_ros       https://github.com/Slamtec/rplidar_ros.git                24cc9b6dea97e045bda1408eaa867ce730fd3fc3
+librealsense      https://github.com/IntelRealSense/librealsense.git        34d6c778e1134d8505adcd56bb57acbe7598a459  v2.58.4

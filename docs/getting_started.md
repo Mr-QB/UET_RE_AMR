@@ -38,22 +38,23 @@ source ~/.bashrc
 ## 3. Cloning and Setting Up the Workspace
 
 ```bash
-git clone --recurse-submodules https://github.com/UET-RE/UET_RE_AMR.git
+git clone https://github.com/UET-RE/UET_RE_AMR.git
 cd UET_RE_AMR
 
-# Run the automated setup script
-chmod +x tools/setup_dev.sh tools/setup_prod.sh
+# Run the automated setup script (menu, or pass a mode: native-dev | native-prod | ...)
+chmod +x scripts/setup.sh
 
-# For developers (adds PlatformIO + micro-ROS agent for firmware work)
-./tools/setup_dev.sh
+# For developers (adds PlatformIO for firmware work)
+./scripts/setup.sh native-dev
 
 # For production / deployment machines (ROS2 workspace only)
-./tools/setup_prod.sh
+./scripts/setup.sh native-prod
 ```
 
-Both scripts initialize the `rplidar_ros` submodule (and, on Jetson,
-`realsense-ros`) under `ros2/src/third_party/` if you didn't clone with
-`--recurse-submodules`. For the Isaac ROS + GPU Docker workflow instead, see
+Both scripts fetch `rplidar_ros` (and, on Jetson, `librealsense`, built with RSUSB; see
+[`jetson_realsense_setup.md`](jetson_realsense_setup.md)) into
+`ros2/third_party/` at the commits pinned in `ros2/third_party.lock` (gitignored,
+not git submodules). Run `scripts/fetch_third_party.sh` to fetch them manually. For the Isaac ROS + GPU Docker workflow instead, see
 [`isaac_ros_setup.md`](isaac_ros_setup.md).
 
 ### Manual Installation Steps (Alternative)
@@ -72,7 +73,7 @@ sudo apt install \
 # Install dependencies using rosdep
 cd ros2
 rosdep update
-rosdep install --from-paths src --ignore-src -r -y
+rosdep install --from-paths src third_party --ignore-src -r -y
 
 # Build the workspace
 colcon build --symlink-install
@@ -141,7 +142,7 @@ pio device monitor
 
 ```bash
 # Phase 1: SLAM mapping on real hardware (base + sensors + slam_toolbox + RViz)
-ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=slam serial_port:=/dev/ttyUSB0
+ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=slam serial_port:=/dev/esp32
 
 # In a separate terminal: drive around with teleop to build the map
 ros2 launch uet_amr_teleop keyboard_teleop.launch.py
@@ -162,7 +163,7 @@ ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=nav
 ### Build error: "package not found"
 Ensure all required system packages are installed by running rosdep:
 ```bash
-rosdep install --from-paths ros2/src --ignore-src -r -y
+rosdep install --from-paths ros2/src ros2/third_party --ignore-src -r -y
 ```
 
 ### Serial port permission denied

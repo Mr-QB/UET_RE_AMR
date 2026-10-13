@@ -1,41 +1,46 @@
 # RealSense on Jetson
 
-## Why not `ros-humble-realsense2-camera`?
+## Why not just `ros-humble-realsense2-camera`?
 
-The apt package `ros-humble-realsense2-camera` depends on apt's `librealsense2`,
-which is a generic prebuilt binary. It doesn't work correctly on Jetson (L4T /
-aarch64): it lacks the RSUSB backend and the kernel patches Jetson needs, so the
-camera fails to enumerate or stream frames.
+The apt package depends on apt's `ros-humble-librealsense2`, which uses the kernel
+V4L2 backend. Jetson (L4T) kernels aren't patched for that, so the camera fails to
+enumerate or stream.
 
-`tools/setup_prod.sh` detects Jetson automatically (via `/etc/nv_tegra_release`)
-and skips this apt package — see `is_jetson()` / `install_ros2_deps()` in
-`tools/common.sh`.
+The fix is a `librealsense` built with `-DFORCE_RSUSB_BACKEND=ON` (userspace libusb,
+no kernel patches). The apt `realsense2_camera` links the same soname
+(`librealsense2.so.2.58`) as our build, so we keep the apt ROS wrapper and only
+replace the library — **no `realsense-ros` source build is needed.**
 
-## What you need to do on the Jetson
+## Bare metal (automatic)
 
-1. **Build and install `librealsense2` from source yourself**, following Intel's
-   official Jetson instructions:
-   https://github.com/IntelRealSense/librealsense/blob/master/doc/installation_jetson.md
+`scripts/setup.sh native-prod` (or `native-dev`), on a Jetson (detected via
+`/etc/nv_tegra_release`):
 
-   The key point is building with `-DFORCE_RSUSB_BACKEND=true`, which avoids
-   needing to patch/rebuild the L4T kernel.
+1. installs `ros-humble-realsense2-camera` from apt,
+2. fetches librealsense (pinned in `ros2/third_party.lock`) to `ros2/third_party/librealsense`,
+3. builds it once with RSUSB, no CUDA/examples/Python bindings,
+4. installs it to `/usr/local` and copies it over the apt library in
+   `/opt/ros/humble/lib/aarch64-linux-gnu/`, then `apt-mark hold ros-humble-librealsense2`
+   so an `apt upgrade` doesn't undo it.
 
-2. **Run `tools/setup_prod.sh`.** Once it detects Jetson, it initializes the
-   `realsense-ros` (the ROS 2 wrapper) submodule as workspace source —
-   `ros2/src/third_party/realsense-ros` — instead of relying on the apt ROS
-   package. `colcon build` then compiles it against the `librealsense2` you
-   installed in step 1, and `rosdep install` is told to skip the `librealsense2`
-   key (it's already satisfied by your manual install, not apt).
+Re-running the script is safe; nothing is rebuilt once it's in place. The udev rule
+(`hardware/udev/99-realsense-libusb.rules`) is installed by the same script.
+
+## Docker
+
+On a Jetson, `scripts/setup.sh docker-dev` stacks NVIDIA's own `realsense` layer onto the base
+(`isaac_ros_common`'s `Dockerfile.realsense`): librealsense **v2.55.1** (RSUSB backend, CUDA) plus
+their `realsense-ros` **4.51.1-isaac** fork. It is built once and cached. The robot host needs only
+the udev rule (`hardware/udev/99-realsense-libusb.rules`, installed by `scripts/setup.sh`).
+
+Note the version difference: bare metal runs librealsense 2.58.4 with the apt ROS wrapper 4.58.4;
+the Docker environment runs 2.55.1 with the 4.51.1-isaac wrapper.
 
 ## Verify
 
 ```bash
-# Confirm librealsense2 sees the camera
-rs-enumerate-devices
-
-# Confirm the ROS2 wrapper streams
-ros2 launch realsense2_camera rs_launch.py
+rs-enumerate-devices                        # camera listed? (host, or: docker run --rm --privileged -v /dev:/dev uet_amr:prod rs-enumerate-devices)
+ros2 launch realsense2_camera rs_launch.py  # frames streaming?
 ```
 
-If `rs-enumerate-devices` doesn't find the camera, the librealsense2 install
-(step 1) needs attention before touching the ROS side.
+If `rs-enumerate-devices` doesn't find the camera, fix that before touching the ROS side.
