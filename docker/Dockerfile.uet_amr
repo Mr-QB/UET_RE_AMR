@@ -17,6 +17,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update --allow-releaseinfo-change && source /opt/ros/humble/setup.bash && \
     (rosdep update || true) && \
     rosdep install --from-paths /tmp/pkgxml --ignore-src -r -y && \
-    # the base's ROS snapshot is older than apt: robot_localization needs a newer diagnostic_updater
-    apt-get install -y --only-upgrade ros-humble-diagnostic-updater && \
+    # the base's ROS snapshot is older than apt: robot_localization needs a newer diagnostic_updater, and
+    # foxglove_bridge 3.2.1 from the snapshot showed Foxglove foxglove.* publish types (no /initialpose tool)
+    apt-get install -y --only-upgrade ros-humble-diagnostic-updater ros-humble-foxglove-bridge && \
     rm -rf /tmp/pkgxml /var/lib/apt/lists/*
