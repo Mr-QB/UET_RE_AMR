@@ -1,6 +1,6 @@
 """
 Generic depth camera bringup — wraps realsense2_camera's rs_launch.py with
-the profile/filter settings this robot uses.
+the profile settings this robot uses.
 
 Publishes the synced IMU on camera/camera/imu, which
 uet_amr_bringup/launch/amr_bringup.launch.py's EKF expects as its imu0 input.
@@ -23,20 +23,12 @@ def generate_launch_description():
         launch_arguments={
             'camera_name': 'camera',
             'camera_namespace': 'camera',
-            # ARM NEON vector extension param:
-            'pointcloud__neon_.enable': 'true',
-            'pointcloud.enable': 'true',
+            # IMU for the EKF; depth + color go straight to nvblox, which does its own filtering.
             'enable_gyro': 'true',
             'enable_accel': 'true',
             'unite_imu_method': '2',
-            'align_depth.enable': 'true',
             'depth_module.depth_profile': '640x480x15',
             'rgb_camera.color_profile': '640x480x15',
-            'enable_sync': 'true',
-            'clip_distance': '3.0',
-            'spatial_filter.enable': 'true',
-            'temporal_filter.enable': 'true',
-            'decimation_filter.enable': 'true',
         }.items()
     )
 
