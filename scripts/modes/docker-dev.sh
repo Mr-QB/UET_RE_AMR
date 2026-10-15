@@ -12,9 +12,9 @@
 #   docker-dev run <cmd...>   run a command in it, e.g.  docker-dev run ros2 launch uet_amr_bringup amr_bringup.launch.py
 #   docker-dev down           remove the container (build/ install/ stay on disk); also stops zenoh
 #
-# --with-zenoh (before the subcommand) also starts the Zenoh <-> ROS 2 bridge container
-# (docker/compose.zenoh.yml), e.g.  docker-dev --with-zenoh run ros2 launch ...
-# The image is rebuilt only when docker/ or a package.xml changed; --rebuild forces it.
+# The optional Zenoh <-> ROS 2 bridge is a separate container, started on its own:
+#   docker compose -f docker/compose.zenoh.yml up -d
+# The image is rebuilt only when docker/ or a package.xml dependency changed; --rebuild forces it.
 set -e
 source "$(dirname "$0")/../common.sh"
 
@@ -63,10 +63,11 @@ start_container() {
 in_container() { local t=-i; [ -t 0 ] && t=-it; docker exec $t -w $WS $NAME bash -c "$SRC; $1" _ "${@:2}"; }
 
 # Fingerprint of everything that goes into the image; the build is skipped while it is unchanged.
+# Package inputs are the dependency-only stubs, so code/version/metadata edits don't count.
 image_inputs_fp() {
-  { find "$REPO_ROOT/docker" -maxdepth 1 -type f -print0
-    find "$REPO_ROOT/ros2/src" -name package.xml -not -path '*/test/*' -print0; } |
-    sort -z | xargs -0 sha256sum | sha256sum | cut -c1-16
+  gen_pkgxml_context
+  find "$REPO_ROOT/docker" -maxdepth 1 -type f -print0 | cat - <(find "$REPO_ROOT/docker/.pkgxml" -type f -print0) |
+    sort -z | xargs -0 sha256sum | sed 's:  .*/docker/:  :' | sha256sum | cut -c1-16
 }
 IMAGE_STAMP="${XDG_CACHE_HOME:-$HOME/.cache}/uet_amr_image.stamp"
 
@@ -85,15 +86,9 @@ build() {
   in_container 'colcon build --symlink-install --base-paths src --cmake-args -DCMAKE_BUILD_TYPE=Release'
 }
 
-zenoh_up() {
-  echo -e "${YELLOW}Starting zenoh bridge...${NC}"
-  docker compose -f "$ZENOH_COMPOSE" up -d
-}
-
-args=() with_zenoh= rebuild=
+args=() rebuild=
 for a in "$@"; do
   case "$a" in
-    --with-zenoh) with_zenoh=1 ;;
     --rebuild) rebuild=1 ;;
     *) args+=("$a") ;;
   esac
@@ -106,12 +101,11 @@ case "${1:-}" in
     has_nvidia_gpu || echo -e "${YELLOW}Warning: no NVIDIA GPU detected; nvblox needs one to run.${NC}"
     install_udev_rules || echo -e "${YELLOW}Warning: udev rules not installed (needs sudo); continuing.${NC}"
     dev_prepare
-    [ -n "$with_zenoh" ] && zenoh_up
     exec "$ISAAC_SCRIPTS/run_dev.sh" -d "$REPO_ROOT/ros2"
     ;;
-  build) up; [ -n "$with_zenoh" ] && zenoh_up; build ;;
-  shell) up; [ -n "$with_zenoh" ] && zenoh_up; in_container 'exec bash -i' ;;
-  run)   shift; up; [ -n "$with_zenoh" ] && zenoh_up; in_container 'exec "$@"' "$@" ;;
+  build) up; build ;;
+  shell) up; in_container 'exec bash -i' ;;
+  run)   shift; up; in_container 'exec "$@"' "$@" ;;
   down)  docker rm -f $NAME; docker compose -f "$ZENOH_COMPOSE" down ;;
   *)     sed -n 2,19p "$0"; exit 1 ;;
 esac

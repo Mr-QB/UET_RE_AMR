@@ -134,7 +134,7 @@ git pull
 ./scripts/setup.sh docker-dev run ros2 launch uet_amr_bringup amr_bringup.launch.py
 ./scripts/setup.sh docker-dev shell
 ./scripts/setup.sh docker-dev down           # remove the container; build/ install/ stay on disk
-./scripts/setup.sh docker-dev --with-zenoh run ...   # also start the Zenoh bridge (docker/README.md)
+docker compose -f docker/compose.zenoh.yml up -d   # optional Zenoh bridge for a remote PC (docker/README.md)
 ```
 
 Why it is fast:

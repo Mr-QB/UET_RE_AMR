@@ -1,0 +1,44 @@
+# UET AMR RealSense layer (Jetson only), stacked between NVIDIA's RealSense layer and Dockerfile.uet_amr.
+# Compiling librealsense + realsense-ros takes ~15 min, so it is its own layer: devenv.sh tags the result
+# as uet_amr_realsense:<hash of this file> and reuses that tag, so it survives a pruned build cache and
+# dependency changes in the workspace.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+SHELL ["/bin/bash", "-c"]
+
+# Jetson only (NVIDIA's RealSense layer is present): replace its librealsense 2.55.1 + realsense-ros
+# 4.51.1-isaac with 2.58.4 + 4.58.4, the versions the bare-metal flow uses. 2.55.1 floods
+# "control_transfer ... Resource temporarily unavailable" and fails to stream the IMU on D435i
+# firmware 5.17.x, which 2.58.4 handles. Same recipe as NVIDIA's Dockerfile.realsense (RSUSB, CUDA,
+# realsense-ros packaged as debs). Before the dependency layer, so it is cached until the pins change.
+ARG LIBREALSENSE_VERSION=v2.58.4
+ARG REALSENSE_ROS_VERSION=4.58.4
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    if [ -e /opt/realsense/build-librealsense.sh ]; then \
+      set -e; source /opt/ros/humble/setup.bash; apt-get update --allow-releaseinfo-change; \
+      apt-get install -y --no-install-recommends libusb-1.0-0-dev libudev-dev libssl-dev pkg-config; \
+      rm -f /usr/local/lib/librealsense2* /usr/local/lib/pkgconfig/realsense2.pc; \
+      git clone --depth 1 -b ${LIBREALSENSE_VERSION} https://github.com/IntelRealSense/librealsense.git /tmp/librealsense; \
+      cmake -S /tmp/librealsense -B /tmp/librealsense/build -DCMAKE_BUILD_TYPE=Release \
+        -DFORCE_RSUSB_BACKEND=ON -DBUILD_WITH_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc \
+        -DBUILD_EXAMPLES=OFF -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_PYTHON_BINDINGS=OFF -DBUILD_UNIT_TESTS=OFF; \
+      cmake --build /tmp/librealsense/build -j"$(nproc)"; \
+      cmake --install /tmp/librealsense/build; ldconfig; \
+      git clone --depth 1 -b ${REALSENSE_ROS_VERSION} https://github.com/IntelRealSense/realsense-ros.git /tmp/realsense-ros; \
+      cd /tmp/realsense-ros; \
+      for pkg in realsense2_camera_msgs realsense2_description realsense2_camera; do \
+        (cd $pkg; \
+         if [ $pkg = realsense2_camera ]; then \
+           rosdep update || true; rosdep install --from-paths . --ignore-src -r -y --skip-keys librealsense2; \
+         fi; \
+         bloom-generate rosdebian; \
+         if [ $pkg = realsense2_camera ]; then \
+           sed -i 's/dh_shlibdeps -/dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info -/g' debian/rules; \
+           sed -i 's/ros-humble-librealsense2, //g' debian/control; \
+         fi; \
+         fakeroot debian/rules binary; \
+         cd ..; apt-get install -y --allow-downgrades ./ros-humble-*.deb; rm -f ./*.deb); \
+      done; \
+      cd /; rm -rf /tmp/librealsense /tmp/realsense-ros /var/lib/apt/lists/*; \
+    fi
