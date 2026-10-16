@@ -25,6 +25,9 @@ export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
 # CycloneDDS, not the image's Fast DDS: zenoh-bridge-ros2dds is Cyclone-based and Fast DDS <-> Cyclone services
 # (/amr/set_teleop, /amr/save_map, ...) never get a reply. Everything that talks to the robot must use the same RMW.
 RMW_IMPL=rmw_cyclonedds_cpp
+# nvblox (GPU local costmap) runs only in this container, so bringup uses it by default here: amr_bringup.launch.py
+# reads UET_AMR_NVBLOX for its use_nvblox default. Opt out with `UET_AMR_NVBLOX=false` (new container) or use_nvblox:=false.
+export UET_AMR_NVBLOX="${UET_AMR_NVBLOX:-true}"
 WS=/workspaces/isaac_ros-dev
 ZENOH_COMPOSE="$REPO_ROOT/docker/compose.zenoh.yml"
 SRC='source /opt/ros/humble/setup.bash; [ -f install/setup.bash ] && source install/setup.bash'
@@ -50,7 +53,7 @@ start_container() {
     -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
     --privileged --network host --ipc=host --runtime nvidia
     --user "$(id -u):$(id -g)" -e HOME=/tmp
-    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e DISPLAY
+    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e UET_AMR_NVBLOX -e DISPLAY
     -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /etc/localtime:/etc/localtime:ro
     -v "$REPO_ROOT/ros2:$WS" -w $WS
   )

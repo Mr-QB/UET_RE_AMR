@@ -15,7 +15,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import Command, EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -138,8 +138,10 @@ def generate_launch_description():
             description='Root directory for maps saved by /amr/save_map; each map gets its own subdirectory'),
         DeclareLaunchArgument('rviz', default_value='false',
                               description='Launch RViz2 alongside the hardware bringup'),
-        DeclareLaunchArgument('use_nvblox', default_value='false',
-                              description='Use isaac_ros_nvblox for Nav2 costmaps; enable only inside Isaac ROS Docker'),
+        # UET_AMR_NVBLOX is set to true by scripts/modes/docker-dev.sh (the only place nvblox runs); off otherwise.
+        DeclareLaunchArgument('use_nvblox', default_value=EnvironmentVariable('UET_AMR_NVBLOX', default_value='false'),
+                              description='Use isaac_ros_nvblox for Nav2 costmaps; defaults to true inside docker-dev '
+                                          '(UET_AMR_NVBLOX), false elsewhere'),
         DeclareLaunchArgument('foxglove', default_value='false',
                               description='Start Foxglove Bridge (websocket on port 8765) for Foxglove Studio; off by default'),
         DeclareLaunchArgument('teleop', default_value='true',

@@ -27,22 +27,34 @@ the Isaac ROS Docker dev container (see docs/isaac_ros_setup.md) -- nvblox_ros
 needs CUDA Toolkit + NVIDIA's NITROS transport, which aren't available
 natively. Included conditionally by navigation.launch.py's use_nvblox arg.
 """
+import yaml
+
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
 
-def generate_launch_description():
-    default_params_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'config', 'nvblox.yaml'
-    ])
+def _load_ros_parameters(path):
+    """The `ros__parameters` of a params file, with or without a node-name/wildcard key.
 
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    params_file = LaunchConfiguration('params_file')
-    container_name = LaunchConfiguration('container_name')
+    Passing the file straight to the ComposableNode left nvblox_node on its defaults here (use_lidar True,
+    ESDF slice 0-1 m, which puts the floor into the Nav2 costmap), so the values are loaded explicitly.
+    """
+    with open(path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f) or {}
+    params = {}
+    for node_params in data.values():
+        if isinstance(node_params, dict):
+            params.update(node_params.get('ros__parameters', {}))
+    return params
+
+
+def _launch_nvblox(context):
+    params = _load_ros_parameters(LaunchConfiguration('nvblox_params_file').perform(context))
+    params['use_sim_time'] = LaunchConfiguration('use_sim_time').perform(context).lower() == 'true'
 
     # camera_0/{depth,color} are nvblox_node's fixed input topic names (see
     # isaac_ros_nvblox's nvblox_ros/include/nvblox_ros/nvblox_node.hpp) --
@@ -61,24 +73,32 @@ def generate_launch_description():
         package='nvblox_ros',
         plugin='nvblox::NvbloxNode',
         remappings=remappings,
-        parameters=[params_file, {'use_sim_time': use_sim_time}],
+        parameters=[params],
     )
 
-    nvblox_container = ComposableNodeContainer(
-        name=container_name,
+    return [ComposableNodeContainer(
+        name=LaunchConfiguration('container_name'),
         namespace='',
         package='rclcpp_components',
         executable='component_container_mt',
         composable_node_descriptions=[nvblox_node],
         output='screen',
-    )
+    )]
+
+
+def generate_launch_description():
+    default_params_file = PathJoinSubstitution([
+        FindPackageShare('uet_amr_navigation'), 'config', 'nvblox.yaml'
+    ])
 
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false',
                               description='Use simulation/Gazebo clock'),
-        DeclareLaunchArgument('params_file', default_value=default_params_file,
+        # Not 'params_file': navigation.launch.py includes this file and declares its own params_file (the Nav2
+        # params), which an included file inherits, so nvblox was silently given nav2_nvblox.yaml and ran on defaults.
+        DeclareLaunchArgument('nvblox_params_file', default_value=default_params_file,
                               description='Full path to the nvblox params file'),
         DeclareLaunchArgument('container_name', default_value='nvblox_container',
                               description='Name of the composable node container to create'),
-        nvblox_container,
+        OpaqueFunction(function=_launch_nvblox),
     ])

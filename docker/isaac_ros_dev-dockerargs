@@ -9,3 +9,6 @@
 
 # Same RMW as docker-dev.sh's long-lived container (the zenoh bridge is Cyclone-based; Fast DDS services can't reach it)
 -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# nvblox is the default local costmap in this container (see amr_bringup.launch.py's use_nvblox)
+-e UET_AMR_NVBLOX=true

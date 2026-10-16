@@ -106,6 +106,15 @@ def generate_launch_description():
         ]
     )
 
+    # behavior_server (spin/backup/drive_on_heading) publishes on /cmd_vel, which nothing consumed: recoveries ran
+    # without moving the robot. See scripts/cmd_vel_relay.py.
+    cmd_vel_relay = Node(
+        package='uet_amr_navigation',
+        executable='cmd_vel_relay.py',
+        name='cmd_vel_relay',
+        output='screen',
+    )
+
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -145,5 +154,6 @@ def generate_launch_description():
         nvblox_launch,
         localization_launch,
         navigation_launch,
+        cmd_vel_relay,
         rviz_node,
     ])
