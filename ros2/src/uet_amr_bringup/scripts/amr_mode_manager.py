@@ -13,7 +13,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 
-from uet_amr_msgs.srv import SaveMap, SetMode
+from builtin_interfaces.msg import Time
+from uet_amr_msgs.msg import MapInfo
+from uet_amr_msgs.srv import GetMap, ListMaps, SaveMap, SetMode
 
 
 class AmrModeManager(Node):
@@ -63,6 +65,11 @@ class AmrModeManager(Node):
         self._save_map_service = self.create_service(
             SaveMap, '/amr/save_map', self._save_map_callback,
             callback_group=service_group)
+        # Read-only: no _switch_lock, so listing/downloading works during a mode switch or a save.
+        self._list_maps_service = self.create_service(
+            ListMaps, '/amr/list_maps', self._list_maps_callback, callback_group=service_group)
+        self._get_map_service = self.create_service(
+            GetMap, '/amr/get_map', self._get_map_callback, callback_group=service_group)
         self._monitor = self.create_timer(1.0, self._monitor_process)
 
         initial_mode = str(self.get_parameter('initial_mode').value)
@@ -79,7 +86,9 @@ class AmrModeManager(Node):
 
         self.get_logger().info(
             'Services ready: /amr/set_mode (uet_amr_msgs/srv/SetMode), '
-            '/amr/save_map (uet_amr_msgs/srv/SaveMap)')
+            '/amr/save_map (uet_amr_msgs/srv/SaveMap), '
+            '/amr/list_maps (uet_amr_msgs/srv/ListMaps), '
+            '/amr/get_map (uet_amr_msgs/srv/GetMap)')
 
     def _launch_command(self, mode, map_yaml=''):
         launch_file = 'slam.launch.py' if mode == 'slam' else 'navigation.launch.py'
@@ -333,6 +342,86 @@ class AmrModeManager(Node):
             response.map_yaml = ''
         finally:
             self._switch_lock.release()
+        return response
+
+    _MAP_NAME_RE = re.compile(r'[A-Za-z0-9_-]+')
+
+    def _map_files(self, map_name):
+        base = os.path.join(self._map_directory, map_name, map_name)
+        return {
+            'yaml': base + '.yaml', 'image': base + '.pgm',
+            'posegraph': base + '.posegraph', 'data': base + '.data',
+        }
+
+    def _list_maps_callback(self, request, response):
+        maps = []
+        try:
+            names = sorted(
+                n for n in os.listdir(self._map_directory)
+                if self._MAP_NAME_RE.fullmatch(n)
+                and os.path.isfile(self._map_files(n)['yaml']))
+            for name in names:
+                files = self._map_files(name)
+                info = MapInfo()
+                info.name = name
+                info.map_yaml = files['yaml']
+                info.has_image = os.path.isfile(files['image'])
+                info.has_posegraph = (
+                    os.path.isfile(files['posegraph']) and os.path.isfile(files['data']))
+                info.size_bytes = sum(
+                    os.path.getsize(f) for f in files.values() if os.path.isfile(f))
+                mtime_ns = os.stat(files['yaml']).st_mtime_ns
+                info.modified = Time(sec=mtime_ns // 1_000_000_000, nanosec=mtime_ns % 1_000_000_000)
+                maps.append(info)
+            maps.sort(key=lambda m: (m.modified.sec, m.modified.nanosec), reverse=True)
+            response.success = True
+            response.message = f'{len(maps)} map(s) in {self._map_directory}'
+        except OSError as exc:
+            maps = []
+            response.success = False
+            response.message = str(exc)
+        response.maps = maps
+        return response
+
+    def _get_map_callback(self, request, response):
+        response.map_yaml = ''
+        response.image_name = ''
+        response.image = []
+        response.posegraph = []
+        response.posegraph_data = []
+        name = request.map_name
+        if not self._MAP_NAME_RE.fullmatch(name):
+            response.success = False
+            response.message = 'map_name may contain only letters, numbers, underscore, and hyphen'
+            return response
+        files = self._map_files(name)
+        try:
+            with open(files['yaml'], 'r', encoding='utf-8') as f:
+                yaml_text = f.read()
+            # The YAML names its image; it is always next to the YAML, so keep only the file name.
+            match = re.search(r'^image:\s*(\S+)', yaml_text, re.MULTILINE)
+            image_name = os.path.basename(match.group(1).strip('"\'')) if match else name + '.pgm'
+            with open(os.path.join(os.path.dirname(files['yaml']), image_name), 'rb') as f:
+                image = f.read()
+            posegraph = posegraph_data = b''
+            if request.include_posegraph:
+                with open(files['posegraph'], 'rb') as f:
+                    posegraph = f.read()
+                with open(files['data'], 'rb') as f:
+                    posegraph_data = f.read()
+        except OSError as exc:
+            response.success = False
+            response.message = f'Cannot read map {name!r}: {exc}'
+            return response
+        response.map_yaml = yaml_text
+        response.image_name = image_name
+        response.image = list(image)
+        response.posegraph = list(posegraph)
+        response.posegraph_data = list(posegraph_data)
+        response.success = True
+        response.message = (
+            f'Map {name!r}: {len(image)} B image'
+            + (f', {len(posegraph) + len(posegraph_data)} B pose graph' if request.include_posegraph else ''))
         return response
 
     def _set_mode(self, request, response):

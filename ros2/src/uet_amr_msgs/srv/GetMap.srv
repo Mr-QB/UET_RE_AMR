@@ -1,0 +1,16 @@
+# Download a saved map (see ListMaps for the names).
+string map_name
+# Also return the SLAM Toolbox pose graph (.posegraph and .data). These are large (several MB to tens of MB).
+bool include_posegraph
+---
+bool success
+string message
+# Contents of the map YAML (text).
+string map_yaml
+# File name of the image referenced by the YAML, e.g. "my_map.pgm".
+string image_name
+# Contents of the image file (PGM).
+uint8[] image
+# Empty unless include_posegraph was set.
+uint8[] posegraph
+uint8[] posegraph_data

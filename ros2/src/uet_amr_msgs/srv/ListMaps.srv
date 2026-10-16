@@ -1,0 +1,6 @@
+# List the maps saved by /amr/save_map. No request fields.
+---
+bool success
+string message
+# Newest first.
+uet_amr_msgs/MapInfo[] maps
