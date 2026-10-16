@@ -5,13 +5,28 @@
 // publishers: the robot still publishes these topics to a remote PC, it just can't receive them from one.
 // Also don't export the image_transport plugin topics (compressed/compressedDepth/theora): once a remote
 // subscribes, realsense2_camera starts encoding and spams cv_bridge format errors every frame. Raw images still go out.
+//
+// Remote -> robot: a remote ROS graph (web backend, rviz PC, its own robot_state_publisher) must not inject /tf,
+// /scan, odom, direct drive commands etc. into the robot; that corrupts SLAM and fights teleop_gate. Remote clients
+// drive via /teleop/<source>/cmd_vel_raw + the /amr/set_teleop service. (allow and deny can't be mixed in this
+// plugin, so the robot-owned topics are denied explicitly.)
+// Robot -> remote: raw images are throttled and metadata/extrinsics topics are not exported, so a slow link
+// (Wi-Fi) can't back up the bridge ("Unable to push non droppable network message" -> transport closed).
 {
   plugins: {
     ros2dds: {
       deny: {
-        publishers: [".*/(compressed|compressedDepth|theora)"],
-        subscribers: ["/map", "/robot_description", "/tf_static"],
+        publishers: [".*/(compressed|compressedDepth|theora)", ".*/metadata", ".*/extrinsics/.*", ".*/imu_info"],
+        subscribers: [
+          "/map", "/robot_description", "/tf_static",
+          "/tf", "/scan", "/odom", "/joint_states", "/dynamic_joint_states", "/diff_drive_controller/.*",
+          "/cmd_vel.*", "/camera/.*", "/imu.*", "/initialpose", "/slam_toolbox/.*",
+        ],
       },
+      pub_max_frequencies: [
+        ".*/image_raw|.*/image_rect_raw=5",
+        "/tf=30",
+      ],
     },
   },
 }

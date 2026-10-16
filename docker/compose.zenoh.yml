@@ -11,8 +11,9 @@ services:
     command: ["-c", "/etc/zenoh-bridge.json5"]
     environment:
       ROS_DISTRO: humble
-      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}
       CYCLONEDDS_URI: file:///etc/zenoh-cyclonedds.xml
+      RUST_LOG: info,zenoh_plugin_ros2dds::route_service_srv=trace
     volumes:
       - ./zenoh-cyclonedds.xml:/etc/zenoh-cyclonedds.xml:ro
       - ./zenoh-bridge.json5:/etc/zenoh-bridge.json5:ro

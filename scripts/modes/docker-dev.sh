@@ -19,6 +19,12 @@ set -e
 source "$(dirname "$0")/../common.sh"
 
 NAME=uet_amr_dev
+# Own DDS domain, so ROS machines on the same network (default domain 0) don't leak into the robot's graph.
+# Applies to a newly created container only; `docker-dev down` first to change it. compose.zenoh.yml uses the same default.
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
+# CycloneDDS, not the image's Fast DDS: zenoh-bridge-ros2dds is Cyclone-based and Fast DDS <-> Cyclone services
+# (/amr/set_teleop, /amr/save_map, ...) never get a reply. Everything that talks to the robot must use the same RMW.
+RMW_IMPL=rmw_cyclonedds_cpp
 WS=/workspaces/isaac_ros-dev
 ZENOH_COMPOSE="$REPO_ROOT/docker/compose.zenoh.yml"
 SRC='source /opt/ros/humble/setup.bash; [ -f install/setup.bash ] && source install/setup.bash'
@@ -44,7 +50,7 @@ start_container() {
     -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
     --privileged --network host --ipc=host --runtime nvidia
     --user "$(id -u):$(id -g)" -e HOME=/tmp
-    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e DISPLAY
+    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e DISPLAY
     -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /etc/localtime:/etc/localtime:ro
     -v "$REPO_ROOT/ros2:$WS" -w $WS
   )

@@ -6,3 +6,6 @@
 # Serial links, by the stable names from hardware/udev/ (each is dropped if not plugged in)
 --device=/dev/esp32
 --device=/dev/rplidar
+
+# Same RMW as docker-dev.sh's long-lived container (the zenoh bridge is Cyclone-based; Fast DDS services can't reach it)
+-e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp

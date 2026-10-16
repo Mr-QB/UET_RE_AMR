@@ -18,6 +18,8 @@ Only what the Isaac ROS dev environment needs; no other Docker files live in thi
   A remote PC connects with `-e tcp/<robot-ip>:7447`; open that port in the robot's firewall (`ufw allow 7447/tcp`).
   `zenoh-bridge.json5` stops the bridge creating (volatile) publishers on latched topics (`/map`, `/robot_description`,
   `/tf_static`); otherwise Foxglove subscribes to them volatile and never receives the map.
+  The robot's DDS domain is 42 and its RMW is CycloneDDS (set in `scripts/modes/docker-dev.sh`, recreate the container with `docker-dev down`).
+  The bridge is Cyclone-based and Fast DDS services never reach it; nodes elsewhere on the network that talk to the robot need the same `RMW_IMPLEMENTATION` and domain.
 
 Don't call `run_dev.sh` or `build_image_layers.sh` directly. Use `scripts/setup.sh docker-dev`, which fetches
 `isaac_ros_common` (`ros2/third_party/`, pinned in `ros2/third_party.lock`), writes NVIDIA's config
