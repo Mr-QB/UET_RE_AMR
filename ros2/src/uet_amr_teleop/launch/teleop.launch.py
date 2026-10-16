@@ -20,10 +20,18 @@
 # DEALINGS IN THE SOFTWARE.
 
 """
-Launch file for controller teleoperation of UET AMR.
+Teleop for UET AMR: joystick, keyboard and the gate that decides which one drives.
+
+Both sources publish to /teleop/<source>/cmd_vel_raw; teleop_gate forwards only the
+selected one to the drive controller. Pick it at runtime with /amr/set_teleop
+(uet_amr_msgs/srv/SetTeleop). initial_source (none/joy/keyboard) is what the gate
+selects at startup; the default 'none' means nothing drives until the service enables it.
+
+The keyboard node reads keys from the terminal this is launched from.
 """
 from launch import LaunchDescription
-from launch.substitutions import PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -34,6 +42,19 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'initial_source',
+            default_value='none',
+            choices=['none', 'joy', 'keyboard'],
+            description='Teleop source the gate forwards at startup'),
+
+        Node(
+            package='uet_amr_teleop',
+            executable='teleop_gate',
+            name='teleop_gate',
+            parameters=[{'initial_source': LaunchConfiguration('initial_source')}],
+        ),
+
         Node(
             package='joy',
             executable='joy_node',
@@ -45,6 +66,14 @@ def generate_launch_description():
             executable='teleop_node',
             name='teleop_twist_joy',
             parameters=[joy_config_path],
-            remappings=[('/cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')],
+            remappings=[('/cmd_vel', '/teleop/joy/cmd_vel_raw')],
+        ),
+
+        Node(
+            package='uet_amr_teleop',
+            executable='keyboard_teleop',
+            name='uet_amr_teleop_keyboard',
+            output='screen',
+            emulate_tty=True,
         ),
     ])

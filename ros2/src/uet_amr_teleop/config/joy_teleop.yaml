@@ -1,19 +1,15 @@
-# Generic gamepad layout (Xbox/PlayStation share the same left-stick axis
-# mapping via the joy driver).
 teleop_twist_joy:
   ros__parameters:
     axis_linear:
       x: 1          # left stick vertical
     scale_linear:
       x: 0.3
-    scale_linear_turbo:
-      x: 0.6
 
     axis_angular:
       yaw: 0
     scale_angular:
       yaw: 0.9
-    scale_angular_turbo:
-      yaw: 1.0
 
-    require_enable_button: false
+    # Deadman: the robot only moves while L2 is held.
+    require_enable_button: true
+    enable_button: 6

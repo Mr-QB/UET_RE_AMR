@@ -5,7 +5,9 @@ over serial), joint_state_broadcaster + diff_drive_controller spawners,
 robot_localization's EKF (fusing wheel odometry with the D435i's IMU),
 sensors (lidar + depth camera, uet_amr_bringup/launch/sensors.launch.py),
 and an amr_mode_manager that starts SLAM or Nav2 and switches them at runtime
-through /amr/set_mode. The selected mode can optionally start its RViz window.
+through /amr/set_mode. Joystick and keyboard teleop plus their gate (uet_amr_teleop) are included too; the gate starts
+with teleop off (teleop_source:=none) and /amr/set_teleop selects joy/keyboard/none. teleop:=false
+leaves teleop out completely. The selected mode can optionally start its RViz window.
 Hardware, localization, and sensors stay alive during mode changes.
 """
 from launch import LaunchDescription
@@ -82,6 +84,14 @@ def generate_launch_description():
         ])
     )
 
+    teleop_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('uet_amr_teleop'), 'launch', 'teleop.launch.py'])
+        ]),
+        launch_arguments={'initial_source': LaunchConfiguration('teleop_source')}.items(),
+        condition=IfCondition(LaunchConfiguration('teleop')),
+    )
+
     foxglove_bridge = Node(
         package='foxglove_bridge',
         executable='foxglove_bridge',
@@ -131,6 +141,11 @@ def generate_launch_description():
                               description='Use isaac_ros_nvblox for Nav2 costmaps; enable only inside Isaac ROS Docker'),
         DeclareLaunchArgument('publish_ws', default_value='true',
                       description='Publish ROS topics/services over websocket via Foxglove Bridge'),
+        DeclareLaunchArgument('teleop', default_value='true',
+                              description='Start the joystick and keyboard teleop nodes and the teleop gate (/amr/set_teleop); false leaves teleop out'),
+        DeclareLaunchArgument('teleop_source', default_value='none',
+                              choices=['none', 'joy', 'keyboard'],
+                              description='Teleop source allowed to drive at startup; none until enabled via /amr/set_teleop'),
         DeclareLaunchArgument('mode', default_value='slam',
                               choices=['slam', 'nav'],
                               description=(
@@ -143,6 +158,7 @@ def generate_launch_description():
         controller_spawner,
         ekf_localization,
         sensors_launch,
+        teleop_launch,
         foxglove_bridge,
         mode_manager,
     ])

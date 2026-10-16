@@ -107,7 +107,7 @@ source install/setup.bash
 ros2 launch uet_amr_simulation simulation.launch.py mode:=slam
 
 # In a separate terminal: drive around with teleop to build the map
-ros2 launch uet_amr_teleop keyboard_teleop.launch.py
+ros2 launch uet_amr_teleop teleop.launch.py initial_source:=keyboard
 
 # Once you've mapped the area, save it (see uet_amr_navigation/maps/README.md)
 ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
@@ -144,8 +144,8 @@ pio device monitor
 # Phase 1: SLAM mapping on real hardware (base + sensors + slam_toolbox + RViz)
 ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=slam serial_port:=/dev/esp32
 
-# In a separate terminal: drive around with teleop to build the map
-ros2 launch uet_amr_teleop keyboard_teleop.launch.py
+# Teleop starts with bringup but is off until enabled (L2 deadman for the joystick); in a separate terminal:
+ros2 service call /amr/set_teleop uet_amr_msgs/srv/SetTeleop "{source: joy}"   # or keyboard
 
 # Once you've mapped the area, save it (see uet_amr_navigation/maps/README.md)
 ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse

@@ -8,9 +8,11 @@ services:
     network_mode: host
     restart: unless-stopped
     init: true
+    command: ["-c", "/etc/zenoh-bridge.json5"]
     environment:
       ROS_DISTRO: humble
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
       CYCLONEDDS_URI: file:///etc/zenoh-cyclonedds.xml
     volumes:
       - ./zenoh-cyclonedds.xml:/etc/zenoh-cyclonedds.xml:ro
+      - ./zenoh-bridge.json5:/etc/zenoh-bridge.json5:ro

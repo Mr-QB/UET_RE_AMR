@@ -10,6 +10,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/HardwareStatus.msg"
   "srv/SetMode.srv"
   "srv/SaveMap.srv"
+  "srv/SetTeleop.srv"
   "action/NavigateTo.action"
   DEPENDENCIES std_msgs geometry_msgs
 )

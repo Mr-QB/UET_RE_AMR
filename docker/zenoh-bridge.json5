@@ -1,0 +1,17 @@
+// zenoh-bridge-ros2dds config (mounted by compose.zenoh.yml).
+// For every ROS subscriber on the robot the bridge creates its own *volatile* publisher on that topic.
+// foxglove_bridge then subscribes volatile too and never receives latched messages (map_server publishes
+// /map once, robot_state_publisher /robot_description and /tf_static once). So never create those
+// publishers: the robot still publishes these topics to a remote PC, it just can't receive them from one.
+// Also don't export the image_transport plugin topics (compressed/compressedDepth/theora): once a remote
+// subscribes, realsense2_camera starts encoding and spams cv_bridge format errors every frame. Raw images still go out.
+{
+  plugins: {
+    ros2dds: {
+      deny: {
+        publishers: [".*/(compressed|compressedDepth|theora)"],
+        subscribers: ["/map", "/robot_description", "/tf_static"],
+      },
+    },
+  },
+}

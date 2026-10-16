@@ -17,10 +17,13 @@ dev_image_key() {
 
 # Build context of our layer: one stub package.xml per package holding only its name and dependency
 # tags. Version/description/maintainer edits then don't change the context, so they neither rebuild
-# the image nor invalidate its rosdep layer. Deterministic: same dependencies -> same bytes.
+# the image nor invalidate its rosdep layer. Dependencies on other workspace packages are dropped too:
+# rosdep skips them anyway (--ignore-src), so adding one must not reinstall every apt package.
+# Deterministic: same dependencies -> same bytes.
 gen_pkgxml_context() {
-  local ctx="$REPO_ROOT/docker/.pkgxml" f out
+  local ctx="$REPO_ROOT/docker/.pkgxml" f out own
   rm -rf "$ctx"; mkdir -p "$ctx"
+  own=$(cd "$REPO_ROOT/ros2" && find src -name package.xml -not -path '*/test/*' -exec sed -n 's:.*<name>\(.*\)</name>.*:\1:p' {} + | LC_ALL=C sort -u | paste -sd'|')
   while IFS= read -r f; do
     out="$ctx/${f#src/}"; mkdir -p "$(dirname "$out")"
     {
@@ -29,7 +32,8 @@ gen_pkgxml_context() {
       echo "  <name>$(sed -n 's:.*<name>\(.*\)</name>.*:\1:p' "$REPO_ROOT/ros2/$f" | head -1)</name>"
       echo '  <version>0.0.0</version><description>stub</description>'
       echo '  <maintainer email="stub@example.com">stub</maintainer><license>x</license>'
-      grep -E '<(buildtool_depend|build_depend|build_export_depend|depend|exec_depend|test_depend)[ >]' "$REPO_ROOT/ros2/$f" | sed 's/^[[:space:]]*/  /' || true
+      grep -E '<(buildtool_depend|build_depend|build_export_depend|depend|exec_depend|test_depend)[ >]' "$REPO_ROOT/ros2/$f" |
+        grep -v -E ">($own)</" | sed 's/^[[:space:]]*/  /' || true
       echo '</package>'
     } > "$out"
   done < <(cd "$REPO_ROOT/ros2" && find src -name package.xml -not -path '*/test/*' | LC_ALL=C sort)

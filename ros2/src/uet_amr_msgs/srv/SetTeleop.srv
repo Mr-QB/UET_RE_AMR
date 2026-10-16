@@ -1,0 +1,7 @@
+# Teleop source allowed to drive: "joy", "keyboard", or "none" (nothing forwarded, robot halted).
+string source
+---
+bool success
+string message
+# Source forwarded after the request; unchanged when the request fails.
+string active_source

@@ -95,14 +95,22 @@ def main():
     except Exception:
         tty_file = sys.stdin
 
-    settings = termios.tcgetattr(tty_file.fileno())
+    try:
+        settings = termios.tcgetattr(tty_file.fileno())
+    except termios.error:
+        print('keyboard_teleop: no terminal to read keys from, exiting.', file=sys.stderr)
+        return
 
     rclpy.init()
     node = rclpy.create_node('uet_amr_teleop_keyboard')
-    pub = node.create_publisher(Twist, '/diff_drive_controller/cmd_vel_unstamped', 10)
+    node.declare_parameter('cmd_vel_topic', '/teleop/keyboard/cmd_vel_raw')
+    node.declare_parameter('speed', 0.5)
+    node.declare_parameter('turn', 1.0)
+    pub = node.create_publisher(
+        Twist, node.get_parameter('cmd_vel_topic').value, 10)
 
-    speed = 0.5
-    turn = 1.0
+    speed = node.get_parameter('speed').value
+    turn = node.get_parameter('turn').value
     x = 0.0
     th = 0.0
 
@@ -131,8 +139,6 @@ def main():
             twist.angular.z = th * turn
             pub.publish(twist)
 
-    except Exception as e:
-        print(f"Error: {e}")
     finally:
         twist = Twist()
         pub.publish(twist)
