@@ -7,7 +7,8 @@ sensors (lidar + depth camera, uet_amr_bringup/launch/sensors.launch.py),
 and an amr_mode_manager that starts SLAM or Nav2 and switches them at runtime
 through /amr/set_mode. Joystick and keyboard teleop plus their gate (uet_amr_teleop) are included too; the gate starts
 with teleop off (teleop_source:=none) and /amr/set_teleop selects joy/keyboard/none. teleop:=false
-leaves teleop out completely. The selected mode can optionally start its RViz window.
+leaves teleop out completely. foxglove:=true also starts Foxglove Bridge (off by default). The selected mode can
+optionally start its RViz window.
 Hardware, localization, and sensors stay alive during mode changes.
 """
 from launch import LaunchDescription
@@ -97,7 +98,7 @@ def generate_launch_description():
         executable='foxglove_bridge',
         name='foxglove_bridge',
         output='screen',
-        condition=IfCondition(LaunchConfiguration('publish_ws')),
+        condition=IfCondition(LaunchConfiguration('foxglove')),
     )
 
     mode_manager = Node(
@@ -139,8 +140,8 @@ def generate_launch_description():
                               description='Launch RViz2 alongside the hardware bringup'),
         DeclareLaunchArgument('use_nvblox', default_value='false',
                               description='Use isaac_ros_nvblox for Nav2 costmaps; enable only inside Isaac ROS Docker'),
-        DeclareLaunchArgument('publish_ws', default_value='true',
-                      description='Publish ROS topics/services over websocket via Foxglove Bridge'),
+        DeclareLaunchArgument('foxglove', default_value='false',
+                              description='Start Foxglove Bridge (websocket on port 8765) for Foxglove Studio; off by default'),
         DeclareLaunchArgument('teleop', default_value='true',
                               description='Start the joystick and keyboard teleop nodes and the teleop gate (/amr/set_teleop); false leaves teleop out'),
         DeclareLaunchArgument('teleop_source', default_value='none',
