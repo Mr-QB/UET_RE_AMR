@@ -1,0 +1,6 @@
+# Stop the active test. Service: /amr/stop_motion_test
+# Idempotent; only ever affects the run whose ID matches.
+string run_id
+---
+bool accepted
+string message

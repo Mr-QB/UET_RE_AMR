@@ -15,12 +15,13 @@ setup(
     zip_safe=True,
     maintainer='Department of Robotics',
     maintainer_email='robotics@uet.vnu.edu.vn',
-    description='Odometry accuracy tests (straight / rotation) with CSV logging and report plots',
+    description='Odometry accuracy tests, web motion-test executor and robot-side recorder',
     license='MIT',
     entry_points={
         'console_scripts': [
             'odom_test = uet_amr_evaluation.odom_test:main',
             'odom_report = uet_amr_evaluation.odom_report:main',
+            'export_motion_archive = uet_amr_evaluation.motion.export_archive:main',
         ],
     },
 )

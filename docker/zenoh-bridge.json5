@@ -11,6 +11,10 @@
 // drive via /teleop/<source>/cmd_vel_raw + the /amr/set_teleop service. /initialpose is allowed (AMCL needs it from the
 // dashboard to localize on a saved map). (allow and deny can't be mixed in this
 // plugin, so the robot-owned topics are denied explicitly.)
+// Motion tests (uet_amr_evaluation): /amr/start_motion_test, /amr/stop_motion_test, /amr/start_velocity_step and the
+// /amr/motion_test/{state,heartbeat} topics are deliberately NOT denied, so they route both ways (state robot->remote,
+// heartbeat and service requests remote->robot). The executor's private path to the gate (/teleop/test/cmd_vel_raw,
+// /amr/internal/*) must stay robot-local: a remote client must never be able to select or drive the test source.
 // Robot -> remote: raw images are throttled and metadata/extrinsics topics are not exported, so a slow link
 // (Wi-Fi) can't back up the bridge ("Unable to push non droppable network message" -> transport closed).
 {
@@ -22,7 +26,9 @@
           "/map", "/robot_description", "/tf_static",
           "/tf", "/scan", "/odom", "/joint_states", "/dynamic_joint_states", "/diff_drive_controller/.*",
           "/cmd_vel.*", "/camera/.*", "/imu.*", "/slam_toolbox/.*",
+          "/teleop/test/.*",
         ],
+        service_servers: ["/amr/internal/.*"],
       },
       pub_max_frequencies: [
         ".*/image_raw|.*/image_rect_raw=5",

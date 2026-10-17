@@ -1,0 +1,12 @@
+# Start a closed-loop displacement/rotation test. Service: /amr/start_motion_test
+# Run IDs are deduplicated for the executor lifetime, rejected ones included. Never retry a timed-out Start.
+string run_id
+# "linear" (target in metres) or "rotation" (target in radians)
+string kind
+# Signed: positive is forward / counterclockwise
+float64 target
+# Positive [m/s or rad/s]; 0 selects the default (0.1 m/s, 0.3 rad/s). Hard limits 0.2 m/s, 0.6 rad/s.
+float64 speed_limit
+---
+bool accepted
+string message

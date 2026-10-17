@@ -16,6 +16,7 @@ from rclpy.node import Node
 from builtin_interfaces.msg import Time
 from uet_amr_msgs.msg import MapInfo
 from uet_amr_msgs.srv import GetMap, ListMaps, SaveMap, SetMode
+from uet_amr_evaluation.motion.executor import MotionTestExecutor
 
 
 class AmrModeManager(Node):
@@ -71,6 +72,8 @@ class AmrModeManager(Node):
         self._get_map_service = self.create_service(
             GetMap, '/amr/get_map', self._get_map_callback, callback_group=service_group)
         self._monitor = self.create_timer(1.0, self._monitor_process)
+        # Motion tests hold _switch_lock for their whole run, so mode switches and map saves are refused meanwhile.
+        self._motion_test = MotionTestExecutor(self, self._switch_lock, self._confirmed_mode)
 
         initial_mode = str(self.get_parameter('initial_mode').value)
         initial_map = str(self.get_parameter('initial_map').value)
@@ -477,6 +480,13 @@ class AmrModeManager(Node):
             self._switch_lock.release()
         return response
 
+    def _confirmed_mode(self):
+        """Mode as confirmed by a live launch process (read-only; safe to call without the lock)."""
+        process = self._process
+        if process is None or process.poll() is not None:
+            return 'stopped'
+        return self._mode
+
     def _check_process(self):
         """Reset state if the launch died. Caller must hold _switch_lock."""
         if self._process is not None and self._process.poll() is not None:
@@ -496,6 +506,7 @@ class AmrModeManager(Node):
             self._switch_lock.release()
 
     def destroy_node(self):
+        self._motion_test.shutdown()    # zero command, Off and lock release before anything is torn down
         try:
             self._stop_mode()
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:

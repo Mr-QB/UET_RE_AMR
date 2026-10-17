@@ -1,0 +1,12 @@
+# Start an open-loop constant-velocity step. Service: /amr/start_velocity_step
+# Uses the same lock, heartbeat, Stop service and MotionTestState topic as StartMotionTest.
+string run_id
+# "linear" (m/s) or "angular" (rad/s)
+string axis
+# Signed, finite, nonzero; |v| <= 0.2 m/s or 0.6 rad/s
+float64 target_velocity
+# 1..10 s; plateau travel must not exceed 1.8 m or (2*pi - 0.5) rad
+float64 duration_s
+---
+bool accepted
+string message
