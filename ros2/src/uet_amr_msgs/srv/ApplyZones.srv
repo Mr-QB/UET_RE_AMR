@@ -1,0 +1,11 @@
+# Install saved-map zones (no-go and slow) on the robot as Nav2 keepout and speed filter masks.
+# The ack is this response: success means both masks were built, persisted, and published
+# as one revision. It does not mean Nav2 costmaps have already consumed them.
+# Export JSON, schema_version 1, as produced by the dashboard's zones export.
+string zones_json
+---
+bool success
+string message
+# Fingerprint and revision now active; on failure these still report the previously active ones (empty / 0 if none).
+string applied_fingerprint
+uint32 applied_revision
