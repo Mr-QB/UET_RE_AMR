@@ -1,6 +1,6 @@
 # UET AMR UART BRIDGE
 
-UART bridge using an ESP32 as an intermediary device for data transmission without modifying the data. The ESP32 can also be extended with various peripheral devices such as an IMU, HC-SR04, etc., providing additional information to ROS 2.
+UART bridge using an ESP32 as an intermediary device for data transmission without modifying the data. The ESP32 can also be extended with various peripheral devices such as an IMU, etc., providing additional information to ROS 2.
 
 ---
 
@@ -18,7 +18,6 @@ UART bridge using an ESP32 as an intermediary device for data transmission witho
 | Component             | Recommendation                  |
 | --------------------- | ------------------------------- |
 | Microcontroller (MCU) | Arduino Mega or ESP32-WROOM-32D |
-| Obstacle detection    | HC-SR04(optional)               |
 | Status indication     | LED                             |
 | ...                   | ...                             |
 
@@ -95,120 +94,31 @@ typedef struct __attribute__((packed)) {
 } SerialCommand;
 ```
 
-The Mega/ESP32 validates the received packet and converts it to the Hoverboard command format:
+The ESP32 validates the received hoverboard frame and forwards it to ROS2 as a 16-byte (128-bit) bit-packed frame
+(see `include/ros_protocol.h`). The 16 bytes are one little-endian 128-bit value: bit 0 is the LSB of byte 0, and the
+fields follow each other in this order with no padding.
 
-```cpp
-typedef struct __attribute__((packed)) {
-   uint16_t start;
-   int16_t  steer;
-   int16_t  speed;
-   uint16_t checksum;
-} HoverCommand;
-```
+| Bits | Field | Size | Meaning |
+| :---: | :--- | :---: | :--- |
+| 0 – 7 | `header` | 8 | Sync header `0xAA` |
+| 8 – 14 | `seq` | 7 | Wraps at 128; a gap means lost packets |
+| 15 | `estop` | 1 | `0`=released, `1`=e-stop active |
+| 16 – 31 | `speed_l` | 16 | Left measured speed, signed, raw hoverboard rpm |
+| 32 – 47 | `speed_r` | 16 | Right measured speed, signed, raw hoverboard rpm |
+| 48 – 61 | `en_tick_l` | 14 | Left encoder ticks (0–9000, wraps) |
+| 62 – 75 | `en_tick_r` | 14 | Right encoder ticks (0–9000, wraps) |
+| 76 – 82 | `temp_c` | 7 | Board temperature, 0–127 °C |
+| 83 – 93 | `current_a` | 11 | Raw; **divide by 100** for 0.00–20.47 A |
+| 94 – 100 | `battery` | 7 | Battery percentage, 0–100 % |
+| 101 – 111 | `stamp` | 11 | Sample time, 256 µs units, wraps every ~524 ms (host uses the difference for dt) |
+| 112 – 127 | `checksum` | 16 | 16-bit XOR fold over bytes 0–13 |
 
-## Hoverboard -> ROS2
+Command, ROS -> bridge (8 bytes, byte-aligned):
 
-The Hoverboard sends the feedback packet to Mega/ESP32 via UART:
-
-```cpp
-typedef struct __attribute__((packed)) {
-  uint16_t  start;
-  int8_t    speedR_meas; // rpm left
-  int8_t    speedL_meas; // rpm right
-  int16_t   wheelR_cnt;  // encoder left
-  int16_t   wheelL_cnt;  // encoder right
-  uint8_t   batVoltage;
-  uint8_t   boardTemp;
-  int16_t   cur;         // current draw
-  uint16_t  checksum;
-} HoverFeedback;
-```
-
-The Mega/ESP32 validates the received packet and package all information in this format:
-
-(Data optimization for high-speed transmission).
-
-16-Byte Bit Map Layout (128 Bits Total).
-| Word | Bit Range | Field Name | Size | Type | Range / Function |
-| :---: | :---: | :--- | :---: | :--- | :--- |
-| **W1** | **0 – 7** | `header` | 8 bit | `uint8_t` | Sync header (`0xAA`) |
-| **W1** | **8 – 9** | `sys_status` | 2 bit | Unsigned Int | Mode: `0`=Idle, `1`=Nav, `2`=Manual, `3`=Fault |
-| **W1** | **10 – 15** | `reserved1` | 6 bit | Alignment | Spare padding bits |
-| **W1** | **16 – 23** | `speed_l` | 8 bit | Signed Int | Left motor speed (-100 to +100 %, clamped) |
-| **W1** | **24 – 31** | `speed_r` | 8 bit | Signed Int | Right motor speed (-100 to +100 %, clamped) |
-| **W2** | **32 – 45** | `en_tick_l` | 14 bit | Unsigned Int | Left encoder tick counter (0–9000) |
-| **W2** | **46 – 59** | `en_tick_r` | 14 bit | Unsigned Int | Right encoder tick counter (0–9000) |
-| **W2** | **60 – 63** | `reserved2` | 4 bit | Alignment | Spare padding bits |
-| **W3** | **64 – 70** | `temp_c` | 7 bit | Unsigned Int | Temperature 0°C to 127°C integer |
-| **W3** | **71 – 81** | `current_a` | 11 bit | Unsigned Int | Current (0.00 to 20.47 A, **divide by 100 on read**) |
-| **W3** | **82 – 88** | `battery` | 7 bit | Unsigned Int | Battery percentage (0–100%) |
-| **W3** | **89** | `charging` | 1 bit | Boolean | Charger state: `0`=Discharging, `1`=Charging |
-| **W3** | **90 – 95** | `optional_1` | 6 bit | Raw Bits | Custom payload expansion 1 |
-| **W4** | **96 – 111** | `optional_2` | 16 bit | Raw Bits | Custom payload expansion 2 |
-| **W4** | **112 – 127** | `crc` | 16 bit | CRC-16 | Checksum calculated over bits 0–111 |
-
----
-
-C++ Struct Definition
-
-```cpp
-typedef struct __attribute__((packed)) {
-    // Word 1 (Bits 0..31): Header, Mode, Alignment, Signed Speeds (-100..100)
-    uint32_t header      : 8;  // Bits 0..7   (Sync byte 0xAA)
-    uint32_t sys_status  : 2;  // Bits 8..9   (0=Idle, 1=Nav, 2=Manual, 3=Fault)
-    uint32_t reserved1   : 6;  // Bits 10..15 (Spare alignment bits)
-    int32_t  speed_l     : 8;  // Bits 16..23 (Clamped -100 to +100)
-    int32_t  speed_r     : 8;  // Bits 24..31 (Clamped -100 to +100)
-
-    // Word 2 (Bits 32..63): Wheel Encoders & Spare Bits
-    uint32_t en_tick_l   : 14; // Bits 32..45 (0-9000 ticks)
-    uint32_t en_tick_r   : 14; // Bits 46..59 (0-9000 ticks)
-    uint32_t reserved2   : 4;  // Bits 60..63 (Spare alignment bits)
-
-    // Word 3 (Bits 64..95): 7-bit Temp (0..127°C), 11-bit Current, Battery & Power
-    uint32_t temp_c      : 7;  // Bits 64..70 (0-127°C direct integer)
-    uint32_t current_a   : 11; // Bits 71..81 (0-2047 raw value, divide by 100 on read -> 0.00 to 20.47 A)
-    uint32_t battery     : 7;  // Bits 82..88 (0-100%)
-    uint32_t charging    : 1;  // Bit 89      (0=Discharging, 1=Charging)
-    uint32_t optional_1  : 6;  // Bits 90..95 (Expansion payload 1)
-
-    // Word 4 (Bits 96..127): Optional Expansion 2 & CRC Checksum
-    uint32_t optional_2  : 16; // Bits 96..111 (Expansion payload 2)
-    uint32_t crc         : 16; // Bits 112..127 (CRC-16 Checksum)
-} FeedbackPacket;                             
-```
-
-The remaining bits can be used to store additional data.
-
----
-
-## Peripheral devices
-
-HC-SR04 : 8pcs
-
-position of HC-SR04:
-
-        ----1----2----
-        |            |
-        8      ^     3
-        |      |     |
-        7            4
-        |            |
-        ----6----5----
-
-Trig pin:
-
-- 1 and 5 share the same pin
-- 2 and 6 share the same pin
-- 3 and 7 share the same pin
-- 4 and 8 share the same pin
-
-Echo pin: One pin per device(use interrupt)
-
-12 pin total
-
-Timing budget per device: 5ms (range: 3-80cm)
-
-2 device run concurrently(e.g., 1&5, 2&6, 3&7, 4&8)
-
-...
+| Byte | Field | Type | Meaning |
+| :---: | :--- | :---: | :--- |
+| 0 | `header` | u8 | `0xAA` |
+| 1 – 2 | `left` | i16 LE | Commanded left speed, clamped to ±1000 |
+| 3 – 4 | `right` | i16 LE | Commanded right speed, clamped to ±1000 |
+| 5 – 6 | `reserved` | u16 | Unused (0) |
+| 7 | `checksum` | u8 | XOR of bytes 0–6 |

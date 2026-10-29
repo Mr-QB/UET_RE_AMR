@@ -87,6 +87,9 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
         std::stod(info_.hardware_parameters.at("motor_command_scale_angular"));
     ticks_per_rev_ = std::stoi(info_.hardware_parameters.at("ticks_per_rev"));
     encoder_max_ = std::stoi(info_.hardware_parameters.at("encoder_max"));
+    if (info_.hardware_parameters.count("motor_command_limit")) {
+        motor_command_limit_ = std::stoi(info_.hardware_parameters.at("motor_command_limit"));
+    }
 
     // Initialize state and command vectors (left, right)
     wheel_positions_.assign(2, 0.0);
@@ -274,6 +277,8 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
     last_velocity_update_ = last_feedback_time_;
     accum_rad_l_ = 0.0;
     accum_rad_r_ = 0.0;
+    accum_dt_ = 0.0;
+    have_stamp_ = false;
     RCLCPP_INFO(logger(), "Hardware activated.");
     return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -351,10 +356,26 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     last_packet_ = pkt;
     have_packet_ = true;
 
+    if (have_stamp_) {
+        const unsigned missed = (pkt.seq - last_seq_ - 1u) & 0x7Fu;
+        if (missed != 0) {
+            RCLCPP_WARN_THROTTLE(
+                logger(), steady_clock_, 1000, "Lost %u feedback frame(s)", missed);
+        }
+        // 11-bit stamp: masked subtraction is wrap-safe as long as packets
+        // arrive within the ~524 ms wrap (the feedback timeout is 500 ms).
+        accum_dt_ += static_cast<double>((pkt.stamp - last_stamp_) & protocol::kStampMask) *
+            protocol::kStampUnitSeconds;
+    }
+    last_stamp_ = pkt.stamp;
+    last_seq_ = pkt.seq;
+    have_stamp_ = true;
+
     if (!have_last_ticks_) {
         last_tick_l_ = pkt.en_tick_l;
         last_tick_r_ = pkt.en_tick_r;
         have_last_ticks_ = true;
+        accum_dt_ = 0.0;
         return;
     }
 
@@ -381,21 +402,21 @@ void AmrHardwareInterface::publishHardwareStatus()
     const auto & pkt = last_packet_;
     uet_amr_msgs::msg::HardwareStatus msg;
     msg.header.stamp = node_->now();
-    msg.sys_status = static_cast<uint8_t>(pkt.sys_status);
-    msg.battery_percentage = static_cast<float>(pkt.battery) / 100.0f;
-    msg.is_charging = pkt.charging != 0;
+    const int battery_percent = static_cast<int>(pkt.battery);
+    msg.battery_percentage = static_cast<float>(battery_percent) / 100.0f;
+    msg.estop = pkt.estop != 0;
     msg.current = static_cast<float>(pkt.current_a) / 100.0f;
     msg.temperature = static_cast<float>(pkt.temp_c);
-    msg.left_speed = static_cast<int8_t>(pkt.speed_l);
-    msg.right_speed = static_cast<int8_t>(pkt.speed_r);
+    msg.left_speed = static_cast<int16_t>(pkt.speed_l);
+    msg.right_speed = static_cast<int16_t>(pkt.speed_r);
     msg.left_wheel_position = wheel_positions_[0];
     msg.right_wheel_position = wheel_positions_[1];
     msg.left_wheel_velocity = wheel_velocities_[0];
     msg.right_wheel_velocity = wheel_velocities_[1];
 
-    if (static_cast<int>(pkt.battery) <= kBatteryCriticalPercent) {
+    if (battery_percent <= kBatteryCriticalPercent) {
         msg.battery_state = "CRITICAL";
-    } else if (static_cast<int>(pkt.battery) <= kBatteryLowPercent) {
+    } else if (battery_percent <= kBatteryLowPercent) {
         msg.battery_state = "LOW";
     } else {
         msg.battery_state = "OK";
@@ -442,13 +463,16 @@ hardware_interface::return_type AmrHardwareInterface::read(
     const auto now = std::chrono::steady_clock::now();
     if (got_packet) {
         last_feedback_time_ = now;
-        const double dt = std::chrono::duration<double>(now - last_velocity_update_).count();
+        const double dt = accum_dt_ > 1e-6
+            ? accum_dt_
+            : std::chrono::duration<double>(now - last_velocity_update_).count();
         if (dt > 1e-6) {
             wheel_velocities_[0] = accum_rad_l_ / dt;
             wheel_velocities_[1] = accum_rad_r_ / dt;
         }
         accum_rad_l_ = 0.0;
         accum_rad_r_ = 0.0;
+        accum_dt_ = 0.0;
         last_velocity_update_ = now;
     }
 
@@ -484,10 +508,9 @@ hardware_interface::return_type AmrHardwareInterface::write(
     const double left_raw = common * motor_command_scale_linear_ - diff * motor_command_scale_angular_;
     const double right_raw = common * motor_command_scale_linear_ + diff * motor_command_scale_angular_;
 
-    const int16_t left_speed = static_cast<int16_t>(
-        std::clamp(left_raw, -32768.0, 32767.0));
-    const int16_t right_speed = static_cast<int16_t>(
-        std::clamp(right_raw, -32768.0, 32767.0));
+    const double limit = static_cast<double>(motor_command_limit_);
+    const int16_t left_speed = static_cast<int16_t>(std::clamp(left_raw, -limit, limit));
+    const int16_t right_speed = static_cast<int16_t>(std::clamp(right_raw, -limit, limit));
     // Fire-and-forget every cycle (even zero velocity) -- firmware never
     // replies to a command frame, and this is what keeps its no-traffic
     // watchdog fed.

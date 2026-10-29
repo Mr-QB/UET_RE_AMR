@@ -39,94 +39,90 @@ namespace protocol
 
     namespace
     {
-        // The wire frame packs speed as int8 (see CommandPacket), so clamp to
-        // -100..100 here rather than relying on the implementation-defined result
-        // of truncating an out-of-range int16 to int8.
-        int8_t clampToInt8Speed(int16_t speed)
+        // Reads fields LSB first at a running bit position, so the calls in
+        // FeedbackParser::feed() read like the field table in protocol.hpp.
+        class BitReader
         {
-            if (speed > 100) {return 100;}
-            if (speed < -100) {return -100;}
-            return static_cast<int8_t>(speed);
-        }
+        public:
+            explicit BitReader(const uint8_t * buf) : buf_(buf) {}
+            uint32_t get(unsigned width)
+            {
+                uint32_t v = 0;
+                for (unsigned i = 0; i < width; i++, pos_++) {
+                    v |= static_cast<uint32_t>((buf_[pos_ >> 3] >> (pos_ & 7u)) & 1u) << i;
+                }
+                return v;
+            }
+
+        private:
+            const uint8_t * buf_;
+            unsigned pos_{0};
+        };
     }  // namespace
 
     CommandFrame encodeCommandFrame(int16_t speed_left, int16_t speed_right)
     {
+        const uint16_t l = static_cast<uint16_t>(speed_left);
+        const uint16_t r = static_cast<uint16_t>(speed_right);
         CommandFrame frame{};
         frame.bytes[0] = kHeader;
-        frame.bytes[1] = static_cast<uint8_t>(clampToInt8Speed(speed_left));
-        frame.bytes[2] = static_cast<uint8_t>(clampToInt8Speed(speed_right));
-        frame.bytes[3] = 0; // reserved
-        frame.bytes[4] = 0; // reserved
+        frame.bytes[1] = static_cast<uint8_t>(l & 0xFF);
+        frame.bytes[2] = static_cast<uint8_t>(l >> 8);
+        frame.bytes[3] = static_cast<uint8_t>(r & 0xFF);
+        frame.bytes[4] = static_cast<uint8_t>(r >> 8);
         frame.bytes[5] = 0; // reserved
         frame.bytes[6] = 0; // reserved
 
-        // Plain byte-wise XOR of bytes [0..6], matching the firmware's R_Receive()
-        // in ros_protocol.cpp -- NOT checksum16(), which is the 16-bit
-        // alternating fold used only for the 16-byte feedback packet.
+        // Plain byte-wise XOR of bytes [0..6], matching the firmware's
+        // R_Receive() -- NOT checksum16(), which is the 16-bit alternating
+        // fold used only for the 16-byte feedback packet.
         uint8_t checksum = 0;
-        for (size_t i = 0; i < 7; ++i) {
+        for (size_t i = 0; i < kCommandFrameLen - 1; ++i) {
             checksum ^= frame.bytes[i];
         }
-        frame.bytes[7] = checksum;
+        frame.bytes[kCommandFrameLen - 1] = checksum;
         return frame;
     }
 
     bool FeedbackParser::feed(uint8_t b)
     {
-        switch (state_) {
-          case State::WaitHeader:
-              if (b == kHeader) {
-                  body_[0] = b;
-                  body_index_ = 1;
-                  state_ = State::WaitBody;
-              }
-              break;
-
-          case State::WaitBody:
-              body_[body_index_++] = b;
-              if (body_index_ >= kFeedbackPacketLen) {
-                  state_ = State::WaitHeader;
-
-                  const uint16_t expected = checksum16(body_, kFeedbackPacketLen - 2);
-                  const uint16_t received = static_cast<uint16_t>(
-                      body_[kFeedbackPacketLen - 2] | (body_[kFeedbackPacketLen - 1] << 8));
-                  if (received != expected) {
-                      break; // checksum mismatch, drop and resync on the next header
-                  }
-
-                  const uint32_t w1 = static_cast<uint32_t>(body_[0]) |
-                      (static_cast<uint32_t>(body_[1]) << 8) |
-                      (static_cast<uint32_t>(body_[2]) << 16) |
-                      (static_cast<uint32_t>(body_[3]) << 24);
-                  const uint32_t w2 = static_cast<uint32_t>(body_[4]) |
-                      (static_cast<uint32_t>(body_[5]) << 8) |
-                      (static_cast<uint32_t>(body_[6]) << 16) |
-                      (static_cast<uint32_t>(body_[7]) << 24);
-                  const uint32_t w3 = static_cast<uint32_t>(body_[8]) |
-                      (static_cast<uint32_t>(body_[9]) << 8) |
-                      (static_cast<uint32_t>(body_[10]) << 16) |
-                      (static_cast<uint32_t>(body_[11]) << 24);
-                  const uint32_t optional_2 = static_cast<uint32_t>(body_[12]) |
-                      (static_cast<uint32_t>(body_[13]) << 8);
-
-                  packet_.sys_status = (w1 >> 8) & 0x3;
-                  packet_.speed_l = static_cast<int8_t>((w1 >> 16) & 0xFF);
-                  packet_.speed_r = static_cast<int8_t>((w1 >> 24) & 0xFF);
-                  packet_.en_tick_l = w2 & 0x3FFF;
-                  packet_.en_tick_r = (w2 >> 14) & 0x3FFF;
-                  packet_.temp_c = w3 & 0x7F;
-                  packet_.current_a = (w3 >> 7) & 0x7FF;
-                  packet_.battery = (w3 >> 18) & 0x7F;
-                  packet_.charging = (w3 >> 25) & 0x1;
-                  packet_.optional_1 = (w3 >> 26) & 0x3F;
-                  packet_.optional_2 = optional_2;
-
-                  return true;
-              }
-              break;
+        if (len_ == 0 && b != kHeader) {
+            return false;
         }
-        return false;
+        buf_[len_++] = b;
+        if (len_ < kFeedbackPacketLen) {
+            return false;
+        }
+        len_ = 0;
+
+        const uint16_t expected = checksum16(buf_, kFeedbackPacketLen - 2);
+        const uint16_t received = static_cast<uint16_t>(
+            buf_[kFeedbackPacketLen - 2] | (buf_[kFeedbackPacketLen - 1] << 8));
+        if (received != expected) {
+            // Bad packet: a real header may sit inside it, so rescan the tail.
+            for (size_t i = 1; i < kFeedbackPacketLen; i++) {
+                if (buf_[i] == kHeader) {
+                    len_ = kFeedbackPacketLen - i;
+                    std::memmove(buf_, &buf_[i], len_);
+                    break;
+                }
+            }
+            return false;
+        }
+
+        BitReader r(buf_);
+        r.get(8);  // header, already matched
+        packet_.seq = r.get(7);
+        packet_.estop = r.get(1);
+        packet_.speed_l = static_cast<int16_t>(r.get(16));
+        packet_.speed_r = static_cast<int16_t>(r.get(16));
+        packet_.en_tick_l = r.get(14);
+        packet_.en_tick_r = r.get(14);
+        packet_.temp_c = r.get(7);
+        packet_.current_a = r.get(11);
+        packet_.battery = r.get(7);
+        packet_.stamp = r.get(11);
+        return true;
     }
 
 }  // namespace protocol

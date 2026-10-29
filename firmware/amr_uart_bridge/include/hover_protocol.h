@@ -29,17 +29,8 @@
 
 #include <Arduino.h>
 #include <HardwareSerial.h>
-#include "odom.h"
 
 extern HardwareSerial HoverSerial;
-
-#if ENABLE_ODOM
-extern Odom odom;
-
-extern float x_odom;
-extern float y_odom;
-extern float theta;
-#endif
 
 typedef struct __attribute__((packed)) { // do not touch here
     uint16_t start;
@@ -65,7 +56,7 @@ extern HoverFeedback Feedback;
 void H_Init();
 void H_Send(int16_t L, int16_t R);
 // Drains any bytes waiting from the hoverboard. Returns true exactly when a
-// new checksum-valid feedback packet was decoded into Feedback/odom (the
+// new checksum-valid feedback packet was decoded into Feedback (the
 // caller is then expected to forward it via R_Send).
 bool H_Receive();
 

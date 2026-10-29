@@ -37,7 +37,6 @@ class Plant(Node):
         self.v = self.w = self.x = self.y = self.yaw = 0.0
         self.cmd = Twist()
         self.cmd_log = []
-        self.fault = False
         self.controller_active = True
         self.odom_enabled = True
         self.create_subscription(Twist, '/diff_drive_controller/cmd_vel_unstamped', self._cmd, 10)
@@ -59,7 +58,6 @@ class Plant(Node):
 
     def _hw(self):
         msg = HardwareStatus()
-        msg.sys_status = HardwareStatus.SYS_FAULT if self.fault else HardwareStatus.SYS_MANUAL
         self.hw_pub.publish(msg)
 
     def _step(self):
@@ -236,7 +234,6 @@ def test_ownership_rules(rig):
 
 @pytest.mark.parametrize('setup,why', [
     (lambda r: setattr(r, 'mode', 'nav'), 'Mapping'),
-    (lambda r: setattr(r.plant, 'fault', True), 'fault'),
     (lambda r: setattr(r.plant, 'controller_active', False), 'controller'),
     (lambda r: r.call(r.set_teleop, SetTeleop.Request(source='joy')), 'manual'),
 ])
@@ -263,15 +260,6 @@ def test_stale_odometry_aborts(rig):
     rig.plant.odom_enabled = False
     final = terminal(rig, 'run-stale', 5.0)
     assert (final.phase, final.reason) == ('aborted', 'stale_odometry')
-    assert_safe_exit(rig)
-
-
-def test_controller_loss_and_hardware_fault_abort(rig):
-    assert start(rig, 'run-fault', target=1.5).accepted
-    assert rig.wait_for(lambda: rig.last().phase == 'running', 10.0)
-    rig.plant.fault = True
-    final = terminal(rig, 'run-fault', 5.0)
-    assert (final.phase, final.reason) == ('aborted', 'hardware_fault')
     assert_safe_exit(rig)
 
 

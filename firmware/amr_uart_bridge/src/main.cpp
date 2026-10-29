@@ -37,7 +37,7 @@ void setup() {
 
 void loop(void) {
     if (H_Receive()) {
-        R_Send(1, Feedback.speedL_meas, Feedback.speedR_meas, Feedback.wheelL_cnt, Feedback.wheelR_cnt, Feedback.boardTemp, Feedback.cur, Feedback.batVoltage, 0);
+        R_Send(Feedback.speedL_meas, Feedback.speedR_meas, Feedback.wheelL_cnt, Feedback.wheelR_cnt, Feedback.boardTemp, Feedback.cur, Feedback.batVoltage, false, micros());
     }
     if(R_Receive(left, right)) H_Send(left, right);
 }

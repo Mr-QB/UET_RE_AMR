@@ -30,14 +30,6 @@
 
 HardwareSerial HoverSerial(1);
 
-#if ENABLE_ODOM
-Odom odom(8.5f, 45.0f, 90, 9000);
-
-float x_odom = 0.0f;
-float y_odom = 0.0f;
-float theta  = 0.0f;
-#endif
-
 static HoverCommand Command;
 HoverFeedback Feedback;
 static HoverFeedback NewFeedback;
@@ -48,9 +40,6 @@ static byte incomingBytePrev;
 
 void H_Init() {
     HoverSerial.begin(921600, SERIAL_8N1, 16, 17);
-#if ENABLE_ODOM
-    odom.reset(0, 0, PI/2);
-#endif
 }
 
 void H_Send(int16_t L, int16_t R) { // do not touch here
@@ -66,7 +55,7 @@ void H_Send(int16_t L, int16_t R) { // do not touch here
 
 bool H_Receive() {
     bool updated = false;
-    while (HoverSerial.available() >= 14) {  // Read only when the required number of bytes is available.
+    while (HoverSerial.available() >= (int)sizeof(HoverFeedback)) {  // Read only when the required number of bytes is available.
         incomingByte = HoverSerial.read();
         uint16_t bufStartFrame = ((uint16_t)incomingByte << 8) | incomingBytePrev;
         if (bufStartFrame == START_FRAME) {
@@ -88,13 +77,6 @@ bool H_Receive() {
                     memcpy(&Feedback, &NewFeedback, sizeof(HoverFeedback));
                     Feedback.speedL_meas = -Feedback.speedL_meas;
                     Feedback.speedR_meas = Feedback.speedR_meas;
-
-#if ENABLE_ODOM
-                    odom.updateFromEncoder(Feedback.wheelL_cnt, Feedback.wheelR_cnt);
-                    x_odom = odom.getX();
-                    y_odom = odom.getY();
-                    theta = odom.getTheta();
-#endif
 
                     updated = true;
                 }

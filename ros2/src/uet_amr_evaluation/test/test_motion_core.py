@@ -25,7 +25,7 @@ class FakeRobot:
         return Odom(self.stamp, self.x, self.y, wrap(self.yaw), self.v, self.w)
 
 
-def run(core_, robot, seconds=80.0, hb=True, fault_at=None, on_tick=None, **overrides):
+def run(core_, robot, seconds=80.0, hb=True, on_tick=None, **overrides):
     """Drive the core at 20 Hz; returns list of (t, cmd_v, cmd_w, phase)."""
     log, t = [], 100.0
     hb_at = None
@@ -34,8 +34,6 @@ def run(core_, robot, seconds=80.0, hb=True, fault_at=None, on_tick=None, **over
         if hb and (hb is True or t < hb):
             hb_at = t
         inp = dict(now=t, odom=robot.odom(), odom_age=0.0, heartbeat_at=hb_at)
-        if fault_at is not None and t >= fault_at:
-            inp['hw_fault'] = True
         inp.update(overrides)
         if on_tick:
             on_tick(i, t, inp)
@@ -126,7 +124,7 @@ def test_stale_odometry_aborts_with_zero_command():
 
 
 @pytest.mark.parametrize('override,reason', [
-    (dict(hw_fault=True), 'hardware_fault'), (dict(controller_active=False), 'controller_inactive'),
+    (dict(controller_active=False), 'controller_inactive'),
     (dict(ownership_ok=False), 'ownership_lost'), (dict(mode_ok=False), 'mode_lost'),
     (dict(stop_requested=True), 'stop_requested')])
 def test_abort_conditions(override, reason):

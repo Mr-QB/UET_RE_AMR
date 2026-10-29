@@ -30,9 +30,9 @@ A Start that times out on the client must not be retried; read `/amr/motion_test
   test commands to 0.2 m/s / 0.6 rad/s and drops the source (zero command, back to `none`) if the executor goes quiet
   for 0.5 s.
 * Start requires: Mapping (`slam`) mode, manual input Off, active `diff_drive_controller`, fresh odometry (< 250 ms,
-  frame `odom`), a recent non-fault `/hardware/status`, no other node publishing to the controller input, and a free
+  frame `odom`), a recent `/hardware/status`, no other node publishing to the controller input, and a free
   operation lock.
-* Abort reasons: `stop_requested`, `mode_lost`, `ownership_lost`, `controller_inactive`, `hardware_fault`,
+* Abort reasons: `stop_requested`, `mode_lost`, `ownership_lost`, `controller_inactive`,
   `stale_odometry`, `heartbeat_timeout`, `timeout` (phase `aborted`); `travel_limit`, `not_stationary`,
   `internal_error` (phase `failed`). Every exit publishes zero, releases the test source and the lock.
 * No nonzero command is sent before the first heartbeat received after acceptance **and** 0.5 s of stationary

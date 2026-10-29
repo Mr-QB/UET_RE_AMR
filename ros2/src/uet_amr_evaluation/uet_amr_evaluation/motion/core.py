@@ -27,7 +27,7 @@ whatever command comes back. Every exit path goes through _finish(), which zeroe
 restores the teleop source and releases the operation lock.
 
 Phases: accepted -> running -> settling -> completed, or aborted / failed from anywhere.
-  aborted: a contract abort condition (stale odometry, heartbeat expiry, stop, hardware fault, controller or ownership
+  aborted: a contract abort condition (stale odometry, heartbeat expiry, stop, controller or ownership
            loss, mode loss, timeout)
   failed:  the test itself could not be carried out (travel limit, robot would not hold still, internal error)
 """
@@ -126,7 +126,6 @@ class Inputs:
     odom: Optional[Odom]
     odom_age: float = 0.0               # worst of receipt age and header-stamp age, seconds
     heartbeat_at: Optional[float] = None    # steady time of the last valid heartbeat received after acceptance
-    hw_fault: bool = False
     controller_active: bool = True
     ownership_ok: bool = True           # test source still selected on the gate
     mode_ok: bool = True                # robot-confirmed mapping mode
@@ -193,8 +192,6 @@ class MotionTestCore:
             return 'ownership_lost'
         if not inp.controller_active:
             return 'controller_inactive'
-        if inp.hw_fault:
-            return 'hardware_fault'
         if inp.odom is None or inp.odom_age > ODOM_MAX_AGE_S:
             return 'stale_odometry'
         if inp.now - self.t_accept > TIMEOUT_S:

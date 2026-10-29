@@ -108,7 +108,7 @@ class MotionTestExecutor:
         self._last = None                        # terminal snapshot, republished until the next start
         self._sequence = 0
         self._odom = None                        # (Odom, recv steady s, header stamp ns, frame_id)
-        self._hw = None                          # (fault, recv steady s)
+        self._hw = None                          # recv steady s
         self._source = None                      # last /amr/teleop_source
         self._controller = (False, 0.0)          # (active, checked steady s)
         self._release_pending = False
@@ -156,7 +156,7 @@ class MotionTestExecutor:
 
     def _on_hw(self, msg):
         with self._mutex:
-            self._hw = (msg.sys_status == HardwareStatus.SYS_FAULT, time.monotonic())
+            self._hw = time.monotonic()
 
     def _on_source(self, msg):
         with self._mutex:
@@ -198,9 +198,6 @@ class MotionTestExecutor:
         active, checked = self._controller
         return active and now - checked <= CONTROLLER_STALE_S
 
-    def _hw_fault(self, now):
-        return self._hw is not None and self._hw[0]
-
     def _not_ready_reason(self, now, lock_held=False):
         mode = self._get_mode()
         if mode != 'slam':
@@ -213,10 +210,8 @@ class MotionTestExecutor:
             return 'drive controller is not active'
         if self._odom_age(now) > core.ODOM_MAX_AGE_S:
             return 'odometry is stale'
-        if self._hw is None or now - self._hw[1] > HW_STALE_S:
+        if self._hw is None or now - self._hw > HW_STALE_S:
             return 'no hardware status'
-        if self._hw[0]:
-            return 'hardware fault'
         return ''
 
     # ------------------------------------------------------------------ services
@@ -359,7 +354,7 @@ class MotionTestExecutor:
         odom = self._odom[0] if self._odom else None
         inp = Inputs(
             now=now, odom=odom, odom_age=self._odom_age(now), heartbeat_at=run.heartbeat_at,
-            hw_fault=self._hw_fault(now), controller_active=self._controller_active(now),
+            controller_active=self._controller_active(now),
             ownership_ok=self._source == 'test' or now - run.t_accept < 1.0,
             mode_ok=self._get_mode() == 'slam', stop_requested=run.stop_requested)
         lin, ang = run.core.step(inp)

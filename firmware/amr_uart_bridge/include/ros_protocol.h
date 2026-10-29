@@ -1,4 +1,4 @@
-// Copyright (c) 2026 UET Robotics Club, University of Engineering and
+// Copyright (c) 2026 Department of Robotics, University of Engineering and
 //                    Technology, Vietnam National University, Hanoi (VNU).
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,10 +19,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+
 /**
  * @file ros_protocol.h
- * @brief Wire protocol for ROS2 <-> ESP32 communication (feedback/command packet packing).
- * @author Phuc Nguyen
+ * @brief Wire protocol between the ESP32 bridge and ROS2. Must stay in sync with
+ *        ros2/src/uet_amr_hardware/include/uet_amr_hardware/protocol.hpp.
  */
 #ifndef ROS_PROTOCOL_H
 #define ROS_PROTOCOL_H
@@ -33,81 +34,65 @@
 
 // =============================================================================
 // Slave (ESP32) -> Master (ROS2) feedback packet, 16 bytes / 128 bits,
-// bit-packed. FeedbackPacket below is a bitfield struct used only as
-// the *local* in-code representation (readable field names/widths) -- it is
+// bit-packed. FeedbackPacket below is a bitfield struct used only as the
+// *local* in-code representation (readable field names/widths) -- it is
 // never memcpy'd onto the wire, because C++ bitfield/struct memory layout
 // (bit order, padding) is implementation-defined and differs across
 // compilers/architectures. packPacket() in ros_protocol.cpp packs each
-// field onto the wire by hand with explicit shifts, so the wire bytes are
-// fixed regardless of compiler. Must stay in sync with the C++ port in
+// field onto the wire by hand, so the wire bytes are fixed regardless of
+// compiler. Must stay in sync with the C++ port in
 // ros2/src/uet_amr_hardware/include/uet_amr_hardware/protocol.hpp.
 //
-//   Word 1 (bytes 0..3,   bits 0..31):
-//     header(8) sys_status(2) reserved1(6) speed_l(8) speed_r(8)
-//   Word 2 (bytes 4..7,   bits 32..63):
-//     en_tick_l(14) en_tick_r(14) reserved2(4)
-//   Word 3 (bytes 8..11,  bits 64..95):
-//     temp_c(7) current_a(11) battery(7) charging(1) optional_1(6)
-//   Word 4 (bytes 12..15, bits 96..127):
-//     optional_2(16) checksum(16)
+// The 16 bytes are one little-endian 128-bit value: bit 0 is the LSB of
+// byte 0. Fields follow each other in this order, no padding:
 //
-//   Each word is written little-endian (LSB first). checksum is a 16-bit
-//   XOR fold (see checksum16() in ros_protocol.cpp) over payload bytes
-//   [0..13].
-//
-//   sys_status:  0=Idle, 1=Nav, 2=Manual, 3=Fault
-//   speed_l/r:   measured speed, signed, -100..100
-//   en_tick_l/r: wheel encoder ticks, 0..encoder_max (wraps)
-//   temp_c:      board temperature, 0..127 degC
-//   current_a:   raw; divide by 100 on read -> 0.00..20.47 A
-//   battery:     0..100 %
-//   charging:    0=discharging, 1=charging
-//   optional_1/2: expansion payload, currently unused (0)
+//   field       bits      size  meaning
+//   header      0..7       8    0xAA
+//   seq         8..14      7    wraps at 128; a gap means lost packets
+//   estop       15         1    0=released, 1=e-stop active
+//   speed_l     16..31    16    measured speed, signed, raw hoverboard rpm
+//   speed_r     32..47    16    measured speed, signed, raw hoverboard rpm
+//   en_tick_l   48..61    14    wheel encoder ticks, 0..encoder_max (wraps)
+//   en_tick_r   62..75    14    wheel encoder ticks, 0..encoder_max (wraps)
+//   temp_c      76..82     7    board temperature, 0..127 degC
+//   current_a   83..93    11    raw; divide by 100 -> 0.00..20.47 A
+//   battery     94..100    7    0..100 %
+//   stamp       101..111  11    sample time, 256 us units, wraps every ~524 ms
+//   checksum    112..127  16    16-bit XOR fold (checksum16()) over bytes [0..13]
 // =============================================================================
 #define FB_LEN 16
 
 struct __attribute__((packed)) FeedbackPacket {
-    uint32_t sys_status : 2;
-    int32_t  speed_l    : 8;
-    int32_t  speed_r    : 8;
-    uint32_t en_tick_l  : 14;
-    uint32_t en_tick_r  : 14;
-    uint32_t temp_c     : 7;
-    uint32_t current_a  : 11;
-    uint32_t battery    : 7;
-    uint32_t charging   : 1;
-    uint32_t optional_1 : 6;
-    uint32_t optional_2 : 16;
+  uint32_t seq        : 7;
+  uint32_t estop      : 1;
+  int32_t  speed_l    : 16;
+  int32_t  speed_r    : 16;
+  uint32_t en_tick_l  : 14;
+  uint32_t en_tick_r  : 14;
+  uint32_t temp_c     : 7;
+  uint32_t current_a  : 11;
+  uint32_t battery    : 7;
+  uint32_t stamp      : 11;
 };
 
-void R_Send(int8_t sys, int8_t spL, int8_t spR, int16_t enL, int16_t enR, uint8_t temp, int16_t cur, uint8_t bat, bool charge);
+// bat is the raw hoverboard reading (0..255), sent as 0..100 %. stamp_us is
+// the bridge micros() when the hoverboard frame arrived.
+void R_Send(int16_t spL, int16_t spR, int16_t enL, int16_t enR, uint8_t temp, int16_t cur, uint8_t bat, bool estop, uint32_t stamp_us);
 
 // =============================================================================
-// Master (ROS2) -> Slave (ESP32) command frame, 8 bytes. CommandPacket below
-// is a bitfield struct used only as the *local* in-code representation
-// (readable field names/widths) -- it is never memcpy'd onto the wire, same
-// rationale as FeedbackPacket above. Must stay in sync with the C++ port in
-// ros2/src/uet_amr_hardware/include/uet_amr_hardware/protocol.hpp.
-//
-//   speed_l/r are clamped to -100..100, so they're packed as 8-bit fields
-//   (matching how FeedbackPacket encodes measured speed) instead of a full
-//   int16 -- the bits saved go to `reserved` for future expansion (e.g.
-//   enable/estop/mode flags) without growing the frame again.
+// Master (ROS2) -> Slave (ESP32) command frame, 8 bytes, byte-aligned.
 //
 //   [0]    header   uint8  0xAA
-//   [1]    left     int8   commanded left speed (clamped to -100..100)
-//   [2]    right    int8   commanded right speed (clamped to -100..100)
-//   [3..6] reserved uint32 LE, expansion payload, currently unused (0)
+//   [1..2] left     int16  LE, commanded left speed (clamped to +-CMD_LIMIT)
+//   [3..4] right    int16  LE, commanded right speed (clamped to +-CMD_LIMIT)
+//   [5..6] reserved uint16 LE, expansion payload, currently unused (0)
 //   [7]    checksum uint8  XOR of bytes [0..6]
 // =============================================================================
 #define CMD_LEN 8
+#define CMD_LIMIT 1000  // hoverboard INPUT_MAX/INPUT_MIN
 
-struct __attribute__((packed)) CommandPacket {
-    int32_t  speed_l  : 8;
-    int32_t  speed_r  : 8;
-    uint32_t reserved : 32;
-};
-
+// Drains the serial buffer byte by byte. Returns true when a checksum-valid
+// command frame completed; left/right are then updated.
 bool R_Receive(int16_t &left, int16_t &right);
 
 #endif // ROS_PROTOCOL_H

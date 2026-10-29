@@ -130,9 +130,15 @@ private:
     int last_tick_l_{0};
     int last_tick_r_{0};
 
-    // Wheel angle accumulated since the last velocity update (see read()).
+    // Wheel angle and firmware-sample time accumulated since the last velocity
+    // update (see read()). Using the firmware stamp for dt keeps USB/serial
+    // arrival jitter out of the velocity estimate.
     double accum_rad_l_{0.0};
     double accum_rad_r_{0.0};
+    double accum_dt_{0.0};
+    bool have_stamp_{false};
+    uint32_t last_stamp_{0};
+    uint8_t last_seq_{0};
     std::chrono::steady_clock::time_point last_velocity_update_;
 
     // Status publishing. Owns a bare node (never spun -- publish() needs no
@@ -159,8 +165,9 @@ private:
     // (turning) channels, so each has its own measured gain.
     double motor_command_scale_linear_;
     double motor_command_scale_angular_;
-    int ticks_per_rev_;          // encoder ticks per wheel revolution; must match firmware's Odom
-    int encoder_max_;            // encoder wrap modulus; must match firmware's Odom
+    int ticks_per_rev_;          // encoder ticks per wheel revolution
+    int encoder_max_;            // encoder wrap modulus
+    int motor_command_limit_{1000};  // host-side clamp on raw hoverboard command units
 };
 
 }  // namespace uet_amr_hardware
