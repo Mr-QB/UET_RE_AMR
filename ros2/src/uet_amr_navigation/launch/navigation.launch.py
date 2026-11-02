@@ -124,6 +124,15 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Applies dashboard zones as Nav2 keepout/speed filter masks for this map; see scripts/zones_manager.py.
+    zones_manager = Node(
+        package='uet_amr_navigation',
+        executable='zones_manager.py',
+        name='zones_manager',
+        parameters=[{'map': map_yaml_file}],
+        output='screen',
+    )
+
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -164,5 +173,6 @@ def generate_launch_description():
         localization_launch,
         navigation_launch,
         cmd_vel_relay,
+        zones_manager,
         rviz_node,
     ])

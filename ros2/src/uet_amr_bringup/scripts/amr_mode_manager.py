@@ -519,8 +519,14 @@ class AmrModeManager(Node):
         return super().destroy_node()
 
 
+def _raise_keyboard_interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+
 def main(args=None):
     rclpy.init(args=args)
+    # docker stop / kill send SIGTERM; route it through the same cleanup as Ctrl+C so the launch children get stopped.
+    signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
     node = AmrModeManager()
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)

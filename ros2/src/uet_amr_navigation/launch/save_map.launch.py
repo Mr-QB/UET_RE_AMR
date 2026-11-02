@@ -45,7 +45,13 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 2. Lệnh gọi service Serialize của SLAM Toolbox để tạo 2 file (.posegraph + .data)
+    # 2. Clean lidar speckle/rays out of the saved .pgm (never fails the save)
+    clean_map_cmd = ExecuteProcess(
+        cmd=['ros2', 'run', 'uet_amr_navigation', 'clean_map.py', [full_path, '.pgm']],
+        output='screen'
+    )
+
+    # 3. Lệnh gọi service Serialize của SLAM Toolbox để tạo 2 file (.posegraph + .data)
     serialize_map_cmd = ExecuteProcess(
         cmd=['ros2', 'service', 'call', '/slam_toolbox/serialize_map',
              'slam_toolbox/srv/SerializePoseGraph',
@@ -53,15 +59,22 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Serialize only after map_saver_cli has exited successfully. Both
-    # operations use the same filename prefix and must finish before this
-    # launch process exits.
-    serialize_after_map_save = RegisterEventHandler(
+    # Clean and serialize only after map_saver_cli has exited successfully. All
+    # steps use the same filename prefix and must finish before this launch
+    # process exits.
+    clean_after_map_save = RegisterEventHandler(
         OnProcessExit(
             target_action=save_map_cmd,
-            on_exit=lambda event, context: [serialize_map_cmd]
+            on_exit=lambda event, context: [clean_map_cmd]
             if event.returncode == 0
             else [LogInfo(msg=f'map_saver_cli failed with exit code {event.returncode}; not serializing pose graph')],
+        )
+    )
+
+    serialize_after_clean = RegisterEventHandler(
+        OnProcessExit(
+            target_action=clean_map_cmd,
+            on_exit=[serialize_map_cmd],
         )
     )
 
@@ -69,6 +82,7 @@ def generate_launch_description():
         declare_map_directory_cmd,
         declare_map_filename_cmd,
         OpaqueFunction(function=_ensure_map_directory),
-        serialize_after_map_save,
+        clean_after_map_save,
+        serialize_after_clean,
         save_map_cmd,
     ])

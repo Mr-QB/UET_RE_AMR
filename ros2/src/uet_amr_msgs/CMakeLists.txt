@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SaveMap.srv"
   "srv/ListMaps.srv"
   "srv/GetMap.srv"
+  "srv/ApplyZones.srv"
   "srv/SetTeleop.srv"
   "srv/StartMotionTest.srv"
   "srv/StopMotionTest.srv"

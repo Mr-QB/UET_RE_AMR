@@ -99,6 +99,7 @@ def generate_launch_description():
         name='foxglove_bridge',
         output='screen',
         parameters=[{'max_qos_depth': 300}],  # default 25 truncates /tf history
+        arguments=['--ros-args', '--log-level', 'foxglove_bridge:=warn'],  # drop per-subscription/channel INFO spam
         condition=IfCondition(LaunchConfiguration('foxglove')),
     )
 
