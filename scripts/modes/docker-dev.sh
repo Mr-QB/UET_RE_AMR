@@ -58,7 +58,9 @@ start_container() {
     -v "$REPO_ROOT/ros2:$WS" -w $WS
   )
   if [ "$(uname -m)" = aarch64 ]; then   # the Jetson mounts NVIDIA's run_dev.sh adds
-    args+=(-e NVIDIA_VISIBLE_DEVICES="nvidia.com/gpu=all,nvidia.com/pva=all" --pid=host
+    local vis="nvidia.com/gpu=all"   # the PVA device only exists in the CDI spec on some JetPack installs
+    nvidia-ctk cdi list 2>/dev/null | grep -q '^nvidia.com/pva=' && vis+=",nvidia.com/pva=all"
+    args+=(-e NVIDIA_VISIBLE_DEVICES="$vis" --pid=host
       -v /usr/bin/tegrastats:/usr/bin/tegrastats
       -v /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra
       -v /usr/src/jetson_multimedia_api:/usr/src/jetson_multimedia_api

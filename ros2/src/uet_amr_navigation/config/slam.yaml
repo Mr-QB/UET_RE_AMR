@@ -23,6 +23,7 @@ slam_toolbox:
     transform_publish_period: 0.02   # [s]
     map_update_interval: 5.0
     resolution: 0.05
+    min_laser_range: 0.2             # [m] the RPLidar's minimum; 0.0 triggers a slam_toolbox warning
     max_laser_range: 12.0
     minimum_time_interval: 0.5
     transform_timeout: 0.2

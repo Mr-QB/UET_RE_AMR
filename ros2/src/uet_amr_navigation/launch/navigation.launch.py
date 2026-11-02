@@ -32,6 +32,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node, SetRemap
 from launch_ros.substitutions import FindPackageShare
+from nav2_common.launch import RewrittenYaml
 
 
 def _has_nvidia_gpu():
@@ -66,6 +67,14 @@ def generate_launch_description():
     default_params_file = PathJoinSubstitution([
         FindPackageShare('uet_amr_navigation'), 'config', default_params_filename
     ])
+    # The default NavigateToPose tree spins before it backs up, which can't work against a wall. Ours
+    # backs up first. bt_navigator needs the tree's absolute path, so it's rewritten into the params.
+    bt_xml = PathJoinSubstitution([
+        FindPackageShare('uet_amr_navigation'), 'config', 'behavior_trees', 'nav_to_pose_backup_first.xml'
+    ])
+    params_with_bt = RewrittenYaml(
+        source_file=params_file, root_key='',
+        param_rewrites={'default_nav_to_pose_bt_xml': bt_xml}, convert_types=True)
     default_map_file = PathJoinSubstitution([
         FindPackageShare('uet_amr_navigation'), 'maps', 'warehouse.yaml'
     ])
@@ -100,7 +109,7 @@ def generate_launch_description():
                 ]),
                 launch_arguments={
                     'use_sim_time': use_sim_time,
-                    'params_file': params_file,
+                    'params_file': params_with_bt,
                 }.items()
             ),
         ]

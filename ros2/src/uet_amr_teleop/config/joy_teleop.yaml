@@ -3,7 +3,7 @@ teleop_twist_joy:
     axis_linear:
       x: 1          # left stick vertical
     scale_linear:
-      x: 0.3
+      x: 0.7
 
     axis_angular:
       yaw: 0

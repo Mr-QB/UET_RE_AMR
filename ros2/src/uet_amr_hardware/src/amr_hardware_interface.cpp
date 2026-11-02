@@ -463,17 +463,15 @@ hardware_interface::return_type AmrHardwareInterface::read(
     const auto now = std::chrono::steady_clock::now();
     if (got_packet) {
         last_feedback_time_ = now;
-        const double dt = accum_dt_ > 1e-6
-            ? accum_dt_
-            : std::chrono::duration<double>(now - last_velocity_update_).count();
-        if (dt > 1e-6) {
-            wheel_velocities_[0] = accum_rad_l_ / dt;
-            wheel_velocities_[1] = accum_rad_r_ / dt;
-        }
+        // Differencing 90-tick/rev encoder counts over one packet quantizes the speed into large
+        // steps (a single tick over a few ms reads several rad/s), which made the drive jerky.
+        // The hoverboard's own measured rpm is far finer, so use it for velocity.
+        constexpr double kRpmToRadPerSec = 2.0 * M_PI / 60.0;
+        wheel_velocities_[0] = last_packet_.speed_l * kRpmToRadPerSec;
+        wheel_velocities_[1] = last_packet_.speed_r * kRpmToRadPerSec;
         accum_rad_l_ = 0.0;
         accum_rad_r_ = 0.0;
         accum_dt_ = 0.0;
-        last_velocity_update_ = now;
     }
 
     if (have_packet_ && now - last_status_publish_ >= kStatusPeriod) {

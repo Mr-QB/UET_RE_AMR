@@ -82,7 +82,9 @@ SPEED_BINDINGS = {
 
 
 def get_key(settings, tty_file):
-    tty.setraw(tty_file.fileno())
+    # cbreak, not raw: raw also disables output newline translation, which staircases every other
+    # node's log lines that share this terminal.
+    tty.setcbreak(tty_file.fileno())
     ready, _, _ = select.select([tty_file], [], [], 0.1)
     key = tty_file.read(1) if ready else ''
     termios.tcsetattr(tty_file.fileno(), termios.TCSADRAIN, settings)

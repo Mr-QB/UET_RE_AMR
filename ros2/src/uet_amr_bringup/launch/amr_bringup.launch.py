@@ -98,6 +98,7 @@ def generate_launch_description():
         executable='foxglove_bridge',
         name='foxglove_bridge',
         output='screen',
+        parameters=[{'max_qos_depth': 300}],  # default 25 truncates /tf history
         condition=IfCondition(LaunchConfiguration('foxglove')),
     )
 

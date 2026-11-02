@@ -35,9 +35,12 @@ void setup() {
     H_Init();
 }
 
+// The hoverboard's left channel drives the robot's physical right wheel (and vice versa), so the
+// ROS-facing wheel commands are swapped here. Feedback is passed through unswapped: the encoder
+// and speed channels already match the ROS-facing sides.
 void loop(void) {
     if (H_Receive()) {
         R_Send(Feedback.speedL_meas, Feedback.speedR_meas, Feedback.wheelL_cnt, Feedback.wheelR_cnt, Feedback.boardTemp, Feedback.cur, Feedback.batVoltage, false, micros());
     }
-    if(R_Receive(left, right)) H_Send(left, right);
+    if(R_Receive(left, right)) H_Send(right, left);
 }

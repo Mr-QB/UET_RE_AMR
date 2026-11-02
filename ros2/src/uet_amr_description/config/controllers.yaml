@@ -37,7 +37,7 @@ diff_drive_controller:
     linear.x.has_acceleration_limits: true
     linear.x.has_deceleration_limits: true
     linear.x.has_jerk_limits: false
-    linear.x.max_velocity: 1.0          # [m/s]
+    linear.x.max_velocity: 0.7          # [m/s]
     linear.x.max_acceleration: 1.0      # [m/s^2]
     linear.x.max_deceleration: -1.2   # [m/s^2]
 
@@ -46,5 +46,5 @@ diff_drive_controller:
     angular.z.has_deceleration_limits: true
     angular.z.has_jerk_limits: false
     angular.z.max_velocity: 1.0         # [rad/s]
-    angular.z.max_acceleration: 1.8     # [rad/s^2]
-    angular.z.max_deceleration: -1.2    # [rad/s^2]
+    angular.z.max_acceleration: 3.0     # [rad/s^2]
+    angular.z.max_deceleration: -3.0    # [rad/s^2]
