@@ -40,7 +40,9 @@ image_fp() { docker image inspect -f '{{json .RootFS.Layers}}' $DEV_IMAGE | sha2
 # (NITROS/nvblox: "NvRmMemInitNvmap failed: Permission denied" -> CUDA error 999 otherwise).
 GPU_GROUPS=$(getent group video render | cut -d: -f3 | sort -u | tr '\n' ' ')
 
-container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}"; }
+DDS_CONFIG="$REPO_ROOT/docker/dev-cyclonedds.xml"   # bigger UDP receive buffer, see the file's header
+
+container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}+dds:$(sha256sum < "$DDS_CONFIG" | cut -c1-8)"; }
 
 container_ok() {  # running, and created from an image with the same layers and the same run options
   [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] &&
@@ -53,8 +55,9 @@ start_container() {
     -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
     --privileged --network host --ipc=host --runtime nvidia
     --user "$(id -u):$(id -g)" -e HOME=/tmp
-    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e UET_AMR_NVBLOX -e DISPLAY
+    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e CYCLONEDDS_URI=file:///etc/dev-cyclonedds.xml -e UET_AMR_NVBLOX -e DISPLAY
     -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /etc/localtime:/etc/localtime:ro
+    -v "$DDS_CONFIG:/etc/dev-cyclonedds.xml:ro"
     -v "$REPO_ROOT/ros2:$WS" -w $WS
   )
   if [ "$(uname -m)" = aarch64 ]; then   # the Jetson mounts NVIDIA's run_dev.sh adds

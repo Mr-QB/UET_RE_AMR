@@ -29,6 +29,8 @@ def generate_launch_description():
             'unite_imu_method': '2',
             'depth_module.depth_profile': '640x480x15',
             'rgb_camera.color_profile': '640x480x15',
+            # Deliver depth and color as matched pairs (measured: color stamped ~60 ms behind depth without it).
+            'enable_sync': 'true',
         }.items()
     )
 
