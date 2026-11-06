@@ -58,6 +58,8 @@ def generate_launch_description():
     params_file = LaunchConfiguration('params_file')
     rviz_config_file = LaunchConfiguration('rviz_config_file')
     use_rviz = LaunchConfiguration('use_rviz')
+    log_level = LaunchConfiguration('log_level')
+    use_detection = LaunchConfiguration('use_detection')
 
     # Picks nav2_nvblox.yaml (nvblox-backed local costmap) or nav2.yaml (the
     # CPU voxel_layer fallback) based on use_nvblox -- evaluated at launch
@@ -90,6 +92,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time,
             'map': map_yaml_file,
             'params_file': params_file,
+            'log_level': log_level,
         }.items()
     )
 
@@ -110,9 +113,20 @@ def generate_launch_description():
                 launch_arguments={
                     'use_sim_time': use_sim_time,
                     'params_file': params_with_bt,
+                    'log_level': log_level,
                 }.items()
             ),
         ]
+    )
+
+    # AMCL only corrects the pose after the robot has moved; a stalled robot (door ramp) drifts and never recovers. See
+    # scripts/amcl_nomotion_updater.py.
+    amcl_nomotion_updater = Node(
+        package='uet_amr_navigation',
+        executable='amcl_nomotion_updater.py',
+        name='amcl_nomotion_updater',
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
     )
 
     # behavior_server (spin/backup/drive_on_heading) publishes on /cmd_vel, which nothing consumed: recoveries ran
@@ -151,6 +165,7 @@ def generate_launch_description():
         ]),
         launch_arguments={
             'use_sim_time': use_sim_time,
+            'use_detection': use_detection,
         }.items(),
         condition=IfCondition(use_nvblox),
     )
@@ -169,10 +184,18 @@ def generate_launch_description():
                               description='Full path to the RViz config file'),
         DeclareLaunchArgument('use_rviz', default_value='true',
                               description='Whether to start RViz'),
+        DeclareLaunchArgument('use_detection', default_value='false',
+                              description='nvblox: leave people out of the map (needs a UNET people-segmentation node '
+                                          'publishing a mask; see nvblox.launch.py)'),
+        DeclareLaunchArgument('log_level', default_value='warn',
+                              choices=['debug', 'info', 'warn', 'error', 'fatal'],
+                              description='Log level of the Nav2 / AMCL / map_server nodes (their INFO lifecycle and '
+                                          'filter-mask chatter is noise); info shows it all again'),
         nvblox_launch,
         localization_launch,
         navigation_launch,
         cmd_vel_relay,
+        amcl_nomotion_updater,
         zones_manager,
         rviz_node,
     ])

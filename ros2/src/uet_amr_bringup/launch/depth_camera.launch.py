@@ -27,10 +27,14 @@ def generate_launch_description():
             'enable_gyro': 'true',
             'enable_accel': 'true',
             'unite_imu_method': '2',
-            'depth_module.depth_profile': '640x480x15',
-            'rgb_camera.color_profile': '640x480x15',
+            'depth_module.depth_profile': '640x480x30',
+            'rgb_camera.color_profile': '640x480x30',
             # Deliver depth and color as matched pairs (measured: color stamped ~60 ms behind depth without it).
             'enable_sync': 'true',
+            # Depth re-projected into the colour camera (/camera/camera/aligned_depth_to_color/*, colour intrinsics). Needed so a
+            # people-segmentation mask made from the COLOUR image lines up with the depth nvblox integrates (use_detection:=true).
+            # Costs ~5% of a core at 30 Hz; unaligned depth keeps publishing for the normal costmap path.
+            'align_depth.enable': 'true',
         }.items()
     )
 

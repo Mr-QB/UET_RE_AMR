@@ -23,6 +23,9 @@ def generate_launch_description():
             'scan_mode': '',
         }],
         output='screen',
+        # rplidar_node exits if the lidar isn't powered/enumerated yet; retry.
+        respawn=True,
+        respawn_delay=2.0,
     )
 
     return LaunchDescription([

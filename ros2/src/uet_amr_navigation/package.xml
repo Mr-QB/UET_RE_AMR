@@ -31,6 +31,15 @@
   <exec_depend>nvblox_nav2</exec_depend>
   <exec_depend>nvblox_msgs</exec_depend>
 
+  <!-- Runtime-optional: people segmentation for nvblox (navigation.launch.py use_detection:=true). PeopleSemSegNet
+       U-Net on the colour image -> mask nvblox leaves out of the static map. The model itself is not an apt
+       package payload: run isaac_ros_peoplesemseg_models_install once inside the container to download it and
+       build the TensorRT engine (see docs/isaac_ros_setup.md). -->
+  <exec_depend>isaac_ros_unet</exec_depend>
+  <exec_depend>isaac_ros_tensor_rt</exec_depend>
+  <exec_depend>isaac_ros_dnn_image_encoder</exec_depend>
+  <exec_depend>isaac_ros_peoplesemseg_models_install</exec_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

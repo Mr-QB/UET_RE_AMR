@@ -242,15 +242,14 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_configure(
 {
     RCLCPP_INFO(logger(), "Configuring hardware interface...");
 
-    if (!openSerial()) {
-        return hardware_interface::CallbackReturn::ERROR;
-    }
-
-    if (!waitForFeedback(1000ms)) {
-        RCLCPP_ERROR(
-            logger(), "No feedback from firmware on '%s' within 1s", serial_port_.c_str());
+    // The base MCU may be powered after this node starts (or be unplugged and
+    // replugged later). Never fail configure over it: read() keeps retrying.
+    if (!openSerial() || !waitForFeedback(1000ms)) {
+        RCLCPP_WARN(
+            logger(), "Firmware not available on '%s' yet; will keep retrying in the background.",
+            serial_port_.c_str());
         closeSerial();
-        return hardware_interface::CallbackReturn::ERROR;
+        return hardware_interface::CallbackReturn::SUCCESS;
     }
 
     RCLCPP_INFO(logger(), "Firmware responded on '%s'.", serial_port_.c_str());
@@ -267,9 +266,8 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_cleanup(
 hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    if (!waitForFeedback(500ms)) {
-        RCLCPP_ERROR(logger(), "Firmware not responding, aborting activation");
-        return hardware_interface::CallbackReturn::ERROR;
+    if (serial_fd_ >= 0 && !waitForFeedback(500ms)) {
+        RCLCPP_WARN(logger(), "Firmware not responding at activation; read() will keep retrying");
     }
 
     have_last_ticks_ = false; // don't compute a bogus delta against a stale sample
@@ -279,6 +277,7 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
     accum_rad_r_ = 0.0;
     accum_dt_ = 0.0;
     have_stamp_ = false;
+    last_reconnect_attempt_ = last_feedback_time_;
     RCLCPP_INFO(logger(), "Hardware activated.");
     return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -425,12 +424,33 @@ void AmrHardwareInterface::publishHardwareStatus()
     status_pub_->publish(msg);
 }
 
+hardware_interface::return_type AmrHardwareInterface::reconnect()
+{
+    wheel_velocities_.assign(2, 0.0);
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last_reconnect_attempt_ < kReconnectPeriod) {
+        return hardware_interface::return_type::OK;
+    }
+    last_reconnect_attempt_ = now;
+
+    closeSerial();
+    if (!openSerial()) {
+        return hardware_interface::return_type::OK;
+    }
+    RCLCPP_INFO(logger(), "Reopened '%s'; waiting for firmware.", serial_port_.c_str());
+    feedback_parser_ = protocol::FeedbackParser();
+    have_last_ticks_ = false;  // no bogus tick delta across the gap
+    have_stamp_ = false;
+    last_feedback_time_ = now;  // restart the feedback timeout
+    return hardware_interface::return_type::OK;
+}
+
 hardware_interface::return_type AmrHardwareInterface::read(
     const rclcpp::Time & /*time*/,
     const rclcpp::Duration & /*period*/)
 {
     if (serial_fd_ < 0) {
-        return hardware_interface::return_type::ERROR;
+        return reconnect();
     }
 
     bool got_packet = false;
@@ -447,7 +467,8 @@ hardware_interface::return_type AmrHardwareInterface::read(
             RCLCPP_ERROR_THROTTLE(
                 logger(), steady_clock_, 1000,
                 "read() from '%s' failed: %s", serial_port_.c_str(), std::strerror(errno));
-            return hardware_interface::return_type::ERROR;
+            closeSerial();  // device vanished (USB unplug); reopen from read()
+            return reconnect();
         }
         if (n == 0) {
             break;
@@ -489,7 +510,8 @@ hardware_interface::return_type AmrHardwareInterface::read(
         RCLCPP_ERROR_THROTTLE(
             logger(), steady_clock_, 1000,
             "No feedback from firmware for %ldms", static_cast<long>(since_last.count()));
-        return hardware_interface::return_type::ERROR;
+        closeSerial();  // reopen from read() in case the port went stale
+        return reconnect();
     }
 
     return hardware_interface::return_type::OK;

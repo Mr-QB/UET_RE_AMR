@@ -6,21 +6,28 @@
 
   Same as nav2_bt_navigator's navigate_to_pose_w_replanning_and_recovery.xml, except the
   recovery round-robin tries BackUp first (longer and faster), so a robot pinned against a
-  wall reverses out before spinning, which it can't do there.
+  wall reverses out before spinning, which it can't do there. A blocked controller (e.g. a person in front) first waits
+  and retries in place (FollowPath RecoveryNode) before any of that.
 -->
 <root main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
-    <RecoveryNode number_of_retries="6" name="NavigateRecovery">
+    <RecoveryNode number_of_retries="15" name="NavigateRecovery">
       <PipelineSequence name="NavigateWithReplanning">
-        <RateController hz="1.0">
+        <RateController hz="2.0">
           <RecoveryNode number_of_retries="1" name="ComputePathToPose">
             <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
             <ClearEntireCostmap name="ClearGlobalCostmap-Context" service_name="global_costmap/clear_entirely_global_costmap"/>
           </RecoveryNode>
         </RateController>
-        <RecoveryNode number_of_retries="1" name="FollowPath">
+        <!-- Something (usually a person) blocked the controller: stand still, let them pass, clear the local costmap and
+             resume the same plan. Up to 10 tries of ~1 s controller patience + 1 s wait, so the robot waits ~20 s for the way
+             to clear before the BackUp / Spin recoveries below (which would move it around a person). -->
+        <RecoveryNode number_of_retries="10" name="FollowPath">
           <FollowPath path="{path}" controller_id="FollowPath"/>
-          <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+          <Sequence name="WaitForClearPath">
+            <Wait wait_duration="1"/>
+            <ClearEntireCostmap name="ClearLocalCostmap-Context" service_name="local_costmap/clear_entirely_local_costmap"/>
+          </Sequence>
         </RecoveryNode>
       </PipelineSequence>
       <ReactiveFallback name="RecoveryFallback">

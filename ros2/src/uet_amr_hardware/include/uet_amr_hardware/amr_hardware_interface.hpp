@@ -90,6 +90,7 @@ public:
 
 private:
     bool openSerial();
+    hardware_interface::return_type reconnect();
     void closeSerial();
 
     // Sends a command frame and returns immediately without waiting for a
@@ -124,6 +125,8 @@ private:
     rclcpp::Clock steady_clock_{RCL_STEADY_TIME};
     std::chrono::steady_clock::time_point last_feedback_time_;
     static constexpr std::chrono::milliseconds kFeedbackTimeout{500};
+    std::chrono::steady_clock::time_point last_reconnect_attempt_{};
+    static constexpr std::chrono::seconds kReconnectPeriod{1};
 
     // Wrap-aware encoder tick tracking (see wrapTickDelta()/applyFeedback()).
     bool have_last_ticks_{false};

@@ -21,7 +21,10 @@
   plugins: {
     ros2dds: {
       deny: {
-        publishers: [".*/(compressed|compressedDepth|theora)", ".*/metadata", ".*/extrinsics/.*", ".*/imu_info"],
+        // nvblox's mesh/voxel layers are tens of MB and only Foxglove (foxglove_bridge on :8765) needs them; if the Zenoh
+        // bridge reads them, the mesh marker node (which only works while something is subscribed) never goes idle.
+        publishers: [".*/(compressed|compressedDepth|theora)", ".*/metadata", ".*/extrinsics/.*", ".*/imu_info",
+                     "/nvblox_node/(mesh|mesh_marker|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|back_projected_depth/.*)"],
         subscribers: [
           "/map", "/robot_description", "/tf_static",
           "/tf", "/scan", "/odom", "/joint_states", "/dynamic_joint_states", "/diff_drive_controller/.*",

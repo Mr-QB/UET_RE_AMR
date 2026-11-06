@@ -12,14 +12,27 @@
 # stack without any VSLAM node (see docs/adr/0003-nvblox-pose-from-ekf-not-vslam.md).
 /**:
   ros__parameters:
-    use_tf_transforms: true
     num_cameras: 1
+    use_tf_transforms: true
     # This robot's RPLidar is a 2D scanner (LaserScan), not the 3D
     # point-cloud lidar nvblox's use_lidar path expects -- leave it out of
     # the reconstruction; the D435i depth stream is nvblox's only input.
     use_lidar: false
     voxel_size: 0.05
     map_clearing_frame_id: "base_link"
+    # Rolling map: only keep what is within 7 m of the robot (the same value as NVIDIA's example config), so memory and the
+    # mesh stay bounded and the 3D view is "the map near the robot". The map is NOT persistent beyond that radius.
+    map_clearing_radius_m: 7.0
+    # TSDF decay forgets surfaces that are out of view, so a person who walks through the costmap does not leave a ghost
+    # obstacle that keeps the controller stopped after they leave (and wheel-odom runaway smears do not stay forever).
+    # 5 Hz with the default static_mapper.tsdf_decay_factor 0.95 (NVIDIA's example). Cost: geometry outside the camera's
+    # ~56 deg view fades within ~15 s, so the mesh is "what the camera sees now"; the 360 deg lidar scan layer still guards
+    # the sides and rear.
+    decay_tsdf_rate_hz: 5.0
+    # 2D distance field only (the costmap reads a slice), and refresh it at 10 Hz instead of 5 so the costmap input is ~100 ms
+    # old instead of ~200 ms (the GPU is nearly idle).
+    esdf_mode: "2d"
+    update_esdf_rate_hz: 10.0
     esdf_slice_bounds_visualization_attachment_frame_id: "base_link"
     # Heights are metres above the floor in the odom frame (the EKF's base_footprint sits on it).
     # nvblox defaults (0.0-1.0 m) put the floor itself in the costmap slice, so floor depth noise
@@ -28,3 +41,5 @@
     static_mapper.esdf_slice_min_height: 0.15
     static_mapper.esdf_slice_max_height: 0.50
     static_mapper.esdf_slice_height: 0.30
+    # nvblox only meshes while something subscribes; 5 Hz default is more than a viewer needs.
+    update_mesh_rate_hz: 2.0

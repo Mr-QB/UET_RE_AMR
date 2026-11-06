@@ -10,7 +10,7 @@ install(
 )
 
 install(
-  PROGRAMS scripts/cmd_vel_relay.py scripts/zones_manager.py scripts/clean_map.py
+  PROGRAMS scripts/cmd_vel_relay.py scripts/zones_manager.py scripts/clean_map.py scripts/mask_camera_info.py scripts/amcl_nomotion_updater.py scripts/nvblox_footprint_filter.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

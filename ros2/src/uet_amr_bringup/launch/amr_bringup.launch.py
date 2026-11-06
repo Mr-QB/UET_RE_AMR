@@ -98,7 +98,19 @@ def generate_launch_description():
         executable='foxglove_bridge',
         name='foxglove_bridge',
         output='screen',
-        parameters=[{'max_qos_depth': 300}],  # default 25 truncates /tf history
+        parameters=[{
+            'max_qos_depth': 300,              # default 25 truncates /tf history
+            # Wi-Fi: drop what the link cannot carry instead of building a growing backlog (default 10 MB = seconds of lag)
+            'send_buffer_limit': 4000000,
+            'use_compression': True,           # websocket deflate: costmaps, grids and the mesh markers shrink a lot
+            'best_effort_qos_topic_whitelist': ['/scan', '/nvblox_node/.*pointcloud', '/camera/.*'],
+            # Not offered to Foxglove, so one click cannot saturate the link: raw/depth/theora image streams (use
+            # .../image_raw/compressed), nvblox's raw Mesh and voxel-layer markers (use /nvblox_node/mesh_marker, which
+            # sends only changed blocks) and the 10 Hz ESDF point clouds. Remove the pattern to get a topic back.
+            'topic_whitelist': [r'^(?!/nvblox_node/(mesh|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|'
+                                r'static_esdf_pointcloud|pessimistic_.*|back_projected_depth/.*)$)'
+                                r'(?!.*/(image_raw|image_rect_raw)$)(?!.*/(compressedDepth|theora)$).*'],
+        }],
         arguments=['--ros-args', '--log-level', 'foxglove_bridge:=warn'],  # drop per-subscription/channel INFO spam
         condition=IfCondition(LaunchConfiguration('foxglove')),
     )

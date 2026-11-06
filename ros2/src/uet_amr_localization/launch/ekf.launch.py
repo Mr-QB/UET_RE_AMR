@@ -42,7 +42,7 @@ def generate_launch_description():
     imu_topic_arg = DeclareLaunchArgument(
         'imu_topic',
         default_value='imu/data',
-        description='Actual IMU topic to fuse, remapped onto the ekf.yaml canonical imu0 name',
+        description='Raw IMU topic; bias-corrected by imu_bias_corrector and the EKF fuses imu/corrected',
     )
 
     ekf_node = Node(
@@ -55,12 +55,26 @@ def generate_launch_description():
             {'use_sim_time': LaunchConfiguration('use_sim_time')},
         ],
         remappings=[
-            ('imu/data', LaunchConfiguration('imu_topic')),
+            ('imu/data', 'imu/corrected'),
         ],
+    )
+
+    # Subtracts the gyro's at-rest bias (learned only while the wheels are stopped) so the EKF's yaw does not creep.
+    imu_bias_corrector = Node(
+        package='uet_amr_localization',
+        executable='imu_bias_corrector.py',
+        name='imu_bias_corrector',
+        output='screen',
+        parameters=[{
+            'imu_in': LaunchConfiguration('imu_topic'),
+            'imu_out': 'imu/corrected',
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }],
     )
 
     return LaunchDescription([
         use_sim_time_arg,
         imu_topic_arg,
+        imu_bias_corrector,
         ekf_node,
     ])
