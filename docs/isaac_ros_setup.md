@@ -85,6 +85,31 @@ without them). Use the container or the production image to run nvblox.
 
 ---
 
+## People segmentation (optional)
+
+With `use_detection:=true`, nvblox leaves people out of the static map, so someone walking through the camera's view
+does not leave a ghost obstacle. The mask comes from NVIDIA's own `isaac_ros_unet` PeopleSemSegNet launch
+(`isaac_ros_unet_tensor_rt.launch.py`, Isaac ROS release-3.2), which the docker-dev image already contains: nothing is vendored.
+
+Install the model once, inside the container. It downloads from NGC, builds a TensorRT engine for this GPU, and asks you
+to accept NVIDIA's EULA (the `--eula` flag is that acceptance, so read the terms first):
+
+```bash
+ros2 run isaac_ros_peoplesemseg_models_install install_peoplesemsegnet_vanilla.sh --eula
+```
+
+The engine lands in `$ISAAC_ROS_WS/isaac_ros_assets/models/peoplesemsegnet/`. Then:
+
+```bash
+ros2 launch uet_amr_navigation navigation.launch.py use_nvblox:=true use_detection:=true
+```
+
+If the engine is missing, the launch stops and prints the install command. nvblox now reads the colour-aligned depth
+(`/camera/camera/aligned_depth_to_color/image_raw`), so the costmap sees only the colour camera's narrower field of view.
+To feed your own mask instead, pass `run_segmentation:=false` and publish it on `mask_image_topic`.
+
+---
+
 ## Troubleshooting
 
 **Linker "syntax error" on a `.so` file** (e.g.

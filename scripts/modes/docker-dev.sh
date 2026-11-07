@@ -42,7 +42,13 @@ GPU_GROUPS=$(getent group video render | cut -d: -f3 | sort -u | tr '\n' ' ')
 
 DDS_CONFIG="$REPO_ROOT/docker/dev-cyclonedds.xml"   # bigger UDP receive buffer, see the file's header
 
-container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}+dds:$(sha256sum < "$DDS_CONFIG" | cut -c1-8)"; }
+# The NVIDIA runtime injects the host's driver libraries at the host's own path. On Arch-style hosts that is /usr/lib,
+# but the image carries its own (older) copies in /usr/lib/x86_64-linux-gnu, which win in the linker search order:
+# "Driver/library version mismatch" as soon as the host driver differs from the image's. Search /usr/lib first there.
+HOST_LIBS_IN_USR_LIB=
+[ -e /usr/lib/libnvidia-ml.so.1 ] && [ ! -e /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1 ] && HOST_LIBS_IN_USR_LIB=1
+
+container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}+dds:$(sha256sum < "$DDS_CONFIG" | cut -c1-8)+usrlib:${HOST_LIBS_IN_USR_LIB:-0}+iws:1"; }
 
 container_ok() {  # running, and created from an image with the same layers and the same run options
   [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] &&
@@ -55,7 +61,7 @@ start_container() {
     -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
     --privileged --network host --ipc=host --runtime nvidia
     --user "$(id -u):$(id -g)" -e HOME=/tmp
-    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e CYCLONEDDS_URI=file:///etc/dev-cyclonedds.xml -e UET_AMR_NVBLOX -e DISPLAY
+    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ISAAC_ROS_WS=$WS -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e CYCLONEDDS_URI=file:///etc/dev-cyclonedds.xml -e UET_AMR_NVBLOX -e DISPLAY
     -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /etc/localtime:/etc/localtime:ro
     -v "$DDS_CONFIG:/etc/dev-cyclonedds.xml:ro"
     -v "$REPO_ROOT/ros2:$WS" -w $WS
@@ -70,6 +76,7 @@ start_container() {
       -v /usr/share/vpi3:/usr/share/vpi3)
   fi
   [ -d /dev/input ] && args+=(-v /dev/input:/dev/input)
+  [ -n "$HOST_LIBS_IN_USR_LIB" ] && args+=(-e LD_LIBRARY_PATH=/usr/lib)
   local g; for g in $GPU_GROUPS; do args+=(--group-add "$g"); done
   docker run "${args[@]}" $DEV_IMAGE sleep infinity >/dev/null
 }

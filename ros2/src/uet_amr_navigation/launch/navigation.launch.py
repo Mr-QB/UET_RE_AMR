@@ -185,8 +185,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_rviz', default_value='true',
                               description='Whether to start RViz'),
         DeclareLaunchArgument('use_detection', default_value='false',
-                              description='nvblox: leave people out of the map (needs a UNET people-segmentation node '
-                                          'publishing a mask; see nvblox.launch.py)'),
+                              description='nvblox: leave people out of the map using PeopleSemSegNet (install the model '
+                                          'once, see docs/isaac_ros_setup.md; options in nvblox.launch.py)'),
         DeclareLaunchArgument('log_level', default_value='warn',
                               choices=['debug', 'info', 'warn', 'error', 'fatal'],
                               description='Log level of the Nav2 / AMCL / map_server nodes (their INFO lifecycle and '
