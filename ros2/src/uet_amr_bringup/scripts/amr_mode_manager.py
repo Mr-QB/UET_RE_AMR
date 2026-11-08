@@ -50,6 +50,7 @@ class AmrModeManager(Node):
         # NVBlox is only available inside the Isaac ROS Docker environment.
         # Do not infer it from Jetson hardware when this bringup runs natively.
         self.declare_parameter('use_nvblox', 'false')
+        self.declare_parameter('use_detection', 'false')
         self.declare_parameter('startup_grace_sec', 3.0)
         self.declare_parameter('shutdown_timeout_sec', 10.0)
         self.declare_parameter('slam_shutdown_timeout_sec', 5.0)
@@ -71,6 +72,7 @@ class AmrModeManager(Node):
                 os.path.dirname(save_map_launch), '..', 'maps'))
         self._use_rviz = bool(self.get_parameter('use_rviz').value)
         self._use_nvblox = str(self.get_parameter('use_nvblox').value).strip().lower()
+        self._use_detection = str(self.get_parameter('use_detection').value).strip().lower()
         self._use_sim_time = bool(self.get_parameter('use_sim_time').value)
         self._startup_grace = float(self.get_parameter('startup_grace_sec').value)
         self._shutdown_timeout = float(self.get_parameter('shutdown_timeout_sec').value)
@@ -127,6 +129,8 @@ class AmrModeManager(Node):
             ])
             if self._use_nvblox in ('true', 'false'):
                 command.append(f'use_nvblox:={self._use_nvblox}')
+            if self._use_detection in ('true', 'false'):
+                command.append(f'use_detection:={self._use_detection}')
         return command
 
     def _start_mode(self, mode, map_yaml=''):

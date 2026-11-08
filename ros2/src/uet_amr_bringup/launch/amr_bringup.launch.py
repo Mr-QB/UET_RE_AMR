@@ -127,10 +127,13 @@ def generate_launch_description():
             'best_effort_qos_topic_whitelist': ['/scan', '/nvblox_node/.*pointcloud', '/camera/.*'],
             # Not offered to Foxglove, so one click cannot saturate the link: raw/depth/theora image streams (use
             # .../image_raw/compressed), nvblox's raw Mesh and voxel-layer markers (use /nvblox_node/mesh_marker, which
-            # sends only changed blocks) and the 10 Hz ESDF point clouds. Remove the pattern to get a topic back.
+            # sends only changed blocks), the 10 Hz ESDF point clouds and the people-segmentation masks/tensors (/unet, uncompressed). Remove the pattern to get a topic back.
             'topic_whitelist': [r'^(?!/nvblox_node/(mesh|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|'
                                 r'static_esdf_pointcloud|pessimistic_.*|back_projected_depth/.*)$)'
-                                r'(?!.*/(image_raw|image_rect_raw)$)(?!.*/(compressedDepth|theora)$).*'],
+                                r'(?!.*/(image_raw|image_rect_raw)$)(?!.*/(compressedDepth|theora)$)'
+                                # PeopleSemSegNet internals; the colour mask is an uncompressed Image (1.6 MB x ~22 Hz = 35 MB/s), so only its
+                                # JPEG version (/unet/colored_segmentation_mask/compressed) is offered
+                                r'(?!/unet/(?!colored_segmentation_mask/compressed$))(?!/(dnn_image_encoder|tensor_pub|tensor_sub)(/|$))(?!.*/image_tensor$).*'],
         }],
         arguments=['--ros-args', '--log-level', 'foxglove_bridge:=warn'],  # drop per-subscription/channel INFO spam
         condition=IfCondition(LaunchConfiguration('foxglove')),
@@ -150,6 +153,8 @@ def generate_launch_description():
             # parses the override as the strings "true"/"false".
             'use_nvblox': ParameterValue(
                 LaunchConfiguration('use_nvblox'), value_type=str),
+            'use_detection': ParameterValue(
+                LaunchConfiguration('use_detection'), value_type=str),
             'use_sim_time': False,
         }],
     )
@@ -177,6 +182,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_nvblox', default_value=EnvironmentVariable('UET_AMR_NVBLOX', default_value='false'),
                               description='Use isaac_ros_nvblox for Nav2 costmaps; defaults to true inside docker-dev '
                                           '(UET_AMR_NVBLOX), false elsewhere'),
+        DeclareLaunchArgument('use_detection', default_value='false',
+                              description='nav mode: leave people out of the nvblox map using PeopleSemSegNet '
+                                          '(needs use_nvblox and the model, see docs/isaac_ros_setup.md)'),
         DeclareLaunchArgument('foxglove', default_value='false',
                               description='Start Foxglove Bridge (websocket on port 8765) for Foxglove Studio; off by default'),
         DeclareLaunchArgument('teleop', default_value='true',

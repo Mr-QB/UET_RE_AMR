@@ -88,11 +88,13 @@ without them). Use the container or the production image to run nvblox.
 ## People segmentation (optional)
 
 With `use_detection:=true`, nvblox leaves people out of the static map, so someone walking through the camera's view
-does not leave a ghost obstacle. The mask comes from NVIDIA's own `isaac_ros_unet` PeopleSemSegNet launch
-(`isaac_ros_unet_tensor_rt.launch.py`, Isaac ROS release-3.2), which the docker-dev image already contains: nothing is vendored.
+does not leave a ghost obstacle. The mask comes from NVIDIA's `isaac_ros_unet` PeopleSemSegNet nodes (Isaac ROS release-3.2), which the docker-dev image already
+contains. `nvblox.launch.py` includes NVIDIA's encoder launch with the colour camera as its input and adds the TensorRT and
+decoder nodes itself, because the quickstart launch hardcodes `/image` as the input.
 
 Install the model once, inside the container. It downloads from NGC, builds a TensorRT engine for this GPU, and asks you
-to accept NVIDIA's EULA (the `--eula` flag is that acceptance, so read the terms first):
+you to accept NVIDIA's EULA at a prompt (read the terms first; from the host run it with `docker exec -it`, otherwise the prompt
+has no stdin and the script exits with failure 1):
 
 ```bash
 ros2 run isaac_ros_peoplesemseg_models_install install_peoplesemsegnet_vanilla.sh --eula

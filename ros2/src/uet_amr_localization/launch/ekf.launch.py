@@ -62,7 +62,7 @@ def generate_launch_description():
     # Subtracts the gyro's at-rest bias (learned only while the wheels are stopped) so the EKF's yaw does not creep.
     imu_bias_corrector = Node(
         package='uet_amr_localization',
-        executable='imu_bias_corrector.py',
+        executable='imu_bias_corrector',
         name='imu_bias_corrector',
         output='screen',
         parameters=[{

@@ -24,7 +24,17 @@
         // nvblox's mesh/voxel layers are tens of MB and only Foxglove (foxglove_bridge on :8765) needs them; if the Zenoh
         // bridge reads them, the mesh marker node (which only works while something is subscribed) never goes idle.
         publishers: [".*/(compressed|compressedDepth|theora)", ".*/metadata", ".*/extrinsics/.*", ".*/imu_info",
-                     "/nvblox_node/(mesh|mesh_marker|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|back_projected_depth/.*)"],
+                     "/nvblox_node/(mesh|mesh_marker|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|back_projected_depth/.*)",
+                     // Bulk topics that starved service replies (ListMaps, send_goal) on the shared Wi-Fi TCP link:
+                     // depth images, nvblox ESDF clouds/occupancy grids, raw costmaps. Foxglove still gets them directly.
+                     ".*/(depth/image_rect_raw|aligned_depth_to_color/image_raw)",
+                     "/nvblox_node/.*(esdf_pointcloud|occupancy_grid)",
+                     "/(global|local)_costmap/costmap_raw",
+                     // Perception internals nobody remote reads (Foxglove gets them directly): the PeopleSemSegNet pipeline
+                     // (dnn_image_encoder raw images ~1.5 MB each, 4-6 MB tensors, segmentation masks), RGB frames,
+                     // point clouds and the full costmap grids.
+                     "/dnn_image_encoder/.*", "/tensor_(pub|sub)", ".*/image_tensor", "/unet/.*",
+                     ".*/color/image_raw", ".*/depth/color/points", "/(global|local)_costmap/(costmap|costmap_updates)"],
         subscribers: [
           "/map", "/robot_description", "/tf_static",
           "/tf", "/scan", "/odom", "/joint_states", "/dynamic_joint_states", "/diff_drive_controller/.*",

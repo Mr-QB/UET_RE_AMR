@@ -33,10 +33,10 @@ import yaml
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import ComposableNodeContainer, Node, SetRemap
+from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
@@ -57,40 +57,85 @@ def _load_ros_parameters(path):
 
 
 def _people_segmentation(context, mask_image_topic):
-    """NVIDIA's own isaac_ros_unet PeopleSemSegNet launch (the Isaac ROS quickstart), fed with the colour image.
+    """PeopleSemSegNet fed straight from the colour camera: NVIDIA's own encoder launch plus the TensorRT and decoder nodes.
 
-    It runs in its own container and publishes the raw mask on /unet/raw_segmentation_mask (mono8, 960x544).
+    isaac_ros_unet_tensor_rt.launch.py (the quickstart) hardcodes /image and /camera_info as the encoder's inputs, and no
+    remap reaches its composable nodes, so this does what that launch does with the input topics made configurable.
+    Everything runs in one container named unet_container; the GPU resize node subscribes to the camera topic itself.
+    Publishes the raw mask on /unet/raw_segmentation_mask (mono8, 960x544) and /unet/colored_segmentation_mask.
     """
     engine = LaunchConfiguration('engine_file_path').perform(context)
     if not os.path.isfile(engine):
         raise RuntimeError(
             f'PeopleSemSegNet engine not found: {engine}\n'
-            f'Install it once inside the container (downloads the model from NGC; --eula is your acceptance of '
-            f'NVIDIA\'s terms):\n  ros2 run isaac_ros_peoplesemseg_models_install '
+            f'Install it once inside the container (downloads the model from NGC; run with docker exec -it, you accept '
+            f'NVIDIA\'s terms at the prompt):\n  ros2 run isaac_ros_peoplesemseg_models_install '
             f'install_peoplesemsegnet_vanilla.sh --eula')
     if mask_image_topic != '/unet/raw_segmentation_mask':
         raise RuntimeError('mask_image_topic must stay /unet/raw_segmentation_mask with run_segmentation:=true '
-                           '(the official isaac_ros_unet launch publishes there)')
-    unet_launch = os.path.join(get_package_share_directory('isaac_ros_unet'), 'launch',
-                               'isaac_ros_unet_tensor_rt.launch.py')
-    return [GroupAction([
-        # The official launch reads absolute /image and /camera_info.
-        SetRemap(src='/image', dst=LaunchConfiguration('color_image_topic').perform(context)),
-        SetRemap(src='/camera_info', dst=LaunchConfiguration('color_info_topic').perform(context)),
+                           '(the UNet decoder node publishes there)')
+    network_width, network_height = 960, 544   # PeopleSemSegNet input, also the mask size
+    encoder_launch = os.path.join(get_package_share_directory('isaac_ros_unet'), 'launch',
+                                  'isaac_ros_unet_encoder.launch.py')
+    tensorrt_node = ComposableNode(
+        name='tensor_rt_node',
+        package='isaac_ros_tensor_rt',
+        plugin='nvidia::isaac_ros::dnn_inference::TensorRTNode',
+        parameters=[{
+            'model_file_path': '',
+            'engine_file_path': engine,
+            'input_tensor_names': ['input_tensor'],
+            'input_binding_names': ['input_1:0'],
+            'input_tensor_formats': ['nitros_tensor_list_nchw_rgb_f32'],
+            'output_tensor_names': ['output_tensor'],
+            'output_binding_names': ['argmax_1'],
+            'output_tensor_formats': ['nitros_tensor_list_nhwc_rgb_f32'],
+            'verbose': False,
+            'force_engine_update': False,
+        }])
+    decoder_node = ComposableNode(
+        name='unet_decoder_node',
+        package='isaac_ros_unet',
+        plugin='nvidia::isaac_ros::unet::UNetDecoderNode',
+        parameters=[{
+            'network_output_type': 'argmax',
+            'color_segmentation_mask_encoding': 'rgb8',
+            'mask_width': network_width,
+            'mask_height': network_height,
+            'color_palette': [0x556B2F, 0x800000, 0x008080, 0x000080, 0x9ACD32, 0xFF0000, 0xFF8C00,
+                              0xFFD700, 0x00FF00, 0xBA55D3, 0x00FA9A, 0x00FFFF, 0x0000FF, 0xF08080,
+                              0xFF00FF, 0x1E90FF, 0xDDA0DD, 0xFF1493, 0x87CEFA, 0xFFDEAD],
+        }])
+    return [
+        # Foxglove cannot take the 1.6 MB raw colour mask over Wi-Fi: publish it as JPEG on
+        # /unet/colored_segmentation_mask/compressed (~30 KB) and show that one in an Image panel.
+        Node(package='image_transport', executable='republish', name='unet_mask_republish',
+             arguments=['raw', 'compressed'],
+             remappings=[('in', '/unet/colored_segmentation_mask'),
+                         ('out/compressed', '/unet/colored_segmentation_mask/compressed')],
+             parameters=[{'out.compressed.jpeg_quality': 70}]),
+        ComposableNodeContainer(
+            name='unet_container', namespace='', package='rclcpp_components', executable='component_container_mt',
+            composable_node_descriptions=[tensorrt_node, decoder_node], output='screen'),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(unet_launch),
+            PythonLaunchDescriptionSource(encoder_launch),
             launch_arguments={
                 'input_image_width': LaunchConfiguration('color_width').perform(context),
                 'input_image_height': LaunchConfiguration('color_height').perform(context),
-                'engine_file_path': engine,
-                'input_binding_names': '["input_1:0"]',
-                'output_binding_names': '["argmax_1"]',
-                'input_tensor_formats': '["nitros_tensor_list_nchw_rgb_f32"]',
-                'output_tensor_formats': '["nitros_tensor_list_nhwc_rgb_f32"]',
-                'network_output_type': 'argmax',
+                'network_image_width': str(network_width),
+                'network_image_height': str(network_height),
+                'image_mean': '[0.5, 0.5, 0.5]',
+                'image_stddev': '[0.5, 0.5, 0.5]',
+                'enable_padding': 'True',
+                'use_planar_input': 'True',
+                'image_input_topic': LaunchConfiguration('color_image_topic').perform(context),
+                'camera_info_input_topic': LaunchConfiguration('color_info_topic').perform(context),
+                'tensor_output_topic': '/tensor_pub',
+                'attach_to_shared_component_container': 'True',
+                'component_container_name': 'unet_container',
             }.items(),
         ),
-    ])]
+    ]
 
 
 def _launch_nvblox(context):

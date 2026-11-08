@@ -26,6 +26,7 @@ Robot-side consumer of the dashboard's saved-map zones (schema version 1).
 /amr/apply_zones takes the exported JSON, checks it against the active map (fingerprint, frame, yaw == 0), and builds a
 keepout mask (no_go zones) and an absolute speed mask (slow zones). It persists the zones next to the map, then
 publishes both masks with their CostmapFilterInfo on transient-local topics for the Nav2 KeepoutFilter / SpeedFilter.
+The applied state (revision, map fingerprint, full export) is latched on /amr/active_zones (std_msgs/String JSON).
 Labels are semantic only and never restrict. The previous revision stays active when anything fails.
 
 Masks are published only for maps with origin yaw 0: Nav2 Humble's StaticLayer and costmap filters ignore the yaw.
@@ -311,6 +312,7 @@ def main(args=None):
     from nav2_msgs.msg import CostmapFilterInfo
     from rclpy.node import Node
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from std_msgs.msg import String
     from uet_amr_msgs.srv import ApplyZones
 
     class ZonesManager(Node):
@@ -334,8 +336,13 @@ def main(args=None):
                 'speed': (self.create_publisher(OccupancyGrid, '/speed_filter_mask', qos),
                           self.create_publisher(CostmapFilterInfo, '/speed_costmap_filter_info', qos)),
             }
+            # What the robot is enforcing right now, so other machines read it instead of guessing. Latched, so a
+            # late subscriber (dashboard reconnecting over the Zenoh bridge) gets the current state immediately.
+            self._state_pub = self.create_publisher(String, '/amr/active_zones', qos)
             self.create_service(ApplyZones, '/amr/apply_zones', self._apply_callback)
             self._restore()
+            if not self._fingerprint:
+                self._publish_state(None)
             self.get_logger().info('Service ready: /amr/apply_zones (uet_amr_msgs/srv/ApplyZones)')
 
         def _restore(self):
@@ -366,10 +373,22 @@ def main(args=None):
             self._publish('keepout', keepout, 0, 1.0, active, stamp)
             self._publish('speed', speed, 2, multiplier, active, stamp)
             self._fingerprint, self._revision = active['fingerprint'], revision
+            self._publish_state(text)
             counts = (int((keepout == 100).sum()), int((speed > 0).sum()))
             self.get_logger().info(
                 f'Applied zones revision {revision}: {len(zones)} zone(s), {counts[0]} keepout cell(s), '
                 f'{counts[1]} slow cell(s), speed multiplier {multiplier:.4f}')
+
+        def _publish_state(self, text):
+            """Publish {"active", "revision", "map_fingerprint", "zones_export"}; zones_export is the installed export JSON."""
+            msg = String()
+            msg.data = json.dumps({
+                'active': text is not None,
+                'revision': self._revision,
+                'map_fingerprint': self._fingerprint,
+                'zones_export': json.loads(text) if text is not None else None,
+            }, separators=(',', ':'))
+            self._state_pub.publish(msg)
 
         def _publish(self, kind, data, filter_type, multiplier, active, stamp):
             grid = OccupancyGrid()
