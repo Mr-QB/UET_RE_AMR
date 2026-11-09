@@ -19,9 +19,12 @@ diff_drive_controller:
 
     use_stamped_vel: false
 
-    wheel_separation_multiplier: 1.0
-    left_wheel_radius_multiplier: 1.029
-    right_wheel_radius_multiplier: 1.029
+    # Wheels under-read each lap's turn by 3.0 deg of 358 (0.84 %) against the gyro; 0.993 brings that to 0.19 % (field test 8 Nov 2026). Was 1.0.
+    wheel_separation_multiplier: 0.993
+    # Split +-0.078 % around 1.029 (keeps the mean scale). Wheel-odometry heading drifted -0.22 deg/m over 171 m (field test, 8 Nov 2026),
+    # a left-right radius mismatch of about 0.155 %. Was 1.029 on both wheels.
+    left_wheel_radius_multiplier: 1.0282
+    right_wheel_radius_multiplier: 1.0298
 
     publish_rate: 50.0 # [Hz]
     odom_frame_id: "odom"

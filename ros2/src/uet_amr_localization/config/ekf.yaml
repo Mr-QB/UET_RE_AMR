@@ -20,6 +20,9 @@ ekf_filter_node:
                    true,  true,  false,
                    false, false, true,
                    false, false, false]
+    # Reject a wheel-velocity sample more than 5 standard deviations from the estimate. Two samples at 4.2 m/s (limit 0.7)
+    # were accepted in a 171 m run (field test, 8 Nov 2026).
+    odom0_twist_rejection_threshold: 5.0
 
     imu0: imu/data
     imu0_config: [false, false, false,

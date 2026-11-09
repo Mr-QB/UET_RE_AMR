@@ -312,6 +312,7 @@ def main(args=None):
     from nav2_msgs.msg import CostmapFilterInfo
     from rclpy.node import Node
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from nav2_msgs.srv import ClearEntireCostmap
     from std_msgs.msg import String
     from uet_amr_msgs.srv import ApplyZones
 
@@ -340,6 +341,12 @@ def main(args=None):
             # late subscriber (dashboard reconnecting over the Zenoh bridge) gets the current state immediately.
             self._state_pub = self.create_publisher(String, '/amr/active_zones', qos)
             self.create_service(ApplyZones, '/amr/apply_zones', self._apply_callback)
+            # Filters only repaint inside the costmap update window, so a new mask can sit unused until the robot
+            # moves there. Clearing both costmaps forces a full redraw, which makes a new revision take effect now.
+            self._clear_clients = [
+                self.create_client(ClearEntireCostmap, '/global_costmap/clear_entirely_global_costmap'),
+                self.create_client(ClearEntireCostmap, '/local_costmap/clear_entirely_local_costmap'),
+            ]
             self._restore()
             if not self._fingerprint:
                 self._publish_state(None)
@@ -374,10 +381,20 @@ def main(args=None):
             self._publish('speed', speed, 2, multiplier, active, stamp)
             self._fingerprint, self._revision = active['fingerprint'], revision
             self._publish_state(text)
+            if persist:
+                self._refresh_costmaps()
             counts = (int((keepout == 100).sum()), int((speed > 0).sum()))
             self.get_logger().info(
                 f'Applied zones revision {revision}: {len(zones)} zone(s), {counts[0]} keepout cell(s), '
                 f'{counts[1]} slow cell(s), speed multiplier {multiplier:.4f}')
+
+        def _refresh_costmaps(self):
+            """Ask Nav2 to rebuild both costmaps so the new masks apply immediately (best effort, never blocks)."""
+            for client in self._clear_clients:
+                if client.service_is_ready():
+                    client.call_async(ClearEntireCostmap.Request())
+                else:
+                    self.get_logger().warning(f'{client.srv_name} unavailable; zones apply as the robot moves')
 
         def _publish_state(self, text):
             """Publish {"active", "revision", "map_fingerprint", "zones_export"}; zones_export is the installed export JSON."""

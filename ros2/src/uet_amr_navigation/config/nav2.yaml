@@ -17,22 +17,22 @@ amcl:
     laser_max_range: 12.0
     laser_min_range: 0.12
     laser_model_type: "likelihood_field"
-    max_beams: 120
+    max_beams: 360   # was 120
     max_particles: 2000
     min_particles: 500
     odom_frame_id: "odom"
     pf_err: 0.05
     pf_z: 0.99
-    recovery_alpha_fast: 0.1
-    recovery_alpha_slow: 0.001
+    recovery_alpha_fast: 0.0   # random-particle injection off (was 0.1): it blew the particle cloud up to metres at rest
+    recovery_alpha_slow: 0.0   # was 0.001
     resample_interval: 1
     robot_model_type: "nav2_amcl::DifferentialMotionModel"
     save_pose_rate: 0.5
     sigma_hit: 0.2
     tf_broadcast: true
     transform_tolerance: 1.0
-    update_min_a: 0.2
-    update_min_d: 0.25
+    update_min_a: 0.10   # was 0.2: more frequent, smaller pose corrections
+    update_min_d: 0.10   # was 0.25
     z_hit: 0.9
     z_max: 0.05
     z_rand: 0.1
@@ -77,8 +77,8 @@ controller_server:
     general_goal_checker:
       stateful: true
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.15
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.10   # was 0.15 (field test 8 Nov 2026: median arrival error 11.1 -> 9.5 cm)
+      yaw_goal_tolerance: 3.14   # final heading is not required: 39 % of leg time went to turning to the goal heading (field test, 8 Nov 2026). Was 0.25.
 
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
