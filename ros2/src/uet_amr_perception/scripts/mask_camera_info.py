@@ -51,8 +51,10 @@ def scale_camera_info(info, width, height):
         k[i] *= sx
     for i in (4, 5):                       # fy, cy (k[4] is fy, k[5] is cy)
         k[i] *= sy
-    p[0] *= sx; p[2] *= sx; p[3] *= sx     # fx, cx, Tx
-    p[5] *= sy; p[6] *= sy                 # fy, cy
+    for i in (0, 2, 3):                    # fx, cx, Tx
+        p[i] *= sx
+    for i in (5, 6):                       # fy, cy
+        p[i] *= sy
     out.k, out.r, out.p = k, list(info.r), p
     out.binning_x, out.binning_y = info.binning_x, info.binning_y
     return out

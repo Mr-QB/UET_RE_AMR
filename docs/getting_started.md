@@ -1,183 +1,46 @@
-# Getting Started
+# Using the robot
 
-This guide provides installation and environment setup instructions for new developers joining the UET_RE_AMR project.
+Set the machine up first: [setup.md](setup.md). All commands below run inside the container
+(`scripts/amr shell`, or prefix a command with `scripts/amr run`).
 
----
-
-## 1. System Requirements
-
-- **Operating System**: Ubuntu 22.04 LTS (native installation is recommended; WSL2 is supported for simulation only).
-- **RAM**: Minimum 8 GB (16 GB or more is recommended when running Gazebo simulations).
-- **Disk Space**: At least 20 GB of free space.
-
----
-
-## 2. ROS2 Humble Installation
-
-Follow these steps to install ROS2 Humble Desktop:
+## Bringup
 
 ```bash
-# Add the ROS2 apt repository
-sudo apt install software-properties-common
-sudo add-apt-repository universe
-sudo apt update && sudo apt install curl -y
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-
-# Install ROS2 Desktop package
-sudo apt update
-sudo apt install ros-humble-desktop ros-humble-ros-dev-tools
-
-# Source the setup script
-echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
-source ~/.bashrc
+ros2 launch uet_amr_bringup amr_bringup.launch.py                  # mode:=slam (default)
+ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=nav map:=<path>/<map>.yaml
 ```
 
----
+Hardware, localization (EKF) and sensors stay up while the mode changes. Useful arguments: `serial_port`, `use_rviz`,
+`use_teleop`, `teleop_source`, `foxglove`, `use_detection`. Modes can be switched at runtime
+(`/amr/set_mode`, `uet_amr_msgs/srv/SetMode`).
 
-## 3. Cloning and Setting Up the Workspace
+## Mapping and navigation
+
+1. Start in `mode:=slam` and drive the robot around.
+2. Save the map with the `/amr/save_map` service (`uet_amr_msgs/srv/SaveMap`). It writes the map image, the slam_toolbox
+   posegraph and the cleaned `.pgm` into `ros2/src/uet_amr_maps/maps/<name>/`. `/amr/list_maps` and `/amr/get_map` list and download them.
+3. Switch to `nav` with that map (`/amr/set_mode`, or restart bringup with `mode:=nav map:=...`), set the initial pose,
+   and send goals (RViz "2D Goal Pose", Foxglove, or the dashboard).
+
+## Teleop
+
+Teleop starts with bringup but is off until enabled (L2 deadman for the joystick):
 
 ```bash
-git clone https://github.com/UET-RE/UET_RE_AMR.git
-cd UET_RE_AMR
-
-# Run the automated setup script (menu, or pass a mode: native-dev | native-prod | ...)
-chmod +x scripts/setup.sh
-
-# For developers (adds PlatformIO for firmware work)
-./scripts/setup.sh native-dev
-
-# For production / deployment machines (ROS2 workspace only)
-./scripts/setup.sh native-prod
+ros2 service call /amr/set_teleop uet_amr_msgs/srv/SetTeleop "{source: joy}"   # or keyboard, or none
 ```
 
-Both scripts fetch `rplidar_ros` (and, on Jetson, `librealsense`, built with RSUSB; see
-[`jetson_realsense_setup.md`](jetson_realsense_setup.md)) into
-`ros2/third_party/` at the commits pinned in `ros2/third_party.lock` (gitignored,
-not git submodules). Run `scripts/fetch_third_party.sh` to fetch them manually. For the Isaac ROS + GPU Docker workflow instead, see
-[`isaac_ros_setup.md`](isaac_ros_setup.md).
+## Firmware
 
-### Manual Installation Steps (Alternative)
+The STM32 (`firmware/amr_hoverboard_controller`) and ESP32 (`firmware/amr_uart_bridge`) are PlatformIO projects flashed from
+your own machine, not from the container; see their READMEs. Install PlatformIO with `pip install platformio`.
 
-If you prefer to install dependencies manually:
+## Known firmware-driven quirks (ROS-side compensations)
 
-```bash
-# Install Nav2, ros2_control, and SLAM packages
-sudo apt install \
-  ros-humble-nav2-bringup \
-  ros-humble-ros2-control \
-  ros-humble-ros2-controllers \
-  ros-humble-slam-toolbox \
-  ros-humble-diff-drive-controller
+The firmware is unchanged, so some ROS settings compensate for it. Don't "fix" them without changing the firmware:
 
-# Install dependencies using rosdep
-cd ros2
-rosdep update
-rosdep install --from-paths src third_party --ignore-src -r -y
-
-# Build the workspace
-colcon build --symlink-install
-source install/setup.bash
-```
-
----
-
-## 4. PlatformIO Installation (Firmware)
-
-PlatformIO Core is used to manage libraries, build, and flash MCU firmware:
-
-```bash
-pip install platformio
-
-# Verify installation
-pio --version
-```
-
----
-
-## 5. Running the Simulation
-
-Ensure your workspace is built and sourced before running:
-
-```bash
-cd ros2
-source install/setup.bash
-
-# Phase 1: SLAM mapping in sim (RViz launches automatically)
-ros2 launch uet_amr_simulation simulation.launch.py mode:=slam
-
-# In a separate terminal: drive around with teleop to build the map
-ros2 launch uet_amr_teleop teleop.launch.py initial_source:=keyboard
-
-# Once you've mapped the area, save it (see uet_amr_navigation/maps/README.md)
-ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
-
-# Phase 2: Nav2 navigation against the saved map
-ros2 launch uet_amr_simulation simulation.launch.py mode:=nav
-
-# In RViz, use "2D Goal Pose" to send navigation goals.
-```
-
----
-
-## 6. Flashing Firmware (Hardware)
-
-To upload the controller firmware to the microcontroller (MCU):
-
-```bash
-# Connect the MCU to your PC via USB
-cd firmware/base_controller
-
-# Edit the upload_port configuration in platformio.ini to match your device port
-# Build and upload the firmware
-pio run --target upload
-
-# Start the serial monitor
-pio device monitor
-```
-
----
-
-## 7. Running on the Robot Hardware
-
-```bash
-# Phase 1: SLAM mapping on real hardware (base + sensors + slam_toolbox + RViz)
-ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=slam serial_port:=/dev/esp32
-
-# Teleop starts with bringup but is off until enabled (L2 deadman for the joystick); in a separate terminal:
-ros2 service call /amr/set_teleop uet_amr_msgs/srv/SetTeleop "{source: joy}"   # or keyboard
-
-# Once you've mapped the area, save it (see uet_amr_navigation/maps/README.md)
-ros2 run nav2_map_server map_saver_cli -f src/uet_amr_navigation/maps/warehouse
-
-# Phase 2: Nav2 navigation against the saved map
-ros2 launch uet_amr_bringup amr_bringup.launch.py mode:=nav
-
-# In RViz, use "2D Goal Pose" to send navigation goals.
-```
-
----
-
-## 8. Troubleshooting
-
-### Build error: "package not found"
-Ensure all required system packages are installed by running rosdep:
-```bash
-rosdep install --from-paths ros2/src ros2/third_party --ignore-src -r -y
-```
-
-### Serial port permission denied
-If you cannot connect to the MCU, add your user account to the dialout group:
-```bash
-# Check the assigned port
-ls /dev/ttyUSB*
-# Grant read/write permissions to the current user
-sudo usermod -a -G dialout $USER
-```
-Reboot or log out and log back in for changes to take effect.
-
-### Gazebo launch failures
-Verify that the Gazebo (new, Ignition-based) packages are correctly installed and integrated with ROS2:
-```bash
-sudo apt install ros-humble-ros-gz ros-humble-ros-gz-sim ros-humble-ros-gz-bridge ros-humble-ign-ros2-control
-```
+- Command gains are split (`motor_command_scale_linear` 18.5, `angular` 39.5 in `uet_amr_hardware/urdf/uet_amr_real.ros2control`)
+  because the firmware's steering coefficient halves turn gain.
+- Wheel speed is truncated to int8 rpm in the STM32 feedback, which caps reliable speed at about 1.1 m/s.
+- The e-stop bit in the ESP32 protocol is always false.
+- `wheel_separation: 0.45` in `uet_amr_bringup/config/controllers.yaml` is a calibrated effective value, not the URDF geometry (about 0.304).

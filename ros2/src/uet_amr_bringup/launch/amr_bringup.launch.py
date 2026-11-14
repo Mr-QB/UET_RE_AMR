@@ -93,13 +93,16 @@ def generate_launch_description():
             'best_effort_qos_topic_whitelist': ['/scan', '/nvblox_node/.*pointcloud', '/camera/.*'],
             # Not offered to Foxglove, so one click cannot saturate the link: raw/depth/theora image streams (use
             # .../image_raw/compressed), nvblox's raw Mesh and voxel-layer markers (use /nvblox_node/mesh_marker, which
-            # sends only changed blocks), the 10 Hz ESDF point clouds and the people-segmentation masks/tensors (/unet, uncompressed). Remove the pattern to get a topic back.
+            # sends only changed blocks), the 10 Hz ESDF point clouds and the people-segmentation masks/tensors
+            # (/unet, uncompressed). Remove the pattern to get a topic back.
             'topic_whitelist': [r'^(?!/nvblox_node/(mesh|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|'
                                 r'static_esdf_pointcloud|pessimistic_.*|back_projected_depth/.*)$)'
                                 r'(?!.*/(image_raw|image_rect_raw)$)(?!.*/(compressedDepth|theora)$)'
-                                # PeopleSemSegNet internals; the colour mask is an uncompressed Image (1.6 MB x ~22 Hz = 35 MB/s), so only its
+                                # PeopleSemSegNet internals; the colour mask is an uncompressed Image
+                                # (1.6 MB x ~22 Hz = 35 MB/s), so only its
                                 # JPEG version (/unet/colored_segmentation_mask/compressed) is offered
-                                r'(?!/unet/(?!colored_segmentation_mask/compressed$))(?!/(dnn_image_encoder|tensor_pub|tensor_sub)(/|$))(?!.*/image_tensor$).*'],
+                                r'(?!/unet/(?!colored_segmentation_mask/compressed$))'
+                                r'(?!/(dnn_image_encoder|tensor_pub|tensor_sub)(/|$))(?!.*/image_tensor$).*'],
         }],
         arguments=['--ros-args', '--log-level', 'foxglove_bridge:=warn'],  # drop per-subscription/channel INFO spam
         condition=IfCondition(LaunchConfiguration('foxglove')),
@@ -147,7 +150,8 @@ def generate_launch_description():
         DeclareLaunchArgument('foxglove', default_value='false',
                               description='Start Foxglove Bridge (websocket on port 8765) for Foxglove Studio; off by default'),
         DeclareLaunchArgument('use_teleop', default_value='true',
-                              description='Start the joystick and keyboard teleop nodes and the teleop gate (/amr/set_teleop); false leaves teleop out'),
+                              description='Start the joystick and keyboard teleop nodes and the teleop gate '
+                                          '(/amr/set_teleop); false leaves teleop out'),
         DeclareLaunchArgument('teleop_source', default_value='none',
                               choices=['none', 'joy', 'keyboard'],
                               description='Teleop source allowed to drive at startup; none until enabled via /amr/set_teleop'),

@@ -232,7 +232,7 @@ def generate_launch_description():
                               description='Leave people out of the static map using a PeopleSemSegNet mask; nvblox then '
                                           'waits for a mask with every frame. Switches nvblox to the aligned depth '
                                           '(narrower field of view). Needs the model installed once, see '
-                                          'docs/isaac_ros_setup.md'),
+                                          'docs/setup.md'),
         DeclareLaunchArgument('run_segmentation', default_value='true',
                               description="With use_detection: start NVIDIA's isaac_ros_unet PeopleSemSegNet launch here. "
                                           'false = another node publishes mask_image_topic'),
