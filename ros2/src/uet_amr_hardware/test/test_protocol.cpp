@@ -197,3 +197,43 @@ TEST(Protocol, CommandFrameChecksumIsXorOfFirstSevenBytes)
     EXPECT_EQ(f.bytes[P::kCommandFrameLen - 1], x);
     EXPECT_EQ(f.bytes[0], P::kHeader);
 }
+
+TEST(Protocol, ParserCountsPacketsChecksumErrorsAndDiscardedBytes)
+{
+    P::FeedbackParser parser;
+    // 3 garbage bytes before a valid packet
+    std::vector<uint8_t> bytes = {0x00, 0x13, 0x37};
+    const auto good = toVec(kGolden[1].bytes, P::kFeedbackPacketLen);
+    bytes.insert(bytes.end(), good.begin(), good.end());
+    EXPECT_EQ(feedAll(parser, bytes), 1u);
+    EXPECT_EQ(parser.stats().packets_ok, 1u);
+    EXPECT_EQ(parser.stats().checksum_errors, 0u);
+    EXPECT_EQ(parser.stats().bytes_discarded, 3u);
+
+    // a corrupted packet with no other header inside: 1 checksum error, the whole 16 bytes dropped
+    auto bad = toVec(kGolden[2].bytes, P::kFeedbackPacketLen);
+    for (size_t i = 1; i < bad.size(); ++i) {
+        if (bad[i] == P::kHeader) {
+            bad[i] = 0x11;
+        }
+    }
+    bad[5] ^= 0x01;
+    EXPECT_EQ(feedAll(parser, bad), 0u);
+    EXPECT_EQ(parser.stats().checksum_errors, 1u);
+    EXPECT_EQ(parser.stats().bytes_discarded, 3u + P::kFeedbackPacketLen);
+    EXPECT_EQ(parser.stats().packets_ok, 1u);
+}
+
+TEST(Protocol, ResyncDropsAHalfPacketButKeepsCounters)
+{
+    P::FeedbackParser parser;
+    const auto good = toVec(kGolden[3].bytes, P::kFeedbackPacketLen);
+    ASSERT_EQ(feedAll(parser, good), 1u);
+    for (size_t i = 0; i < 7; ++i) {
+        parser.feed(good[i]);         // half a packet in the buffer
+    }
+    parser.resync();
+    EXPECT_EQ(parser.stats().packets_ok, 1u);
+    EXPECT_EQ(feedAll(parser, good), 1u);   // the next full packet decodes cleanly, not shifted by the stale half
+    EXPECT_EQ(parser.stats().packets_ok, 2u);
+}

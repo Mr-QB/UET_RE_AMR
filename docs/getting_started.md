@@ -30,6 +30,28 @@ Teleop starts with bringup but is off until enabled (L2 deadman for the joystick
 ros2 service call /amr/set_teleop uet_amr_msgs/srv/SetTeleop "{source: joy}"   # or keyboard, or none
 ```
 
+## Checking the serial link (ESP32 -> ROS)
+
+`/hardware/status` (1 Hz) carries link health next to the battery and wheel data; `ros2 topic echo /hardware/status | grep link_`:
+
+| Field | Meaning |
+|---|---|
+| `link_rate_hz` | packets per second in the last window; the firmware sends about 49 Hz |
+| `link_frames_lost_total`, `link_loss_percent` | frames missed, from gaps in the sequence number (a corrupted packet also counts as lost) |
+| `link_checksum_errors_total` | packets that arrived complete but failed the checksum |
+| `link_bytes_discarded_total` | bytes skipped while looking for a packet start, plus dropped corrupt packets (16 each) |
+| `link_timeouts_total`, `link_reconnects_total` | more than 500 ms without a packet, which makes the node reopen the port |
+| `link_firmware_period_ms` | packet spacing by the firmware's own clock (about 20.48 ms) |
+| `link_delay_mean_ms`, `link_delay_max_ms` | how much later packets arrive than in the best case of the window |
+
+A warning is logged (at most every 5 s) whenever a window had lost frames or checksum errors, with the totals. For per-second rate and
+delay lines set the logger to debug: `--ros-args --log-level AmrHardwareInterface:=debug`.
+
+The delay is a **variation**, not the absolute latency: it compares how far apart packets arrive on the host with how far apart the firmware
+stamped them (queuing in the USB/serial stack, scheduling), so the unknown offset between the two clocks cancels. Several packets read
+together count once. The true end-to-end latency (command out to feedback back) needs the firmware to echo something, for example a command
+counter in the reserved bytes of the command frame; the firmware is unchanged for now.
+
 ## Firmware
 
 The STM32 (`firmware/amr_hoverboard_controller`) and ESP32 (`firmware/amr_uart_bridge`) are PlatformIO projects flashed from

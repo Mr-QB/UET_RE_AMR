@@ -14,6 +14,7 @@ find_package(uet_amr_msgs REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/amr_hardware_interface.cpp
+  src/link_monitor.cpp
   src/protocol.cpp
 )
 
@@ -60,6 +61,8 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_protocol test/test_protocol.cpp src/protocol.cpp)
   target_include_directories(test_protocol PRIVATE include)
+  ament_add_gtest(test_link_monitor test/test_link_monitor.cpp src/link_monitor.cpp src/protocol.cpp)
+  target_include_directories(test_link_monitor PRIVATE include)
 endif()
 
 ament_export_include_directories(include)

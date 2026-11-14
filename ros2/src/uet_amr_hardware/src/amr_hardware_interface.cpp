@@ -48,6 +48,12 @@ namespace
         return rclcpp::get_logger("AmrHardwareInterface");
     }
 
+    // Host time for the link statistics (any steady origin; only differences matter).
+    double steadySeconds()
+    {
+        return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
     speed_t baudRateToSpeed(int baud_rate)
     {
         switch (baud_rate) {
@@ -272,7 +278,7 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
 
     have_last_ticks_ = false; // don't compute a bogus delta against a stale sample
     last_feedback_time_ = std::chrono::steady_clock::now();
-    have_seq_ = false;
+    link_.reset();
     last_reconnect_attempt_ = last_feedback_time_;
     RCLCPP_INFO(logger(), "Hardware activated.");
     return hardware_interface::CallbackReturn::SUCCESS;
@@ -351,15 +357,7 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     last_packet_ = pkt;
     have_packet_ = true;
 
-    if (have_seq_) {
-        const unsigned missed = (pkt.seq - last_seq_ - 1u) & 0x7Fu;
-        if (missed != 0) {
-            RCLCPP_WARN_THROTTLE(
-                logger(), steady_clock_, 1000, "Lost %u feedback frame(s)", missed);
-        }
-    }
-    last_seq_ = pkt.seq;
-    have_seq_ = true;
+    link_.onPacket(pkt.seq, pkt.stamp);
 
     if (!have_last_ticks_) {
         last_tick_l_ = pkt.en_tick_l;
@@ -401,6 +399,30 @@ void AmrHardwareInterface::publishHardwareStatus()
     msg.left_wheel_velocity = wheel_velocities_[0];
     msg.right_wheel_velocity = wheel_velocities_[1];
 
+    const LinkSnapshot link = link_.takeWindow(steadySeconds());
+    msg.link_packets_total = link.packets_total;
+    msg.link_frames_lost_total = link.frames_lost_total;
+    msg.link_checksum_errors_total = link.checksum_errors_total;
+    msg.link_bytes_discarded_total = link.bytes_discarded_total;
+    msg.link_timeouts_total = link.timeouts_total;
+    msg.link_reconnects_total = link.reconnects_total;
+    msg.link_rate_hz = static_cast<float>(link.rate_hz);
+    msg.link_loss_percent = static_cast<float>(link.loss_percent);
+    msg.link_firmware_period_ms = static_cast<float>(link.firmware_period_ms);
+    msg.link_delay_mean_ms = static_cast<float>(link.delay_mean_ms);
+    msg.link_delay_max_ms = static_cast<float>(link.delay_max_ms);
+    if (link.frames_lost_window > 0 || link.checksum_errors_window > 0) {
+        RCLCPP_WARN_THROTTLE(
+            logger(), steady_clock_, 5000,
+            "Feedback link: %u frame(s) lost (%.1f%%), %u checksum error(s) in the last %.1fs "
+            "(totals: %u lost, %u checksum errors, %u bytes discarded)",
+            link.frames_lost_window, link.loss_percent, link.checksum_errors_window, link.window_s,
+            link.frames_lost_total, link.checksum_errors_total, link.bytes_discarded_total);
+    }
+    RCLCPP_DEBUG(
+        logger(), "Feedback link: %.1f Hz, firmware period %.2f ms, arrival delay mean %.2f / max %.2f ms",
+        link.rate_hz, link.firmware_period_ms, link.delay_mean_ms, link.delay_max_ms);
+
     if (battery_percent <= kBatteryCriticalPercent) {
         msg.battery_state = "CRITICAL";
     } else if (battery_percent <= kBatteryLowPercent) {
@@ -426,9 +448,9 @@ hardware_interface::return_type AmrHardwareInterface::reconnect()
         return hardware_interface::return_type::OK;
     }
     RCLCPP_INFO(logger(), "Reopened '%s'; waiting for firmware.", serial_port_.c_str());
-    feedback_parser_ = protocol::FeedbackParser();
+    feedback_parser_.resync();  // keeps the counters
     have_last_ticks_ = false;  // no bogus tick delta across the gap
-    have_seq_ = false;
+    link_.onReconnect();
     last_feedback_time_ = now;  // restart the feedback timeout
     return hardware_interface::return_type::OK;
 }
@@ -467,6 +489,9 @@ hardware_interface::return_type AmrHardwareInterface::read(
                 got_packet = true;
             }
         }
+        link_.onChunk(steadySeconds());
+        link_.onParserCounters(
+            feedback_parser_.stats().checksum_errors, feedback_parser_.stats().bytes_discarded);
     }
 
     const auto now = std::chrono::steady_clock::now();
@@ -495,6 +520,7 @@ hardware_interface::return_type AmrHardwareInterface::read(
         RCLCPP_ERROR_THROTTLE(
             logger(), steady_clock_, 1000,
             "No feedback from firmware for %ldms", static_cast<long>(since_last.count()));
+        link_.onTimeout();
         closeSerial();  // reopen from read() in case the port went stale
         return reconnect();
     }

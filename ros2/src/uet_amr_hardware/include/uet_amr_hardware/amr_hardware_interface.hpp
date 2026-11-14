@@ -32,6 +32,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
+#include "uet_amr_hardware/link_monitor.hpp"
 #include "uet_amr_hardware/protocol.hpp"
 #include "uet_amr_msgs/msg/hardware_status.hpp"
 
@@ -132,9 +133,8 @@ private:
     int last_tick_l_{0};
     int last_tick_r_{0};
 
-    // Sequence tracking, to warn about lost feedback frames.
-    bool have_seq_{false};
-    uint8_t last_seq_{0};
+    // Feedback stream health: lost frames, checksum errors, timing (published in HardwareStatus).
+    LinkMonitor link_;
 
     // Status publishing. Owns a bare node (never spun -- publish() needs no
     // executor) since SystemInterface has no node of its own.
