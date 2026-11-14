@@ -1,33 +1,27 @@
 #!/bin/bash
-# Docker development environment, built on NVIDIA's isaac_ros_common layering:
+# UET AMR -- the one entry point for the Docker environment (Jetson robot, or an NVIDIA x86 dev PC).
+# Built on NVIDIA's isaac_ros_common layering:
 #   NVIDIA base (prebuilt where published) [+ RealSense layer on Jetson] + docker/Dockerfile.uet_amr
 # ros2/ is mounted at /workspaces/isaac_ros-dev, so build/ install/ log/ persist on the host.
 #
-#   docker-dev                interactive shell via NVIDIA's run_dev.sh (container removed on exit)
+#   scripts/amr setup [--robot]  host setup: udev rules, UDP buffer sysctl, isaac_ros_common, image;
+#                                --robot also installs the systemd unit that starts the robot at boot
+#   scripts/amr build            update image if needed, incremental colcon build
+#   scripts/amr shell            shell in the long-lived container
+#   scripts/amr run <cmd...>     run a command in it, e.g.  scripts/amr run ros2 launch uet_amr_bringup amr_bringup.launch.py
+#   scripts/amr logs             follow the robot service's log (after setup --robot)
+#   scripts/amr down             remove the container (build/ install/ stay on disk); also stops zenoh
 #
-# Long-lived container for a fast "git pull, rebuild" loop (nothing is reinstalled or recompiled
-# except your own changed code; --symlink-install means launch/config/Python edits need no build):
-#   docker-dev build          update image if needed, incremental colcon build
-#   docker-dev shell          shell in the long-lived container
-#   docker-dev run <cmd...>   run a command in it, e.g.  docker-dev run ros2 launch uet_amr_bringup amr_bringup.launch.py
-#   docker-dev down           remove the container (build/ install/ stay on disk); also stops zenoh
-#
-# The optional Zenoh <-> ROS 2 bridge is a separate container, started on its own:
-#   docker compose -f docker/compose.zenoh.yml up -d
+# One container, one image tag, one set of DDS settings (docker/amr.env). Nothing is reinstalled or recompiled
+# except your own changed code; --symlink-install means launch/config/Python edits need no build.
+# The optional Zenoh <-> ROS 2 bridge is a separate container:  docker compose -f docker/compose.zenoh.yml up -d
 # The image is rebuilt only when docker/ or a package.xml dependency changed; --rebuild forces it.
 set -e
-source "$(dirname "$0")/../common.sh"
+source "$(dirname "$(readlink -f "$0")")/common.sh"
 
 NAME=uet_amr_dev
-# Own DDS domain, so ROS machines on the same network (default domain 0) don't leak into the robot's graph.
-# Applies to a newly created container only; `docker-dev down` first to change it. compose.zenoh.yml uses the same default.
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-42}"
-# CycloneDDS, not the image's Fast DDS: zenoh-bridge-ros2dds is Cyclone-based and Fast DDS <-> Cyclone services
-# (/amr/set_teleop, /amr/save_map, ...) never get a reply. Everything that talks to the robot must use the same RMW.
-RMW_IMPL=rmw_cyclonedds_cpp
-# nvblox (GPU local costmap) runs only in this container, so bringup uses it by default here: amr_bringup.launch.py
-# reads UET_AMR_NVBLOX for its use_nvblox default. Opt out with `UET_AMR_NVBLOX=false` (new container) or use_nvblox:=false.
-export UET_AMR_NVBLOX="${UET_AMR_NVBLOX:-true}"
+AMR_ENV="$REPO_ROOT/docker/amr.env"   # ROS_DOMAIN_ID and RMW_IMPLEMENTATION, also read by compose.zenoh.yml
+set -a; source "$AMR_ENV"; set +a
 WS=/workspaces/isaac_ros-dev
 ZENOH_COMPOSE="$REPO_ROOT/docker/compose.zenoh.yml"
 SRC='source /opt/ros/humble/setup.bash; [ -f install/setup.bash ] && source install/setup.bash'
@@ -48,7 +42,7 @@ DDS_CONFIG="$REPO_ROOT/docker/dev-cyclonedds.xml"   # bigger UDP receive buffer,
 HOST_LIBS_IN_USR_LIB=
 [ -e /usr/lib/libnvidia-ml.so.1 ] && [ ! -e /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1 ] && HOST_LIBS_IN_USR_LIB=1
 
-container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}+dds:$(sha256sum < "$DDS_CONFIG" | cut -c1-8)+usrlib:${HOST_LIBS_IN_USR_LIB:-0}+iws:1"; }
+container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}+dds:$(cat "$DDS_CONFIG" "$AMR_ENV" | sha256sum | cut -c1-8)+usrlib:${HOST_LIBS_IN_USR_LIB:-0}+iws:1"; }
 
 container_ok() {  # running, and created from an image with the same layers and the same run options
   [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] &&
@@ -61,12 +55,12 @@ start_container() {
     -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
     --privileged --network host --ipc=host --runtime nvidia
     --user "$(id -u):$(id -g)" -e HOME=/tmp
-    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ISAAC_ROS_WS=$WS -e ROS_DOMAIN_ID -e RMW_IMPLEMENTATION=$RMW_IMPL -e CYCLONEDDS_URI=file:///etc/dev-cyclonedds.xml -e UET_AMR_NVBLOX -e DISPLAY
+    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ISAAC_ROS_WS=$WS --env-file "$AMR_ENV" -e CYCLONEDDS_URI=file:///etc/dev-cyclonedds.xml -e DISPLAY
     -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /etc/localtime:/etc/localtime:ro
     -v "$DDS_CONFIG:/etc/dev-cyclonedds.xml:ro"
     -v "$REPO_ROOT/ros2:$WS" -w $WS
   )
-  if [ "$(uname -m)" = aarch64 ]; then   # the Jetson mounts NVIDIA's run_dev.sh adds
+  if [ "$(uname -m)" = aarch64 ]; then   # the Jetson mounts NVIDIA's own scripts add
     local vis="nvidia.com/gpu=all"   # the PVA device only exists in the CDI spec on some JetPack installs
     nvidia-ctk cdi list 2>/dev/null | grep -q '^nvidia.com/pva=' && vis+=",nvidia.com/pva=all"
     args+=(-e NVIDIA_VISIBLE_DEVICES="$vis" --pid=host
@@ -116,17 +110,34 @@ for a in "$@"; do
 done
 set -- "${args[@]}"
 
+# Raise the kernel's UDP buffer limits so CycloneDDS can actually get the 10 MB receive buffer it asks for
+# (docker/dev-cyclonedds.xml); without it D435i frames are dropped.
+install_sysctl() {
+  local src="$REPO_ROOT/docker/90-uet-amr-dds.conf" dest=/etc/sysctl.d/90-uet-amr-dds.conf
+  cmp -s "$src" "$dest" && return
+  echo -e "${YELLOW}Installing $(basename "$src")...${NC}"
+  sudo cp "$src" "$dest" && sudo sysctl --system >/dev/null
+}
+
+# systemd unit that starts bringup in the container at boot (robot only).
+install_service() {
+  local dest=/etc/systemd/system/uet-amr.service
+  sed "s#@REPO_ROOT@#$REPO_ROOT#g; s#@USER@#$USER#g" "$REPO_ROOT/docker/uet-amr.service" | sudo tee "$dest" >/dev/null
+  sudo systemctl daemon-reload && sudo systemctl enable uet-amr.service
+  echo "  Installed uet-amr.service (start now: sudo systemctl start uet-amr)"
+}
+
 case "${1:-}" in
-  "")
-    echo "🤖 UET AMR — Docker development environment"
-    has_nvidia_gpu || echo -e "${YELLOW}Warning: no NVIDIA GPU detected; nvblox needs one to run.${NC}"
+  setup)
     install_udev_rules || echo -e "${YELLOW}Warning: udev rules not installed (needs sudo); continuing.${NC}"
-    dev_prepare
-    exec "$ISAAC_SCRIPTS/run_dev.sh" -d "$REPO_ROOT/ros2"
+    install_sysctl || echo -e "${YELLOW}Warning: sysctl not installed (needs sudo); continuing.${NC}"
+    up
+    [ "${2:-}" = --robot ] && install_service
     ;;
+  logs)  journalctl -u uet-amr.service -f ;;
   build) up; build ;;
   shell) up; in_container 'exec bash -i' ;;
   run)   shift; up; in_container 'exec "$@"' "$@" ;;
   down)  docker rm -f $NAME; docker compose -f "$ZENOH_COMPOSE" down ;;
-  *)     sed -n 2,19p "$0"; exit 1 ;;
+  *)     sed -n 2,17p "$0"; exit 1 ;;
 esac

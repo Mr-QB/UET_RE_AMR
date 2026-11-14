@@ -1,0 +1,17 @@
+# Starts the robot at boot: bringup inside the dev container. Installed by `scripts/amr setup --robot`
+# (the @...@ placeholders are filled in there).
+[Unit]
+Description=UET AMR bringup
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@REPO_ROOT@
+ExecStart=@REPO_ROOT@/scripts/amr run ros2 launch uet_amr_bringup amr_bringup.launch.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
