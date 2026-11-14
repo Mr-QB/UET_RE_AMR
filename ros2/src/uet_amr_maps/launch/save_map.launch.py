@@ -68,7 +68,7 @@ def generate_launch_description():
 
     # 2. Clean lidar speckle/rays out of the saved .pgm (never fails the save)
     clean_map_cmd = ExecuteProcess(
-        cmd=['ros2', 'run', 'uet_amr_navigation', 'clean_map.py', [full_path, '.pgm']],
+        cmd=['ros2', 'run', 'uet_amr_maps', 'clean_map.py', [full_path, '.pgm']],
         output='screen'
     )
 

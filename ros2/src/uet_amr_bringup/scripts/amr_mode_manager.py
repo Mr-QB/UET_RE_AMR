@@ -61,9 +61,9 @@ class AmrModeManager(Node):
             self._map_directory = os.path.abspath(os.path.expanduser(configured_map_directory))
         else:
             from ament_index_python.packages import get_package_share_directory
-            navigation_share = get_package_share_directory('uet_amr_navigation')
+            maps_share = get_package_share_directory('uet_amr_maps')
             save_map_launch = os.path.realpath(os.path.join(
-                navigation_share, 'launch', 'save_map.launch.py'))
+                maps_share, 'launch', 'save_map.launch.py'))
             self._map_directory = os.path.abspath(os.path.join(
                 os.path.dirname(save_map_launch), '..', 'maps'))
         self._use_rviz = bool(self.get_parameter('use_rviz').value)
@@ -302,7 +302,7 @@ class AmrModeManager(Node):
             for path in output_files
         }
         save_process = subprocess.Popen(
-            ['ros2', 'launch', 'uet_amr_navigation', 'save_map.launch.py',
+            ['ros2', 'launch', 'uet_amr_maps', 'save_map.launch.py',
              f'map_filename:={map_name}', f'map_directory:={map_directory}'],
             start_new_session=True,
         )

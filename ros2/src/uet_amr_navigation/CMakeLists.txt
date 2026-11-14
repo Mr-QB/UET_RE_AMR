@@ -4,13 +4,12 @@ project(uet_amr_navigation)
 find_package(ament_cmake REQUIRED)
 
 install(
-  DIRECTORY launch config maps rviz
+  DIRECTORY launch config rviz
   DESTINATION share/${PROJECT_NAME}
-  OPTIONAL
 )
 
 install(
-  PROGRAMS scripts/cmd_vel_relay.py scripts/zones_manager.py scripts/clean_map.py scripts/mask_camera_info.py scripts/amcl_nomotion_updater.py scripts/nvblox_footprint_filter.py
+  PROGRAMS scripts/cmd_vel_relay.py scripts/amcl_nomotion_updater.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

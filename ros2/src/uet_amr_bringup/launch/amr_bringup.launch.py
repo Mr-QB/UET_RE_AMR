@@ -44,7 +44,7 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     default_map_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'maps', 'gd2', 'gd2.yaml'
+        FindPackageShare('uet_amr_maps'), 'maps', 'gd2', 'gd2.yaml'
     ])
 
     control_launch = IncludeLaunchDescription(

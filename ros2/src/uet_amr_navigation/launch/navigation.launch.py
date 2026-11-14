@@ -52,7 +52,7 @@ def generate_launch_description():
         source_file=params_file, root_key='',
         param_rewrites={'default_nav_to_pose_bt_xml': bt_xml}, convert_types=True)
     default_map_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'maps', 'gd2', 'gd2.yaml'
+        FindPackageShare('uet_amr_maps'), 'maps', 'gd2', 'gd2.yaml'
     ])
     default_rviz_config = PathJoinSubstitution([
         FindPackageShare('uet_amr_navigation'), 'rviz', 'navigation.rviz'
@@ -111,7 +111,7 @@ def generate_launch_description():
 
     # Applies dashboard zones as Nav2 keepout/speed filter masks for this map; see scripts/zones_manager.py.
     zones_manager = Node(
-        package='uet_amr_navigation',
+        package='uet_amr_maps',
         executable='zones_manager.py',
         name='zones_manager',
         parameters=[{'map': map_yaml_file}],
@@ -130,7 +130,7 @@ def generate_launch_description():
     # GPU local costmap (nvblox) + optional people masking; runs in the Isaac ROS container, see docs/setup.md.
     nvblox_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            PathJoinSubstitution([FindPackageShare('uet_amr_navigation'), 'launch', 'nvblox.launch.py'])
+            PathJoinSubstitution([FindPackageShare('uet_amr_perception'), 'launch', 'nvblox.launch.py'])
         ]),
         launch_arguments={
             'use_detection': use_detection,

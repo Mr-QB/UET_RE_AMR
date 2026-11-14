@@ -22,7 +22,7 @@
 """
 Launch file for the isaac_ros_nvblox reconstruction node, feeding the D435i
 depth stream into a GPU-accelerated costmap consumed by nav2_nvblox's
-NvbloxCostmapLayer (see config/nav2.yaml). Runs inside the Isaac ROS
+NvbloxCostmapLayer (see uet_amr_navigation/config/nav2.yaml). Runs inside the Isaac ROS
 container (see docs/setup.md): nvblox_ros needs CUDA and NVIDIA's NITROS transport.
 Included by navigation.launch.py.
 """
@@ -182,7 +182,7 @@ def _launch_nvblox(context):
     # Clears nvblox obstacle cells inside the robot's own footprint before the local costmap reads the slice, so stale or
     # smeared cells under the robot (e.g. after wheel slip on the door threshold) cannot put the footprint in collision.
     footprint_filter = Node(
-        package='uet_amr_navigation',
+        package='uet_amr_perception',
         executable='nvblox_footprint_filter.py',
         name='nvblox_footprint_filter',
         output='screen',
@@ -195,7 +195,7 @@ def _launch_nvblox(context):
     if use_detection:
         # The mask's camera_info: the colour camera_info scaled to the mask's size (the U-Net works on a resized image).
         actions.append(Node(
-            package='uet_amr_navigation',
+            package='uet_amr_perception',
             executable='mask_camera_info.py',
             name='mask_camera_info',
             output='screen',
@@ -218,12 +218,12 @@ def _launch_nvblox(context):
 
 def generate_launch_description():
     default_params_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'config', 'nvblox.yaml'
+        FindPackageShare('uet_amr_perception'), 'config', 'nvblox.yaml'
     ])
 
     return LaunchDescription([
         # Not 'params_file': navigation.launch.py includes this file and declares its own params_file (the Nav2
-        # params), which an included file inherits, so nvblox was silently given nav2_nvblox.yaml and ran on defaults.
+        # params), which an included file inherits, so nvblox was silently given nav2.yaml and ran on defaults.
         DeclareLaunchArgument('nvblox_params_file', default_value=default_params_file,
                               description='Full path to the nvblox params file'),
         DeclareLaunchArgument('container_name', default_value='nvblox_container',

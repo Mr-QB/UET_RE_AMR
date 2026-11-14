@@ -9,7 +9,7 @@
     <xacro:include filename="$(find uet_amr_description)/urdf/parts/caster_wheel.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/sensors/lidar.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/sensors/depth_camera.xacro"/>
-    <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr_real.ros2control"/>
+    <xacro:include filename="$(find uet_amr_hardware)/urdf/uet_amr_real.ros2control"/>
 
     <xacro:property name="front_lidar_yaw" value="${3 * pi / 4}"/>
 

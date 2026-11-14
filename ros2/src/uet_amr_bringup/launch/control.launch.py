@@ -37,7 +37,7 @@ PKG_DESCRIPTION = FindPackageShare('uet_amr_description')
 
 def generate_launch_description():
     xacro_file = PathJoinSubstitution([PKG_DESCRIPTION, 'urdf', 'uet_amr.xacro'])
-    controller_params_file = PathJoinSubstitution([PKG_DESCRIPTION, 'config', 'controllers.yaml'])
+    controller_params_file = PathJoinSubstitution([FindPackageShare('uet_amr_bringup'), 'config', 'controllers.yaml'])
 
     robot_description = {
         'robot_description': ParameterValue(
