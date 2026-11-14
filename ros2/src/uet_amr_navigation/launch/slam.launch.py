@@ -39,7 +39,6 @@ def generate_launch_description():
         FindPackageShare('uet_amr_navigation'), 'rviz', 'slam.rviz'
     ])
 
-    use_sim_time = LaunchConfiguration('use_sim_time')
     slam_params_file = LaunchConfiguration('slam_params_file')
     rviz_config_file = LaunchConfiguration('rviz_config_file')
     use_rviz = LaunchConfiguration('use_rviz')
@@ -49,7 +48,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindPackageShare('slam_toolbox'), 'launch', 'online_async_launch.py'])
         ]),
         launch_arguments={
-            'use_sim_time': use_sim_time,
+            'use_sim_time': 'false',   # slam_toolbox's launch file defaults it to true
             'slam_params_file': slam_params_file,
         }.items()
     )
@@ -59,14 +58,11 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         arguments=['-d', rviz_config_file],
-        parameters=[{'use_sim_time': use_sim_time}],
         output='screen',
         condition=IfCondition(use_rviz),
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('use_sim_time', default_value='true',
-                              description='Use simulation/Gazebo clock'),
         DeclareLaunchArgument('slam_params_file', default_value=default_params_file,
                               description='Full path to the slam_toolbox params file'),
         DeclareLaunchArgument('rviz_config_file', default_value=default_rviz_config,

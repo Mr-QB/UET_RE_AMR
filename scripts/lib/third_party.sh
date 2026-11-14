@@ -1,4 +1,4 @@
-# Third-party source repos (rplidar_ros, librealsense, isaac_ros_common) are NOT in git:
+# Third-party source repos (isaac_ros_common) are NOT in git:
 # they are cloned on first setup to ros2/third_party/ (gitignored; plain `colcon build`
 # from ros2/ picks them up) at the commits pinned in ros2/third_party.lock. Idempotent.
 THIRD_PARTY_DIR="$REPO_ROOT/ros2/third_party"
@@ -20,9 +20,6 @@ fetch_third_party() {
     git -C "$dir" fetch --quiet origin "$sha" 2>/dev/null || git -C "$dir" fetch --quiet --tags origin
     git -C "$dir" checkout --quiet "$sha"
   fi
-
-  # Not ROS workspace packages -- keep colcon from scanning them.
-  case "$name" in librealsense) touch "$dir/COLCON_IGNORE" ;; esac
 
   # Isaac ROS repos ship binaries via Git LFS; without git-lfs the checkout holds pointer
   # files that fail later with a cryptic linker "syntax error".

@@ -27,37 +27,5 @@
             <xacro:insert_block name="origin"/>
         </joint>
 
-        <gazebo reference="${frame_id}">
-            <visual>
-                <material>
-                    <ambient>0.0 0.4 0.8 1.0</ambient>
-                    <diffuse>0.0 0.4 0.8 1.0</diffuse>
-                    <specular>0.1 0.1 0.1 1.0</specular>
-                </material>
-            </visual>
-
-            <sensor name="${frame_id}" type="gpu_lidar">
-                <always_on>true</always_on>
-                <visualize>true</visualize>
-                <update_rate>${update_rate}</update_rate>
-                <topic>${topic_name}</topic>
-                <ignition_frame_id>${frame_id}</ignition_frame_id>
-                <lidar>
-                    <scan>
-                        <horizontal>
-                            <samples>${ray_count}</samples>
-                            <resolution>1</resolution>
-                            <min_angle>${min_angle}</min_angle>
-                            <max_angle>${max_angle}</max_angle>
-                        </horizontal>
-                    </scan>
-                    <range>
-                        <min>${min_range}</min>
-                        <max>${max_range}</max>
-                        <resolution>0.001</resolution>
-                    </range>
-                </lidar>
-            </sensor>
-        </gazebo>
     </xacro:macro>
 </robot>

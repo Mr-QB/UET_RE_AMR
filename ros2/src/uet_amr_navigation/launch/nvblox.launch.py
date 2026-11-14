@@ -22,10 +22,9 @@
 """
 Launch file for the isaac_ros_nvblox reconstruction node, feeding the D435i
 depth stream into a GPU-accelerated costmap consumed by nav2_nvblox's
-NvbloxCostmapLayer (see config/nav2_nvblox.yaml). Only meant to be run inside
-the Isaac ROS Docker dev container (see docs/isaac_ros_setup.md) -- nvblox_ros
-needs CUDA Toolkit + NVIDIA's NITROS transport, which aren't available
-natively. Included conditionally by navigation.launch.py's use_nvblox arg.
+NvbloxCostmapLayer (see config/nav2.yaml). Runs inside the Isaac ROS
+container (see docs/setup.md): nvblox_ros needs CUDA and NVIDIA's NITROS transport.
+Included by navigation.launch.py.
 """
 import os
 
@@ -140,7 +139,7 @@ def _people_segmentation(context, mask_image_topic):
 
 def _launch_nvblox(context):
     params = _load_ros_parameters(LaunchConfiguration('nvblox_params_file').perform(context))
-    params['use_sim_time'] = LaunchConfiguration('use_sim_time').perform(context).lower() == 'true'
+    params['use_sim_time'] = False
     use_detection = LaunchConfiguration('use_detection').perform(context).lower() == 'true'
     run_segmentation = LaunchConfiguration('run_segmentation').perform(context).lower() == 'true'
 
@@ -223,8 +222,6 @@ def generate_launch_description():
     ])
 
     return LaunchDescription([
-        DeclareLaunchArgument('use_sim_time', default_value='false',
-                              description='Use simulation/Gazebo clock'),
         # Not 'params_file': navigation.launch.py includes this file and declares its own params_file (the Nav2
         # params), which an included file inherits, so nvblox was silently given nav2_nvblox.yaml and ran on defaults.
         DeclareLaunchArgument('nvblox_params_file', default_value=default_params_file,

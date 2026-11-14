@@ -4,9 +4,8 @@ project(uet_amr_description)
 find_package(ament_cmake REQUIRED)
 
 install(
-  DIRECTORY urdf meshes config launch rviz
+  DIRECTORY urdf meshes config rviz
   DESTINATION share/${PROJECT_NAME}
-  OPTIONAL
 )
 
 if(BUILD_TESTING)

@@ -20,11 +20,10 @@
 # DEALINGS IN THE SOFTWARE.
 
 """
-Minimal control-only bringup: robot_state_publisher and ros2_control_node
+Drive-base control: robot_state_publisher and ros2_control_node
 (loading the uet_amr_hardware/AmrHardwareInterface plugin over serial), plus
-joint_state_broadcaster + diff_drive_controller. Nothing else -- no EKF, no
-lidar, no depth camera, no SLAM/Nav2/RViz. For running the drive base by
-itself, e.g. over teleop, with no other sensors attached.
+joint_state_broadcaster + diff_drive_controller. Included by amr_bringup.launch.py; can also
+be run on its own to drive the base (e.g. over teleop) with no sensors attached.
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -38,15 +37,12 @@ PKG_DESCRIPTION = FindPackageShare('uet_amr_description')
 
 def generate_launch_description():
     xacro_file = PathJoinSubstitution([PKG_DESCRIPTION, 'urdf', 'uet_amr.xacro'])
-    # Shared with the simulation's ign_ros2_control plugin -- use_sim_time
-    # defaults to false here already (see controllers.yaml).
     controller_params_file = PathJoinSubstitution([PKG_DESCRIPTION, 'config', 'controllers.yaml'])
 
     robot_description = {
         'robot_description': ParameterValue(
             Command([
                 'xacro ', xacro_file,
-                ' use_real_hardware:=true',
                 ' serial_port:=', LaunchConfiguration('serial_port'),
                 ' baud_rate:=', LaunchConfiguration('baud_rate'),
             ]),

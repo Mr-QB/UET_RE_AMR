@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="uet_amr">
-    <xacro:arg name="use_real_hardware" default="false"/>
     <xacro:property name="mesh_file_scale" value="0.001 0.001 0.001"/>
     <xacro:property name="wheel_radius" value="0.08255"/>
     <xacro:property name="wheel_pos_z" value="0.077157"/>
@@ -10,18 +9,9 @@
     <xacro:include filename="$(find uet_amr_description)/urdf/parts/caster_wheel.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/sensors/lidar.xacro"/>
     <xacro:include filename="$(find uet_amr_description)/urdf/sensors/depth_camera.xacro"/>
-    <xacro:if value="$(arg use_real_hardware)">
-        <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr_real.ros2control"/>
-    </xacro:if>
-    <xacro:unless value="$(arg use_real_hardware)">
-        <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.ros2control"/>
-    </xacro:unless>
+    <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr_real.ros2control"/>
 
-    <xacro:property name="front_lidar_yaw" value="0"/>
-    <xacro:if value="$(arg use_real_hardware)">
-        <xacro:property name="front_lidar_yaw" value="${3 * pi / 4}"/>
-    </xacro:if>
-    <xacro:include filename="$(find uet_amr_description)/urdf/uet_amr.gazebo"/>
+    <xacro:property name="front_lidar_yaw" value="${3 * pi / 4}"/>
 
     <xacro:base
         mass="9.278155762193999"

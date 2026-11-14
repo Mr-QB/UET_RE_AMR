@@ -37,7 +37,6 @@ from rclpy.node import Node
 from builtin_interfaces.msg import Time
 from uet_amr_msgs.msg import MapInfo
 from uet_amr_msgs.srv import GetMap, ListMaps, SaveMap, SetMode
-from uet_amr_evaluation.motion.executor import MotionTestExecutor
 
 
 class AmrModeManager(Node):
@@ -47,9 +46,6 @@ class AmrModeManager(Node):
         self.declare_parameter('initial_map', '')
         self.declare_parameter('map_directory', 'auto')
         self.declare_parameter('use_rviz', False)
-        # NVBlox is only available inside the Isaac ROS Docker environment.
-        # Do not infer it from Jetson hardware when this bringup runs natively.
-        self.declare_parameter('use_nvblox', 'false')
         self.declare_parameter('use_detection', 'false')
         self.declare_parameter('startup_grace_sec', 3.0)
         self.declare_parameter('shutdown_timeout_sec', 10.0)
@@ -71,9 +67,7 @@ class AmrModeManager(Node):
             self._map_directory = os.path.abspath(os.path.join(
                 os.path.dirname(save_map_launch), '..', 'maps'))
         self._use_rviz = bool(self.get_parameter('use_rviz').value)
-        self._use_nvblox = str(self.get_parameter('use_nvblox').value).strip().lower()
         self._use_detection = str(self.get_parameter('use_detection').value).strip().lower()
-        self._use_sim_time = bool(self.get_parameter('use_sim_time').value)
         self._startup_grace = float(self.get_parameter('startup_grace_sec').value)
         self._shutdown_timeout = float(self.get_parameter('shutdown_timeout_sec').value)
         self._slam_shutdown_timeout = float(
@@ -95,8 +89,6 @@ class AmrModeManager(Node):
         self._get_map_service = self.create_service(
             GetMap, '/amr/get_map', self._get_map_callback, callback_group=service_group)
         self._monitor = self.create_timer(1.0, self._monitor_process)
-        # Motion tests hold _switch_lock for their whole run, so mode switches and map saves are refused meanwhile.
-        self._motion_test = MotionTestExecutor(self, self._switch_lock, self._confirmed_mode)
 
         initial_mode = str(self.get_parameter('initial_mode').value)
         initial_map = str(self.get_parameter('initial_map').value)
@@ -120,15 +112,12 @@ class AmrModeManager(Node):
         launch_file = 'slam.launch.py' if mode == 'slam' else 'navigation.launch.py'
         command = [
             'ros2', 'launch', 'uet_amr_navigation', launch_file,
-            f'use_sim_time:={str(self._use_sim_time).lower()}',
             f'use_rviz:={str(self._use_rviz).lower()}',
         ]
         if mode == 'nav':
             command.extend([
                 f'map:={map_yaml}',
             ])
-            if self._use_nvblox in ('true', 'false'):
-                command.append(f'use_nvblox:={self._use_nvblox}')
             if self._use_detection in ('true', 'false'):
                 command.append(f'use_detection:={self._use_detection}')
         return command
@@ -285,14 +274,6 @@ class AmrModeManager(Node):
                         or '__node:=slam_toolbox' in argv):
                     pids.append(int(entry.name))
         return pids
-
-    def _wait_for_ros_node_exit(self, node_name, timeout_sec):
-        deadline = time.monotonic() + timeout_sec
-        while time.monotonic() < deadline:
-            if not self._ros_node_is_running(node_name):
-                return True
-            time.sleep(0.2)
-        return not self._ros_node_is_running(node_name)
 
     @staticmethod
     def _terminate_process_group(process, grace_sec=5.0):
@@ -505,13 +486,6 @@ class AmrModeManager(Node):
             self._switch_lock.release()
         return response
 
-    def _confirmed_mode(self):
-        """Mode as confirmed by a live launch process (read-only; safe to call without the lock)."""
-        process = self._process
-        if process is None or process.poll() is not None:
-            return 'stopped'
-        return self._mode
-
     def _check_process(self):
         """Reset state if the launch died. Caller must hold _switch_lock."""
         if self._process is not None and self._process.poll() is not None:
@@ -531,7 +505,6 @@ class AmrModeManager(Node):
             self._switch_lock.release()
 
     def destroy_node(self):
-        self._motion_test.shutdown()    # zero command, Off and lock release before anything is torn down
         try:
             self._stop_mode()
         except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:

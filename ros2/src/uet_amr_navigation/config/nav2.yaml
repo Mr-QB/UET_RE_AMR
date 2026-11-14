@@ -1,3 +1,5 @@
+# Nav2 parameters. The local costmap's obstacle sources are scan_layer (RPLidar) and
+# nvblox_layer (D435i depth through isaac_ros_nvblox's GPU reconstruction). See docs/setup.md.
 amcl:
   ros__parameters:
     use_sim_time: false
@@ -104,7 +106,7 @@ controller_server:
       regulated_linear_scaling_min_radius: 0.9
       regulated_linear_scaling_min_speed: 0.25
       use_rotate_to_heading: true   # in place ONLY when the path is >~86 deg off (rotate_to_heading_min_angle); smaller turns, such as doors, still arc. With false and no reversing, a path behind the robot had no way to start.
-      allow_reversing: false   # not allowed together with use_rotate_to_heading
+      allow_reversing: false   # heading-free planner never asks for it; RPP otherwise drove whole routes backward
       rotate_to_heading_min_angle: 1.5
       max_angular_accel: 3.2
       max_robot_pose_search_dist: 10.0
@@ -114,11 +116,59 @@ planner_server:
     expected_planner_frequency: 2.0
     use_sim_time: false
     planner_plugins: ["GridBased"]
+    # Heading-free grid planner. The footprint-aware Hybrid-A* (kept below, commented out) forces the goal heading, so
+    # it looped at goals; its Reeds-Shepp variant made Regulated Pure Pursuit drive whole routes in reverse (it cannot
+    # follow cusps). SmacPlanner2D plans positions only, so no loops and no reversing; path is smoothed.
     GridBased:
-      plugin: "nav2_navfn_planner/NavfnPlanner"
-      tolerance: 0.5
-      use_astar: false
+      plugin: "nav2_smac_planner/SmacPlanner2D"
+      tolerance: 0.25
+      downsample_costmap: false
+      downsampling_factor: 1
       allow_unknown: false   # unknown (grey) cells are not plannable, so paths stay inside the mapped white area
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      max_planning_time: 2.0
+      cost_travel_multiplier: 4.0   # step cost = 1 + 4 x cost/252: a 0.3 m corner (cost 206) is ~4.3x an open step. 2.0 (~2.6x) hugged corners; higher centres the path more but also avoids doors if any detour is under ~3x longer
+      use_final_approach_orientation: false
+      smoother:
+        max_iterations: 1000
+        w_smooth: 0.3
+        w_data: 0.4   # fidelity to the A* path (cost aware); lower = smoother but cuts corners
+        tolerance: 1.0e-10
+    # --- previous: SmacPlannerHybrid (footprint aware) ---
+    # TEST: footprint-aware Hybrid-A* (was NavfnPlanner: tolerance 0.5, use_astar false, allow_unknown false).
+    # NavFn plans a 1-cell-wide line and ignores the 58x52 cm footprint and heading, so it approached doors diagonally.
+    # Hybrid-A* checks the real footprint at every pose, so it lines up with a door before turning.
+    # REEDS_SHEPP may reverse, but only to turn around (3-point turn instead of a loop): reverse_penalty 3.0 makes a straight
+    # reverse of more than ~0.5 m dearer than turning around and driving forward.
+#    GridBased:
+#      plugin: "nav2_smac_planner/SmacPlannerHybrid"
+#      downsample_costmap: false
+#      downsampling_factor: 1
+#      tolerance: 0.25
+#      allow_unknown: false   # unknown (grey) cells are not plannable, so paths stay inside the mapped white area
+#      max_iterations: 1000000
+#      max_on_approach_iterations: 1000
+#      max_planning_time: 2.0
+#      motion_model_for_search: "REEDS_SHEPP"
+#      angle_quantization_bins: 72
+#      analytic_expansion_ratio: 3.5
+#      analytic_expansion_max_length: 3.0
+#      minimum_turning_radius: 0.15   # was 0.25: the forward-only loop to reach the goal heading is now ~0.3 m across instead of 0.5 m
+#      reverse_penalty: 3.0
+#      change_penalty: 0.2
+#      non_straight_penalty: 1.20
+#      cost_penalty: 2.0
+#      retrospective_penalty: 0.015
+#      lookup_table_size: 20.0
+#      cache_obstacle_heuristic: false
+#      smooth_path: true
+#      smoother:
+#        max_iterations: 1000
+#        w_smooth: 0.3
+#        w_data: 0.2
+#        tolerance: 1.0e-10
+
 
 local_costmap:
   local_costmap:
@@ -133,7 +183,7 @@ local_costmap:
       height: 3
       resolution: 0.05
       footprint: "[[0.29, 0.15], [0.29, -0.15], [-0.29, -0.15], [-0.29, 0.15]]"  # LOCAL costmap only: the controller rejects any footprint cell at inscribed cost, and inflation already keeps one half-width off walls, so the real 0.52 m body would need ~1.04 m of corridor. Half-width 0.15 needs ~0.6 m. Global keeps the full 0.52 m footprint.
-      plugins: ["voxel_layer", "inflation_layer"]
+      plugins: ["scan_layer", "nvblox_layer", "inflation_layer"]
       filters: ["keepout_filter", "speed_filter"]
       keepout_filter:
         plugin: "nav2_costmap_2d::KeepoutFilter"
@@ -147,16 +197,10 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 10.0
-        inflation_radius: 0.4 
-      voxel_layer:
-        plugin: "nav2_costmap_2d::VoxelLayer"
+        inflation_radius: 0.4
+      scan_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
-        publish_voxel_map: false
-        origin_z: 0.0
-        z_resolution: 0.05
-        z_voxels: 32
-        max_obstacle_height: 1.6
-        mark_threshold: 0
         observation_sources: scan
         scan:
           topic: /scan
@@ -168,6 +212,15 @@ local_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 6.0
           obstacle_min_range: 0.0
+      # Fed by nvblox_node's static map slice (see launch/nvblox.launch.py)
+      # instead of the D435i pointcloud voxel_layer used in nav2.yaml.
+      nvblox_layer:
+        plugin: "nvblox::nav2::NvbloxCostmapLayer"
+        enabled: true
+        nvblox_map_slice_topic: /nvblox_node/static_map_slice_clean   # static_map_slice minus cells inside the footprint (nvblox_footprint_filter.py)
+        max_obstacle_distance: 1.0
+        inflation_distance: 0.0
+        convert_to_binary_costmap: false
       always_send_full_costmap: true
 
 global_costmap:

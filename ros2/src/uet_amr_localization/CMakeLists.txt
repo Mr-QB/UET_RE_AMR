@@ -13,7 +13,6 @@ install(TARGETS imu_bias_corrector DESTINATION lib/${PROJECT_NAME})
 install(
   DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
-  OPTIONAL
 )
 
 if(BUILD_TESTING)

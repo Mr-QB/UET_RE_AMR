@@ -34,11 +34,6 @@ def generate_launch_description():
         [FindPackageShare('uet_amr_localization'), 'config', 'ekf.yaml']
     )
 
-    use_sim_time_arg = DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='true',
-    )
-
     imu_topic_arg = DeclareLaunchArgument(
         'imu_topic',
         default_value='imu/data',
@@ -52,7 +47,7 @@ def generate_launch_description():
         output='screen',
         parameters=[
             ekf_config,
-            {'use_sim_time': LaunchConfiguration('use_sim_time')},
+            {'use_sim_time': False},
         ],
         remappings=[
             ('imu/data', 'imu/corrected'),
@@ -68,12 +63,11 @@ def generate_launch_description():
         parameters=[{
             'imu_in': LaunchConfiguration('imu_topic'),
             'imu_out': 'imu/corrected',
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'use_sim_time': False,
         }],
     )
 
     return LaunchDescription([
-        use_sim_time_arg,
         imu_topic_arg,
         imu_bias_corrector,
         ekf_node,

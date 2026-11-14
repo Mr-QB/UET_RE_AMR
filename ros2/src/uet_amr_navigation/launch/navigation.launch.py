@@ -22,52 +22,26 @@
 """
 Launch file for navigation mode of UET AMR.
 """
-import os
-import subprocess
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node, SetRemap
 from launch_ros.substitutions import FindPackageShare
 from nav2_common.launch import RewrittenYaml
 
 
-def _has_nvidia_gpu():
-    """Mirrors scripts/common.sh's has_nvidia_gpu(): used only to pick the
-    default value of the use_nvblox launch argument below -- still
-    overridable on the command line either way."""
-    if os.path.exists('/etc/nv_tegra_release'):
-        return True
-    try:
-        subprocess.run(['nvidia-smi'], stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL, check=True)
-        return True
-    except (OSError, subprocess.CalledProcessError):
-        return False
-
-
 def generate_launch_description():
-    default_use_nvblox = 'true' if _has_nvidia_gpu() else 'false'
-
-    use_sim_time = LaunchConfiguration('use_sim_time')
     map_yaml_file = LaunchConfiguration('map')
-    use_nvblox = LaunchConfiguration('use_nvblox')
     params_file = LaunchConfiguration('params_file')
     rviz_config_file = LaunchConfiguration('rviz_config_file')
     use_rviz = LaunchConfiguration('use_rviz')
     log_level = LaunchConfiguration('log_level')
     use_detection = LaunchConfiguration('use_detection')
 
-    # Picks nav2_nvblox.yaml (nvblox-backed local costmap) or nav2.yaml (the
-    # CPU voxel_layer fallback) based on use_nvblox -- evaluated at launch
-    # time, so an explicit `use_nvblox:=` override on the CLI still works.
-    default_params_filename = PythonExpression(
-        ["'nav2_nvblox.yaml' if '", use_nvblox, "' == 'true' else 'nav2.yaml'"])
     default_params_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'config', default_params_filename
+        FindPackageShare('uet_amr_navigation'), 'config', 'nav2.yaml'
     ])
     # The default NavigateToPose tree spins before it backs up, which can't work against a wall. Ours
     # backs up first. bt_navigator needs the tree's absolute path, so it's rewritten into the params.
@@ -78,7 +52,7 @@ def generate_launch_description():
         source_file=params_file, root_key='',
         param_rewrites={'default_nav_to_pose_bt_xml': bt_xml}, convert_types=True)
     default_map_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'maps', 'warehouse.yaml'
+        FindPackageShare('uet_amr_navigation'), 'maps', 'gd2', 'gd2.yaml'
     ])
     default_rviz_config = PathJoinSubstitution([
         FindPackageShare('uet_amr_navigation'), 'rviz', 'navigation.rviz'
@@ -89,7 +63,6 @@ def generate_launch_description():
             PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'localization_launch.py'])
         ]),
         launch_arguments={
-            'use_sim_time': use_sim_time,
             'map': map_yaml_file,
             'params_file': params_file,
             'log_level': log_level,
@@ -111,7 +84,6 @@ def generate_launch_description():
                     PathJoinSubstitution([FindPackageShare('nav2_bringup'), 'launch', 'navigation_launch.py'])
                 ]),
                 launch_arguments={
-                    'use_sim_time': use_sim_time,
                     'params_file': params_with_bt,
                     'log_level': log_level,
                 }.items()
@@ -126,7 +98,6 @@ def generate_launch_description():
         executable='amcl_nomotion_updater.py',
         name='amcl_nomotion_updater',
         output='screen',
-        parameters=[{'use_sim_time': use_sim_time}],
     )
 
     # behavior_server (spin/backup/drive_on_heading) publishes on /cmd_vel, which nothing consumed: recoveries ran
@@ -152,32 +123,23 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         arguments=['-d', rviz_config_file],
-        parameters=[{'use_sim_time': use_sim_time}],
         output='screen',
         condition=IfCondition(use_rviz),
     )
 
-    # Only runs inside the Isaac ROS Docker container (nvblox_ros needs CUDA
-    # Toolkit + NITROS, not available natively) -- see docs/isaac_ros_setup.md.
+    # GPU local costmap (nvblox) + optional people masking; runs in the Isaac ROS container, see docs/setup.md.
     nvblox_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([FindPackageShare('uet_amr_navigation'), 'launch', 'nvblox.launch.py'])
         ]),
         launch_arguments={
-            'use_sim_time': use_sim_time,
             'use_detection': use_detection,
         }.items(),
-        condition=IfCondition(use_nvblox),
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('use_sim_time', default_value='true',
-                              description='Use simulation/Gazebo clock'),
         DeclareLaunchArgument('map', default_value=default_map_file,
                               description='Full path to the map yaml file to load'),
-        DeclareLaunchArgument('use_nvblox', default_value=default_use_nvblox,
-                              description='Use isaac_ros_nvblox for the local costmap '
-                                          '(default: auto-detected NVIDIA GPU presence)'),
         DeclareLaunchArgument('params_file', default_value=default_params_file,
                               description='Full path to the Nav2 params file'),
         DeclareLaunchArgument('rviz_config_file', default_value=default_rviz_config,

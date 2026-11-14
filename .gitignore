@@ -13,10 +13,6 @@ ros2/isaac_ros_assets/
 # Colcon
 COLCON_IGNORE
 
-# Catkin (legacy)
-devel/
-.catkin_workspace
-
 # Firmware build artifacts
 firmware/**/build/
 firmware/**/.pio/
