@@ -51,11 +51,11 @@ def generate_launch_description():
     declare_map_filename_cmd = DeclareLaunchArgument(
         'map_filename',
         default_value='my_map',
-        description='Tên file bản đồ (không bao gồm phần mở rộng)')
+        description='Map file name (without extension)')
 
     full_path = PathJoinSubstitution([map_directory, map_filename])
 
-    # 1. Lệnh lưu ảnh map (.yaml + .pgm) cho Nav2
+    # 1. Save the map image (.yaml + .pgm) for Nav2
     save_map_cmd = ExecuteProcess(
         cmd=['ros2', 'run', 'nav2_map_server', 'map_saver_cli',
              '-f', full_path,
@@ -72,7 +72,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 3. Lệnh gọi service Serialize của SLAM Toolbox để tạo 2 file (.posegraph + .data)
+    # 3. Call slam_toolbox's serialize_map service to write the .posegraph + .data pair
     serialize_map_cmd = ExecuteProcess(
         cmd=['ros2', 'service', 'call', '/slam_toolbox/serialize_map',
              'slam_toolbox/srv/SerializePoseGraph',

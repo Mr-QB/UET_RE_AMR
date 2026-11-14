@@ -135,39 +135,6 @@ planner_server:
         w_smooth: 0.3
         w_data: 0.4   # fidelity to the A* path (cost aware); lower = smoother but cuts corners
         tolerance: 1.0e-10
-    # --- previous: SmacPlannerHybrid (footprint aware) ---
-    # TEST: footprint-aware Hybrid-A* (was NavfnPlanner: tolerance 0.5, use_astar false, allow_unknown false).
-    # NavFn plans a 1-cell-wide line and ignores the 58x52 cm footprint and heading, so it approached doors diagonally.
-    # Hybrid-A* checks the real footprint at every pose, so it lines up with a door before turning.
-    # REEDS_SHEPP may reverse, but only to turn around (3-point turn instead of a loop): reverse_penalty 3.0 makes a straight
-    # reverse of more than ~0.5 m dearer than turning around and driving forward.
-#    GridBased:
-#      plugin: "nav2_smac_planner/SmacPlannerHybrid"
-#      downsample_costmap: false
-#      downsampling_factor: 1
-#      tolerance: 0.25
-#      allow_unknown: false   # unknown (grey) cells are not plannable, so paths stay inside the mapped white area
-#      max_iterations: 1000000
-#      max_on_approach_iterations: 1000
-#      max_planning_time: 2.0
-#      motion_model_for_search: "REEDS_SHEPP"
-#      angle_quantization_bins: 72
-#      analytic_expansion_ratio: 3.5
-#      analytic_expansion_max_length: 3.0
-#      minimum_turning_radius: 0.15   # was 0.25: the forward-only loop to reach the goal heading is now ~0.3 m across instead of 0.5 m
-#      reverse_penalty: 3.0
-#      change_penalty: 0.2
-#      non_straight_penalty: 1.20
-#      cost_penalty: 2.0
-#      retrospective_penalty: 0.015
-#      lookup_table_size: 20.0
-#      cache_obstacle_heuristic: false
-#      smooth_path: true
-#      smoother:
-#        max_iterations: 1000
-#        w_smooth: 0.3
-#        w_data: 0.2
-#        tolerance: 1.0e-10
 
 
 local_costmap:

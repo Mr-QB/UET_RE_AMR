@@ -148,22 +148,6 @@
         <origin xyz="0.215 -0.125 0.088" rpy="0 0 ${front_lidar_yaw}"/>
     </xacro:lidar>
 
-    <!-- Rear lidar will be added later.
-    <xacro:lidar
-        frame_id="rear_lidar"
-        parent="base_link"
-        topic_name="scan_2"
-        update_rate="15"
-        ray_count="800"
-        min_angle="-3.14159"
-        max_angle="3.14159"
-        min_range="0.15"
-        max_range="25.0"
-    >
-        <origin xyz="-0.15 -0.23 0.105" rpy="0 0 3.14159"/>
-    </xacro:lidar>
-    -->
-
     <xacro:depth_camera
         frame_id="camera_link"
         parent="base_link"
