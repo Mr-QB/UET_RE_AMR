@@ -55,6 +55,11 @@ install(DIRECTORY urdf DESTINATION share/${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+
+  # Wire-protocol golden vectors; protocol.cpp has no ROS dependencies, so it is compiled straight into the test.
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_protocol test/test_protocol.cpp src/protocol.cpp)
+  target_include_directories(test_protocol PRIVATE include)
 endif()
 
 ament_export_include_directories(include)
