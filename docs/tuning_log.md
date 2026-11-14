@@ -3,6 +3,19 @@
 Field-test results and the history of tuned values. Keep YAML comments to *why a value is what it is*; put "was X" and measurements here.
 Add newest entries on top. Commit tuning-only changes as `tune(<scope>): <what and why>`.
 
+## 2026-11-08 field test
+
+Findings and what happened to them:
+
+- Wheel-odometry heading drifts 0.22 deg/m (linear in distance). Suspected left/right radius mismatch of about 0.16 %. Radius multipliers were
+  changed to 1.0282 / 1.0298 in `88850be`; **the 20 m straight-line confirmation is still open.**
+- Two wheel-odom samples at 4.2 m/s (limit 0.7) were accepted by the EKF: `odom0_twist_rejection_threshold: 5.0` added in `88850be`.
+- AMCL covariance jumped to metres at rest (random-particle injection): `recovery_alpha_fast/slow` set to 0 in `88850be`.
+- 39 % of leg time went to turning to the goal heading: `yaw_goal_tolerance` relaxed to 3.14 in `88850be`.
+- Not acted on yet: accelerometer reads 1.0 % high, camera 3.7 deg off level (fix before fusing the accelerometer); drive-board current signal
+  is unusable (spikes to 20.4 A, does not follow load); GPU mean load 89 % leaves little headroom; gyro yaw offset moved from -2.55 to -2.24 mrad/s
+  over 35 minutes, so the bias corrector must keep learning (a 10 minute rest would measure bias instability).
+
 ## Carried over from YAML comments and git history (to 2026-11-14)
 
 - **Wheel odometry** (`uet_amr_bringup/config/controllers.yaml`): effective `wheel_separation` has been 0.304 (URDF), 0.45, 0.5365, 1.0 and now

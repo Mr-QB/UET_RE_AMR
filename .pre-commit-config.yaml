@@ -1,0 +1,23 @@
+# Install once: pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: ^(firmware/|ros2/src/uet_amr_maps/maps/)
+      - id: trailing-whitespace
+        exclude: ^(firmware/|ros2/src/uet_amr_maps/maps/|docs/)
+      - id: check-yaml
+        args: [--unsafe]   # accept custom YAML tags
+      - id: check-xml
+      - id: check-merge-conflict
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        files: ^ros2/src/
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        files: ^ros2/src/.*\.(cpp|hpp|h)$
