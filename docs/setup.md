@@ -79,6 +79,9 @@ view. To feed your own mask pass `run_segmentation:=false` and publish it on `ma
 - **`nvidia-smi` fails in the container**: check nvidia-container-toolkit and that `docker info` lists the `nvidia` runtime
   (Jetson: JetPack + `nvidia-docker2`).
 - **`NvbloxCostmapLayer` not found**: `nvblox_nav2` isn't installed in the image; rebuild it with `scripts/amr --rebuild build`.
+- **Every node dies with `rmw_create_node: failed to create domain` / `rcl node's rmw handle is invalid`**: the host's
+  `net.core.rmem_max` is below the 10 MB CycloneDDS requires. Run `scripts/amr setup` (installs `docker/90-uet-amr-dds.conf`; needs sudo),
+  then `scripts/amr down` and start again.
 - **D435i frames dropped / low rate**: the host UDP buffer limits are not applied; run `scripts/amr setup` (installs
   `docker/90-uet-amr-dds.conf`), then `scripts/amr down` and restart.
 - **Serial permission denied**: `setup` adds you to `dialout`; log out and back in.
