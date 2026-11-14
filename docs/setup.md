@@ -21,13 +21,15 @@ git clone https://github.com/UET-RE/UET_RE_AMR.git && cd UET_RE_AMR
 ```
 
 On the robot add `--robot` to `setup` to install `uet-amr.service`, which starts bringup at boot
-(`scripts/amr logs` follows it, `sudo systemctl start uet-amr` starts it now).
+(`scripts/amr logs` follows it, `sudo systemctl start uet-amr` starts it now). The service does not rebuild an
+outdated image at boot: after `git pull`, run `scripts/amr build`.
 
 | Command | What it does |
 |---|---|
 | `scripts/amr setup [--robot]` | Host setup. Safe to re-run. |
 | `scripts/amr build` | Updates the image only if `docker/` or a `package.xml` dependency changed, then `colcon build --symlink-install`. |
 | `scripts/amr shell` / `run <cmd>` | Shell or one command in the long-lived container `uet_amr_dev` (`ros2/` is mounted at `/workspaces/isaac_ros-dev`, so `build/ install/ log/` stay on the host). |
+| `scripts/amr stop` | Stop a running bringup cleanly; the container stays up. |
 | `scripts/amr down` | Remove the container (and the zenoh bridge). `build/ install/` stay. |
 | `scripts/amr --rebuild build` | Force an image rebuild. |
 

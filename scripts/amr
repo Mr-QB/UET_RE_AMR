@@ -9,6 +9,7 @@
 #   scripts/amr build            update image if needed, incremental colcon build
 #   scripts/amr shell            shell in the long-lived container
 #   scripts/amr run <cmd...>     run a command in it, e.g.  scripts/amr run ros2 launch uet_amr_bringup amr_bringup.launch.py
+#   scripts/amr stop             stop a running bringup in the container (the container stays up)
 #   scripts/amr logs             follow the robot service's log (after setup --robot)
 #   scripts/amr down             remove the container (build/ install/ stay on disk); also stops zenoh
 #
@@ -88,12 +89,32 @@ IMAGE_STAMP="${XDG_CACHE_HOME:-$HOME/.cache}/uet_amr_image.stamp"
 
 up() {
   local fp; fp=$(image_inputs_fp)
-  if [ -n "$rebuild" ] || ! docker image inspect $DEV_IMAGE >/dev/null 2>&1 ||
-     [ "$(cat "$IMAGE_STAMP" 2>/dev/null)" != "$fp" ]; then
-    dev_build_image
-    mkdir -p "$(dirname "$IMAGE_STAMP")"; echo "$fp" > "$IMAGE_STAMP"
+  local have_image=; docker image inspect $DEV_IMAGE >/dev/null 2>&1 && have_image=1
+  if [ -n "$rebuild" ] || [ -z "$have_image" ] || [ "$(cat "$IMAGE_STAMP" 2>/dev/null)" != "$fp" ]; then
+    if [ -n "$AMR_NO_REBUILD" ] && [ -z "$rebuild" ] && [ -n "$have_image" ]; then
+      # Set by the boot service: an outdated image must not turn a boot into an hour-long build.
+      echo -e "${YELLOW}Image out of date (docker/ or a dependency changed); run 'scripts/amr build'. Using the current one.${NC}"
+    else
+      dev_build_image
+      mkdir -p "$(dirname "$IMAGE_STAMP")"; echo "$fp" > "$IMAGE_STAMP"
+    fi
   fi
   container_ok || { echo -e "${YELLOW}Starting $NAME...${NC}"; start_container; }
+}
+
+# Stop the bringup launch inside the container (SIGINT, so it shuts its nodes down cleanly), then SIGKILL after 20 s.
+# Killing a `docker exec` client does not stop the process it started, so the boot service calls this on stop.
+BRINGUP_PATTERN='ros2 launch uet_amr_bringup'
+stop_bringup() {
+  [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] || return 0
+  docker exec $NAME pkill -INT -f "$BRINGUP_PATTERN" || return 0   # nothing running
+  local i
+  for i in $(seq 20); do
+    docker exec $NAME pgrep -f "$BRINGUP_PATTERN" >/dev/null || return 0
+    sleep 1
+  done
+  echo -e "${YELLOW}Bringup did not exit after SIGINT; killing it.${NC}"
+  docker exec $NAME pkill -KILL -f "$BRINGUP_PATTERN" || true
 }
 
 build() {
@@ -134,10 +155,11 @@ case "${1:-}" in
     up
     [ "${2:-}" = --robot ] && install_service
     ;;
+  stop)  stop_bringup ;;
   logs)  journalctl -u uet-amr.service -f ;;
   build) up; build ;;
   shell) up; in_container 'exec bash -i' ;;
   run)   shift; up; in_container 'exec "$@"' "$@" ;;
   down)  docker rm -f $NAME; docker compose -f "$ZENOH_COMPOSE" down ;;
-  *)     sed -n 2,17p "$0"; exit 1 ;;
+  *)     sed -n 2,19p "$0"; exit 1 ;;
 esac

@@ -15,7 +15,9 @@ Only what the Isaac ROS environment needs. Everything is driven by `scripts/amr`
   when a dependency changes.
 - `dev-cyclonedds.xml` + `90-uet-amr-dds.conf` — 10 MB UDP receive buffer for CycloneDDS (D435i frames were dropped
   without it) and the host sysctl that allows it. `scripts/amr setup` installs the sysctl.
-- `uet-amr.service` — systemd unit that starts bringup at boot; installed by `scripts/amr setup --robot`.
+- `uet-amr.service` — systemd unit that starts bringup at boot; installed by `scripts/amr setup --robot`. It stops bringup
+  through `scripts/amr stop` (killing a `docker exec` client would leave the launch running) and never rebuilds the image at
+  boot, so run `scripts/amr build` after `git pull`.
 - `compose.zenoh.yml`, `zenoh-cyclonedds.xml`, `zenoh-bridge.json5` — optional
   [zenoh-bridge-ros2dds](https://github.com/eclipse-zenoh/zenoh-plugin-ros2dds) (pinned to 1.10.1) in its own host-network
   container: `docker compose -f docker/compose.zenoh.yml up -d` (`scripts/amr down` also stops it).

@@ -1,5 +1,11 @@
 # Starts the robot at boot: bringup inside the dev container. Installed by `scripts/amr setup --robot`
 # (the @...@ placeholders are filled in there).
+#
+# ExecStart runs bringup through `docker exec`. Killing that client would leave the launch running inside the
+# container, so stopping goes through `scripts/amr stop`, which SIGINTs the launch itself. ExecStartPre does the
+# same, so a bringup left over from a crash or a manual `scripts/amr run` never runs twice.
+# AMR_NO_REBUILD: an outdated image is used as-is (with a warning) instead of rebuilding at boot; run
+# `scripts/amr build` after `git pull`.
 [Unit]
 Description=UET AMR bringup
 After=docker.service network-online.target
@@ -9,7 +15,12 @@ Wants=network-online.target
 [Service]
 User=@USER@
 WorkingDirectory=@REPO_ROOT@
+Environment=AMR_NO_REBUILD=1
+ExecStartPre=@REPO_ROOT@/scripts/amr stop
 ExecStart=@REPO_ROOT@/scripts/amr run ros2 launch uet_amr_bringup amr_bringup.launch.py
+ExecStop=@REPO_ROOT@/scripts/amr stop
+KillMode=mixed
+TimeoutStopSec=40
 Restart=on-failure
 RestartSec=5
 
