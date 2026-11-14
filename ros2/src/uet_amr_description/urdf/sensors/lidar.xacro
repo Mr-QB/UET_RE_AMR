@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-    <xacro:macro name="lidar" params="frame_id parent topic_name update_rate ray_count min_angle max_angle min_range max_range *origin">
+    <xacro:macro name="lidar" params="frame_id parent *origin">
         <link name="${frame_id}">
             <visual>
                 <geometry>

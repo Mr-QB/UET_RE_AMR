@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-    <xacro:macro name="depth_camera" params="frame_id parent topic_name update_rate horizontal_fov image_width image_height clip_near clip_far imu_update_rate imu_topic_name *origin">
+    <xacro:macro name="depth_camera" params="frame_id parent *origin">
         <link name="${frame_id}">
             <visual>
                 <origin xyz="0 0 0" rpy="0 0 0"/>
