@@ -52,7 +52,7 @@ namespace uet_amr_hardware
  *
  * Topics exposed (via hardware interface):
  *   - /joint_states (via ros2_control)
- *   - /odom (via diff_drive_controller)
+ *   - /diff_drive_controller/odom (published by diff_drive_controller)
  *   - /hardware/status (uet_amr_msgs/msg/HardwareStatus, published directly by
  *     this node at 1 Hz from the latest decoded feedback packet)
  */
@@ -102,9 +102,8 @@ private:
     // send -- the firmware only speaks when it has something to say.
     bool waitForFeedback(std::chrono::milliseconds timeout);
 
-    // Applies one decoded feedback packet to wheel_positions_ and the
-    // per-cycle angle accumulators. Velocity is derived once per read() cycle
-    // from the accumulators, since several packets can arrive in one cycle.
+    // Applies one decoded feedback packet to wheel_positions_ (integrated encoder ticks). Wheel velocity is not
+    // derived here: read() takes it from the board's measured rpm in the last packet of the cycle.
     void applyFeedback(const protocol::FeedbackPacket & pkt);
 
     // Publishes the latest feedback packet plus wheel state as HardwareStatus.
@@ -133,16 +132,9 @@ private:
     int last_tick_l_{0};
     int last_tick_r_{0};
 
-    // Wheel angle and firmware-sample time accumulated since the last velocity
-    // update (see read()). Using the firmware stamp for dt keeps USB/serial
-    // arrival jitter out of the velocity estimate.
-    double accum_rad_l_{0.0};
-    double accum_rad_r_{0.0};
-    double accum_dt_{0.0};
-    bool have_stamp_{false};
-    uint32_t last_stamp_{0};
+    // Sequence tracking, to warn about lost feedback frames.
+    bool have_seq_{false};
     uint8_t last_seq_{0};
-    std::chrono::steady_clock::time_point last_velocity_update_;
 
     // Status publishing. Owns a bare node (never spun -- publish() needs no
     // executor) since SystemInterface has no node of its own.

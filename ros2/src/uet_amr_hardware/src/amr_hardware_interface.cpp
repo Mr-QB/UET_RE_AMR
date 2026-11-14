@@ -272,11 +272,7 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
 
     have_last_ticks_ = false; // don't compute a bogus delta against a stale sample
     last_feedback_time_ = std::chrono::steady_clock::now();
-    last_velocity_update_ = last_feedback_time_;
-    accum_rad_l_ = 0.0;
-    accum_rad_r_ = 0.0;
-    accum_dt_ = 0.0;
-    have_stamp_ = false;
+    have_seq_ = false;
     last_reconnect_attempt_ = last_feedback_time_;
     RCLCPP_INFO(logger(), "Hardware activated.");
     return hardware_interface::CallbackReturn::SUCCESS;
@@ -355,26 +351,20 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     last_packet_ = pkt;
     have_packet_ = true;
 
-    if (have_stamp_) {
+    if (have_seq_) {
         const unsigned missed = (pkt.seq - last_seq_ - 1u) & 0x7Fu;
         if (missed != 0) {
             RCLCPP_WARN_THROTTLE(
                 logger(), steady_clock_, 1000, "Lost %u feedback frame(s)", missed);
         }
-        // 11-bit stamp: masked subtraction is wrap-safe as long as packets
-        // arrive within the ~524 ms wrap (the feedback timeout is 500 ms).
-        accum_dt_ += static_cast<double>((pkt.stamp - last_stamp_) & protocol::kStampMask) *
-            protocol::kStampUnitSeconds;
     }
-    last_stamp_ = pkt.stamp;
     last_seq_ = pkt.seq;
-    have_stamp_ = true;
+    have_seq_ = true;
 
     if (!have_last_ticks_) {
         last_tick_l_ = pkt.en_tick_l;
         last_tick_r_ = pkt.en_tick_r;
         have_last_ticks_ = true;
-        accum_dt_ = 0.0;
         return;
     }
 
@@ -390,8 +380,6 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     const double new_left_pos = wheel_positions_[0] + delta_l * rad_per_tick;
     const double new_right_pos = wheel_positions_[1] + delta_r * rad_per_tick;
 
-    accum_rad_l_ += new_left_pos - wheel_positions_[0];
-    accum_rad_r_ += new_right_pos - wheel_positions_[1];
     wheel_positions_[0] = new_left_pos;
     wheel_positions_[1] = new_right_pos;
 }
@@ -440,7 +428,7 @@ hardware_interface::return_type AmrHardwareInterface::reconnect()
     RCLCPP_INFO(logger(), "Reopened '%s'; waiting for firmware.", serial_port_.c_str());
     feedback_parser_ = protocol::FeedbackParser();
     have_last_ticks_ = false;  // no bogus tick delta across the gap
-    have_stamp_ = false;
+    have_seq_ = false;
     last_feedback_time_ = now;  // restart the feedback timeout
     return hardware_interface::return_type::OK;
 }
@@ -490,9 +478,6 @@ hardware_interface::return_type AmrHardwareInterface::read(
         constexpr double kRpmToRadPerSec = 2.0 * M_PI / 60.0;
         wheel_velocities_[0] = last_packet_.speed_l * kRpmToRadPerSec;
         wheel_velocities_[1] = last_packet_.speed_r * kRpmToRadPerSec;
-        accum_rad_l_ = 0.0;
-        accum_rad_r_ = 0.0;
-        accum_dt_ = 0.0;
     }
 
     if (have_packet_ && now - last_status_publish_ >= kStatusPeriod) {
