@@ -107,6 +107,8 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
     node_ = rclcpp::Node::make_shared("amr_hardware_interface_status");
     status_pub_ = node_->create_publisher<uet_amr_msgs::msg::HardwareStatus>(
         "/hardware/status", 10);
+    link_pub_ = node_->create_publisher<uet_amr_msgs::msg::SerialLinkStatus>(
+        "/hardware/link_status", 10);
 
     RCLCPP_INFO(
         logger(),
@@ -399,18 +401,34 @@ void AmrHardwareInterface::publishHardwareStatus()
     msg.left_wheel_velocity = wheel_velocities_[0];
     msg.right_wheel_velocity = wheel_velocities_[1];
 
+    if (battery_percent <= kBatteryCriticalPercent) {
+        msg.battery_state = "CRITICAL";
+    } else if (battery_percent <= kBatteryLowPercent) {
+        msg.battery_state = "LOW";
+    } else {
+        msg.battery_state = "OK";
+    }
+
+    status_pub_->publish(msg);
+    publishLinkStatus();
+}
+
+void AmrHardwareInterface::publishLinkStatus()
+{
+    uet_amr_msgs::msg::SerialLinkStatus msg;
+    msg.header.stamp = node_->now();
     const LinkSnapshot link = link_.takeWindow(steadySeconds());
-    msg.link_packets_total = link.packets_total;
-    msg.link_frames_lost_total = link.frames_lost_total;
-    msg.link_checksum_errors_total = link.checksum_errors_total;
-    msg.link_bytes_discarded_total = link.bytes_discarded_total;
-    msg.link_timeouts_total = link.timeouts_total;
-    msg.link_reconnects_total = link.reconnects_total;
-    msg.link_rate_hz = static_cast<float>(link.rate_hz);
-    msg.link_loss_percent = static_cast<float>(link.loss_percent);
-    msg.link_firmware_period_ms = static_cast<float>(link.firmware_period_ms);
-    msg.link_delay_mean_ms = static_cast<float>(link.delay_mean_ms);
-    msg.link_delay_max_ms = static_cast<float>(link.delay_max_ms);
+    msg.packets_total = link.packets_total;
+    msg.frames_lost_total = link.frames_lost_total;
+    msg.checksum_errors_total = link.checksum_errors_total;
+    msg.bytes_discarded_total = link.bytes_discarded_total;
+    msg.timeouts_total = link.timeouts_total;
+    msg.reconnects_total = link.reconnects_total;
+    msg.rate_hz = static_cast<float>(link.rate_hz);
+    msg.loss_percent = static_cast<float>(link.loss_percent);
+    msg.firmware_period_ms = static_cast<float>(link.firmware_period_ms);
+    msg.delay_mean_ms = static_cast<float>(link.delay_mean_ms);
+    msg.delay_max_ms = static_cast<float>(link.delay_max_ms);
     if (link.frames_lost_window > 0 || link.checksum_errors_window > 0) {
         RCLCPP_WARN_THROTTLE(
             logger(), steady_clock_, 5000,
@@ -422,16 +440,7 @@ void AmrHardwareInterface::publishHardwareStatus()
     RCLCPP_DEBUG(
         logger(), "Feedback link: %.1f Hz, firmware period %.2f ms, arrival delay mean %.2f / max %.2f ms",
         link.rate_hz, link.firmware_period_ms, link.delay_mean_ms, link.delay_max_ms);
-
-    if (battery_percent <= kBatteryCriticalPercent) {
-        msg.battery_state = "CRITICAL";
-    } else if (battery_percent <= kBatteryLowPercent) {
-        msg.battery_state = "LOW";
-    } else {
-        msg.battery_state = "OK";
-    }
-
-    status_pub_->publish(msg);
+    link_pub_->publish(msg);
 }
 
 hardware_interface::return_type AmrHardwareInterface::reconnect()

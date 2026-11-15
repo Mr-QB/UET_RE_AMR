@@ -10,6 +10,7 @@ find_package(builtin_interfaces REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/HardwareStatus.msg"
   "msg/MapInfo.msg"
+  "msg/SerialLinkStatus.msg"
   "srv/SetMode.srv"
   "srv/SaveMap.srv"
   "srv/ListMaps.srv"

@@ -35,6 +35,7 @@
 #include "uet_amr_hardware/link_monitor.hpp"
 #include "uet_amr_hardware/protocol.hpp"
 #include "uet_amr_msgs/msg/hardware_status.hpp"
+#include "uet_amr_msgs/msg/serial_link_status.hpp"
 
 namespace uet_amr_hardware
 {
@@ -56,6 +57,7 @@ namespace uet_amr_hardware
  *   - /diff_drive_controller/odom (published by diff_drive_controller)
  *   - /hardware/status (uet_amr_msgs/msg/HardwareStatus, published directly by
  *     this node at 1 Hz from the latest decoded feedback packet)
+ *   - /hardware/link_status (uet_amr_msgs/msg/SerialLinkStatus, 1 Hz serial link health)
  */
 class AmrHardwareInterface : public hardware_interface::SystemInterface
 {
@@ -113,6 +115,9 @@ private:
     // protocol.hpp).
     void publishHardwareStatus();
 
+    // Publishes the serial link health window as SerialLinkStatus (/hardware/link_status).
+    void publishLinkStatus();
+
     // Signed tick delta accounting for wrap-around at encoder_max_, matching
     // the firmware's own Odom::wrapDelta().
     int wrapTickDelta(int current, int previous) const;
@@ -133,13 +138,14 @@ private:
     int last_tick_l_{0};
     int last_tick_r_{0};
 
-    // Feedback stream health: lost frames, checksum errors, timing (published in HardwareStatus).
+    // Feedback stream health: lost frames, checksum errors, timing (published as SerialLinkStatus).
     LinkMonitor link_;
 
     // Status publishing. Owns a bare node (never spun -- publish() needs no
     // executor) since SystemInterface has no node of its own.
     rclcpp::Node::SharedPtr node_;
     rclcpp::Publisher<uet_amr_msgs::msg::HardwareStatus>::SharedPtr status_pub_;
+    rclcpp::Publisher<uet_amr_msgs::msg::SerialLinkStatus>::SharedPtr link_pub_;
     protocol::FeedbackPacket last_packet_{};
     bool have_packet_{false};
     std::chrono::steady_clock::time_point last_status_publish_;

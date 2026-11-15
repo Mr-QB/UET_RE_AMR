@@ -28,7 +28,7 @@ namespace uet_amr_hardware
 {
 
 // One reporting window plus the totals since start. All fields are plain numbers so the node can copy them
-// straight into uet_amr_msgs/msg/HardwareStatus.
+// straight into uet_amr_msgs/msg/SerialLinkStatus.
 struct LinkSnapshot
 {
     double window_s{0.0};
