@@ -2,7 +2,7 @@
      fragments; with the kernel default (~208 KB) bursts overflow and whole frames are dropped (netstat -su showed
      millions of "receive buffer errors", image topics at ~12 Hz while the driver delivered 15). Needs the host's
      net.core.rmem_max to be at least this large (install docker/90-uet-amr-dds.conf into /etc/sysctl.d/ on the host).
-     min= is a request; Cyclone warns at startup if the kernel caps it lower. -->
+     min= is a hard requirement: if the kernel caps the buffer lower, every node fails with 'failed to create domain'. -->
 <CycloneDDS>
   <Domain>
     <Internal>

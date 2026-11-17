@@ -48,6 +48,12 @@ namespace
         return rclcpp::get_logger("AmrHardwareInterface");
     }
 
+    // Host time for the link statistics (any steady origin; only differences matter).
+    double steadySeconds()
+    {
+        return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
     speed_t baudRateToSpeed(int baud_rate)
     {
         switch (baud_rate) {
@@ -101,6 +107,8 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_init(
     node_ = rclcpp::Node::make_shared("amr_hardware_interface_status");
     status_pub_ = node_->create_publisher<uet_amr_msgs::msg::HardwareStatus>(
         "/hardware/status", 10);
+    link_pub_ = node_->create_publisher<uet_amr_msgs::msg::SerialLinkStatus>(
+        "/hardware/link_status", 10);
 
     RCLCPP_INFO(
         logger(),
@@ -272,11 +280,7 @@ hardware_interface::CallbackReturn AmrHardwareInterface::on_activate(
 
     have_last_ticks_ = false; // don't compute a bogus delta against a stale sample
     last_feedback_time_ = std::chrono::steady_clock::now();
-    last_velocity_update_ = last_feedback_time_;
-    accum_rad_l_ = 0.0;
-    accum_rad_r_ = 0.0;
-    accum_dt_ = 0.0;
-    have_stamp_ = false;
+    link_.reset();
     last_reconnect_attempt_ = last_feedback_time_;
     RCLCPP_INFO(logger(), "Hardware activated.");
     return hardware_interface::CallbackReturn::SUCCESS;
@@ -355,26 +359,12 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     last_packet_ = pkt;
     have_packet_ = true;
 
-    if (have_stamp_) {
-        const unsigned missed = (pkt.seq - last_seq_ - 1u) & 0x7Fu;
-        if (missed != 0) {
-            RCLCPP_WARN_THROTTLE(
-                logger(), steady_clock_, 1000, "Lost %u feedback frame(s)", missed);
-        }
-        // 11-bit stamp: masked subtraction is wrap-safe as long as packets
-        // arrive within the ~524 ms wrap (the feedback timeout is 500 ms).
-        accum_dt_ += static_cast<double>((pkt.stamp - last_stamp_) & protocol::kStampMask) *
-            protocol::kStampUnitSeconds;
-    }
-    last_stamp_ = pkt.stamp;
-    last_seq_ = pkt.seq;
-    have_stamp_ = true;
+    link_.onPacket(pkt.seq, pkt.stamp);
 
     if (!have_last_ticks_) {
         last_tick_l_ = pkt.en_tick_l;
         last_tick_r_ = pkt.en_tick_r;
         have_last_ticks_ = true;
-        accum_dt_ = 0.0;
         return;
     }
 
@@ -390,8 +380,6 @@ void AmrHardwareInterface::applyFeedback(const protocol::FeedbackPacket & pkt)
     const double new_left_pos = wheel_positions_[0] + delta_l * rad_per_tick;
     const double new_right_pos = wheel_positions_[1] + delta_r * rad_per_tick;
 
-    accum_rad_l_ += new_left_pos - wheel_positions_[0];
-    accum_rad_r_ += new_right_pos - wheel_positions_[1];
     wheel_positions_[0] = new_left_pos;
     wheel_positions_[1] = new_right_pos;
 }
@@ -422,6 +410,37 @@ void AmrHardwareInterface::publishHardwareStatus()
     }
 
     status_pub_->publish(msg);
+    publishLinkStatus();
+}
+
+void AmrHardwareInterface::publishLinkStatus()
+{
+    uet_amr_msgs::msg::SerialLinkStatus msg;
+    msg.header.stamp = node_->now();
+    const LinkSnapshot link = link_.takeWindow(steadySeconds());
+    msg.packets_total = link.packets_total;
+    msg.frames_lost_total = link.frames_lost_total;
+    msg.checksum_errors_total = link.checksum_errors_total;
+    msg.bytes_discarded_total = link.bytes_discarded_total;
+    msg.timeouts_total = link.timeouts_total;
+    msg.reconnects_total = link.reconnects_total;
+    msg.rate_hz = static_cast<float>(link.rate_hz);
+    msg.loss_percent = static_cast<float>(link.loss_percent);
+    msg.firmware_period_ms = static_cast<float>(link.firmware_period_ms);
+    msg.delay_mean_ms = static_cast<float>(link.delay_mean_ms);
+    msg.delay_max_ms = static_cast<float>(link.delay_max_ms);
+    if (link.frames_lost_window > 0 || link.checksum_errors_window > 0) {
+        RCLCPP_WARN_THROTTLE(
+            logger(), steady_clock_, 5000,
+            "Feedback link: %u frame(s) lost (%.1f%%), %u checksum error(s) in the last %.1fs "
+            "(totals: %u lost, %u checksum errors, %u bytes discarded)",
+            link.frames_lost_window, link.loss_percent, link.checksum_errors_window, link.window_s,
+            link.frames_lost_total, link.checksum_errors_total, link.bytes_discarded_total);
+    }
+    RCLCPP_DEBUG(
+        logger(), "Feedback link: %.1f Hz, firmware period %.2f ms, arrival delay mean %.2f / max %.2f ms",
+        link.rate_hz, link.firmware_period_ms, link.delay_mean_ms, link.delay_max_ms);
+    link_pub_->publish(msg);
 }
 
 hardware_interface::return_type AmrHardwareInterface::reconnect()
@@ -438,9 +457,9 @@ hardware_interface::return_type AmrHardwareInterface::reconnect()
         return hardware_interface::return_type::OK;
     }
     RCLCPP_INFO(logger(), "Reopened '%s'; waiting for firmware.", serial_port_.c_str());
-    feedback_parser_ = protocol::FeedbackParser();
+    feedback_parser_.resync();  // keeps the counters
     have_last_ticks_ = false;  // no bogus tick delta across the gap
-    have_stamp_ = false;
+    link_.onReconnect();
     last_feedback_time_ = now;  // restart the feedback timeout
     return hardware_interface::return_type::OK;
 }
@@ -479,6 +498,9 @@ hardware_interface::return_type AmrHardwareInterface::read(
                 got_packet = true;
             }
         }
+        link_.onChunk(steadySeconds());
+        link_.onParserCounters(
+            feedback_parser_.stats().checksum_errors, feedback_parser_.stats().bytes_discarded);
     }
 
     const auto now = std::chrono::steady_clock::now();
@@ -490,9 +512,6 @@ hardware_interface::return_type AmrHardwareInterface::read(
         constexpr double kRpmToRadPerSec = 2.0 * M_PI / 60.0;
         wheel_velocities_[0] = last_packet_.speed_l * kRpmToRadPerSec;
         wheel_velocities_[1] = last_packet_.speed_r * kRpmToRadPerSec;
-        accum_rad_l_ = 0.0;
-        accum_rad_r_ = 0.0;
-        accum_dt_ = 0.0;
     }
 
     if (have_packet_ && now - last_status_publish_ >= kStatusPeriod) {
@@ -510,6 +529,7 @@ hardware_interface::return_type AmrHardwareInterface::read(
         RCLCPP_ERROR_THROTTLE(
             logger(), steady_clock_, 1000,
             "No feedback from firmware for %ldms", static_cast<long>(since_last.count()));
+        link_.onTimeout();
         closeSerial();  // reopen from read() in case the port went stale
         return reconnect();
     }

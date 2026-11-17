@@ -10,17 +10,13 @@ find_package(builtin_interfaces REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/HardwareStatus.msg"
   "msg/MapInfo.msg"
-  "msg/MotionTestState.msg"
+  "msg/SerialLinkStatus.msg"
   "srv/SetMode.srv"
   "srv/SaveMap.srv"
   "srv/ListMaps.srv"
   "srv/GetMap.srv"
   "srv/ApplyZones.srv"
   "srv/SetTeleop.srv"
-  "srv/StartMotionTest.srv"
-  "srv/StopMotionTest.srv"
-  "srv/StartVelocityStep.srv"
-  "action/NavigateTo.action"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 

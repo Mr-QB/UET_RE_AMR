@@ -87,6 +87,7 @@ namespace protocol
     bool FeedbackParser::feed(uint8_t b)
     {
         if (len_ == 0 && b != kHeader) {
+            ++stats_.bytes_discarded;
             return false;
         }
         buf_[len_++] = b;
@@ -100,15 +101,20 @@ namespace protocol
             buf_[kFeedbackPacketLen - 2] | (buf_[kFeedbackPacketLen - 1] << 8));
         if (received != expected) {
             // Bad packet: a real header may sit inside it, so rescan the tail.
+            ++stats_.checksum_errors;
+            size_t dropped = kFeedbackPacketLen;
             for (size_t i = 1; i < kFeedbackPacketLen; i++) {
                 if (buf_[i] == kHeader) {
                     len_ = kFeedbackPacketLen - i;
                     std::memmove(buf_, &buf_[i], len_);
+                    dropped = i;
                     break;
                 }
             }
+            stats_.bytes_discarded += dropped;
             return false;
         }
+        ++stats_.packets_ok;
 
         BitReader r(buf_);
         r.get(8);  // header, already matched

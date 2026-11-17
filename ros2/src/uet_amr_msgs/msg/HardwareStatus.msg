@@ -1,6 +1,7 @@
 # Hardware Status Message
 # Published by: uet_amr_hardware (AmrHardwareInterface)
 # Topic: /hardware/status  (1 Hz, latest firmware feedback snapshot)
+# Serial link health is a separate message: SerialLinkStatus on /hardware/link_status
 #
 # No battery voltage field: the ESP32-to-ROS feedback packet (ros_protocol.h)
 # only forwards a computed battery percentage, not the hoverboard mainboard's

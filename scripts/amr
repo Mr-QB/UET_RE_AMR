@@ -1,0 +1,168 @@
+#!/bin/bash
+# UET AMR -- the one entry point for the Docker environment (Jetson robot, or an NVIDIA x86 dev PC).
+# Built on NVIDIA's isaac_ros_common layering:
+#   NVIDIA base (prebuilt where published) [+ RealSense layer on Jetson] + docker/Dockerfile.uet_amr
+# ros2/ is mounted at /workspaces/isaac_ros-dev, so build/ install/ log/ persist on the host.
+#
+#   scripts/amr setup [--robot]  host setup: udev rules, UDP buffer sysctl, isaac_ros_common, image;
+#                                --robot also installs the systemd unit that starts the robot at boot
+#   scripts/amr build            update image if needed, incremental colcon build
+#   scripts/amr shell            shell in the long-lived container
+#   scripts/amr run <cmd...>     run a command in it, e.g.  scripts/amr run ros2 launch uet_amr_bringup amr_bringup.launch.py
+#   scripts/amr stop             stop a running bringup in the container (the container stays up)
+#   scripts/amr logs             follow the robot service's log (after setup --robot)
+#   scripts/amr down             remove the container (build/ install/ stay on disk); also stops zenoh
+#
+# One container, one image tag, one set of DDS settings (docker/amr.env). Nothing is reinstalled or recompiled
+# except your own changed code; --symlink-install means launch/config/Python edits need no build.
+# The optional Zenoh <-> ROS 2 bridge is a separate container:  docker compose -f docker/compose.zenoh.yml up -d
+# The image is rebuilt only when docker/ or a package.xml dependency changed; --rebuild forces it.
+set -e
+source "$(dirname "$(readlink -f "$0")")/common.sh"
+
+NAME=uet_amr_dev
+AMR_ENV="$REPO_ROOT/docker/amr.env"   # ROS_DOMAIN_ID and RMW_IMPLEMENTATION, also read by compose.zenoh.yml
+set -a; source "$AMR_ENV"; set +a
+WS=/workspaces/isaac_ros-dev
+ZENOH_COMPOSE="$REPO_ROOT/docker/compose.zenoh.yml"
+SRC='source /opt/ros/humble/setup.bash; [ -f install/setup.bash ] && source install/setup.bash'
+
+# The image ID changes on every `docker build` (build metadata), even when every layer is
+# identical, so compare a fingerprint of the layer list instead.
+image_fp() { docker image inspect -f '{{json .RootFS.Layers}}' $DEV_IMAGE | sha256sum | cut -c1-16; }
+
+# The container runs as the host user, who needs the host's video/render groups to open /dev/nvmap
+# (NITROS/nvblox: "NvRmMemInitNvmap failed: Permission denied" -> CUDA error 999 otherwise).
+GPU_GROUPS=$(getent group video render | cut -d: -f3 | sort -u | tr '\n' ' ')
+
+DDS_CONFIG="$REPO_ROOT/docker/dev-cyclonedds.xml"   # bigger UDP receive buffer, see the file's header
+
+# The NVIDIA runtime injects the host's driver libraries at the host's own path. On Arch-style hosts that is /usr/lib,
+# but the image carries its own (older) copies in /usr/lib/x86_64-linux-gnu, which win in the linker search order:
+# "Driver/library version mismatch" as soon as the host driver differs from the image's. Search /usr/lib first there.
+HOST_LIBS_IN_USR_LIB=
+[ -e /usr/lib/libnvidia-ml.so.1 ] && [ ! -e /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1 ] && HOST_LIBS_IN_USR_LIB=1
+
+container_fp() { echo "$(image_fp)+groups:${GPU_GROUPS// /,}+dds:$(cat "$DDS_CONFIG" "$AMR_ENV" | sha256sum | cut -c1-8)+usrlib:${HOST_LIBS_IN_USR_LIB:-0}+iws:1"; }
+
+container_ok() {  # running, and created from an image with the same layers and the same run options
+  [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] &&
+  [ "$(docker inspect -f '{{index .Config.Labels "uet_amr.image"}}' $NAME)" = "$(container_fp)" ]
+}
+
+start_container() {
+  docker rm -f $NAME >/dev/null 2>&1 || true
+  local args=(
+    -d --restart unless-stopped --name $NAME --label uet_amr.image="$(container_fp)"
+    --privileged --network host --ipc=host --runtime nvidia
+    --user "$(id -u):$(id -g)" -e HOME=/tmp
+    -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all -e ISAAC_ROS_WS=$WS --env-file "$AMR_ENV" -e CYCLONEDDS_URI=file:///etc/dev-cyclonedds.xml -e DISPLAY
+    -v /tmp/.X11-unix:/tmp/.X11-unix -v /dev:/dev -v /etc/localtime:/etc/localtime:ro
+    -v "$DDS_CONFIG:/etc/dev-cyclonedds.xml:ro"
+    -v "$REPO_ROOT/ros2:$WS" -w $WS
+  )
+  if [ "$(uname -m)" = aarch64 ]; then   # the Jetson mounts NVIDIA's own scripts add
+    local vis="nvidia.com/gpu=all"   # the PVA device only exists in the CDI spec on some JetPack installs
+    nvidia-ctk cdi list 2>/dev/null | grep -q '^nvidia.com/pva=' && vis+=",nvidia.com/pva=all"
+    args+=(-e NVIDIA_VISIBLE_DEVICES="$vis" --pid=host
+      -v /usr/bin/tegrastats:/usr/bin/tegrastats
+      -v /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra
+      -v /usr/src/jetson_multimedia_api:/usr/src/jetson_multimedia_api
+      -v /usr/share/vpi3:/usr/share/vpi3)
+  fi
+  [ -d /dev/input ] && args+=(-v /dev/input:/dev/input)
+  [ -n "$HOST_LIBS_IN_USR_LIB" ] && args+=(-e LD_LIBRARY_PATH=/usr/lib)
+  local g; for g in $GPU_GROUPS; do args+=(--group-add "$g"); done
+  docker run "${args[@]}" $DEV_IMAGE sleep infinity >/dev/null
+}
+
+in_container() { local t=-i; [ -t 0 ] && t=-it; docker exec $t -w $WS $NAME bash -c "$SRC; $1" _ "${@:2}"; }
+
+# Fingerprint of everything that goes into the image; the build is skipped while it is unchanged.
+# Package inputs are the dependency-only stubs, so code/version/metadata edits don't count.
+image_inputs_fp() {
+  gen_pkgxml_context
+  find "$REPO_ROOT/docker" -maxdepth 1 -type f -print0 | cat - <(find "$REPO_ROOT/docker/.pkgxml" -type f -print0) |
+    sort -z | xargs -0 sha256sum | sed 's:  .*/docker/:  :' | sha256sum | cut -c1-16
+}
+IMAGE_STAMP="${XDG_CACHE_HOME:-$HOME/.cache}/uet_amr_image.stamp"
+
+up() {
+  local fp; fp=$(image_inputs_fp)
+  local have_image=; docker image inspect $DEV_IMAGE >/dev/null 2>&1 && have_image=1
+  if [ -n "$rebuild" ] || [ -z "$have_image" ] || [ "$(cat "$IMAGE_STAMP" 2>/dev/null)" != "$fp" ]; then
+    if [ -n "$AMR_NO_REBUILD" ] && [ -z "$rebuild" ] && [ -n "$have_image" ]; then
+      # Set by the boot service: an outdated image must not turn a boot into an hour-long build.
+      echo -e "${YELLOW}Image out of date (docker/ or a dependency changed); run 'scripts/amr build'. Using the current one.${NC}"
+    else
+      dev_build_image
+      mkdir -p "$(dirname "$IMAGE_STAMP")"; echo "$fp" > "$IMAGE_STAMP"
+    fi
+  fi
+  # CycloneDDS refuses to create a node when it cannot get the receive buffer docker/dev-cyclonedds.xml asks for.
+  local rmem; rmem=$(sysctl -n net.core.rmem_max 2>/dev/null || echo 0)
+  [ "$rmem" -ge 10485760 ] || echo -e "${YELLOW}Warning: net.core.rmem_max is $rmem (needs >= 10485760): every ROS node will fail with 'failed to create domain'. Run 'scripts/amr setup'.${NC}" >&2
+  container_ok || { echo -e "${YELLOW}Starting $NAME...${NC}"; start_container; }
+}
+
+# Stop the bringup launch inside the container (SIGINT, so it shuts its nodes down cleanly), then SIGKILL after 20 s.
+# Killing a `docker exec` client does not stop the process it started, so the boot service calls this on stop.
+BRINGUP_PATTERN='ros2 launch uet_amr_bringup'
+stop_bringup() {
+  [ "$(docker inspect -f '{{.State.Running}}' $NAME 2>/dev/null)" = true ] || return 0
+  docker exec $NAME pkill -INT -f "$BRINGUP_PATTERN" || return 0   # nothing running
+  local i
+  for i in $(seq 20); do
+    docker exec $NAME pgrep -f "$BRINGUP_PATTERN" >/dev/null || return 0
+    sleep 1
+  done
+  echo -e "${YELLOW}Bringup did not exit after SIGINT; killing it.${NC}"
+  docker exec $NAME pkill -KILL -f "$BRINGUP_PATTERN" || true
+}
+
+build() {
+  echo -e "${YELLOW}Incremental build...${NC}"
+  in_container 'colcon build --symlink-install --base-paths src --cmake-args -DCMAKE_BUILD_TYPE=Release'
+}
+
+args=() rebuild=
+for a in "$@"; do
+  case "$a" in
+    --rebuild) rebuild=1 ;;
+    *) args+=("$a") ;;
+  esac
+done
+set -- "${args[@]}"
+
+# Raise the kernel's UDP buffer limits so CycloneDDS can actually get the 10 MB receive buffer it asks for
+# (docker/dev-cyclonedds.xml); without it D435i frames are dropped.
+install_sysctl() {
+  local src="$REPO_ROOT/docker/90-uet-amr-dds.conf" dest=/etc/sysctl.d/90-uet-amr-dds.conf
+  cmp -s "$src" "$dest" && return
+  echo -e "${YELLOW}Installing $(basename "$src")...${NC}"
+  sudo cp "$src" "$dest" && sudo sysctl --system >/dev/null
+}
+
+# systemd unit that starts bringup in the container at boot (robot only).
+install_service() {
+  local dest=/etc/systemd/system/uet-amr.service
+  sed "s#@REPO_ROOT@#$REPO_ROOT#g; s#@USER@#$USER#g" "$REPO_ROOT/docker/uet-amr.service" | sudo tee "$dest" >/dev/null
+  sudo systemctl daemon-reload && sudo systemctl enable uet-amr.service
+  echo "  Installed uet-amr.service (start now: sudo systemctl start uet-amr)"
+}
+
+case "${1:-}" in
+  setup)
+    install_udev_rules || echo -e "${YELLOW}Warning: udev rules not installed (needs sudo); continuing.${NC}"
+    install_sysctl || echo -e "${YELLOW}Warning: sysctl not installed (needs sudo); continuing.${NC}"
+    up
+    [ "${2:-}" = --robot ] && install_service
+    ;;
+  stop)  stop_bringup ;;
+  logs)  journalctl -u uet-amr.service -f ;;
+  build) up; build ;;
+  shell) up; in_container 'exec bash -i' ;;
+  run)   shift; up; in_container 'exec "$@"' "$@" ;;
+  down)  docker rm -f $NAME; docker compose -f "$ZENOH_COMPOSE" down ;;
+  *)     sed -n 2,19p "$0"; exit 1 ;;
+esac

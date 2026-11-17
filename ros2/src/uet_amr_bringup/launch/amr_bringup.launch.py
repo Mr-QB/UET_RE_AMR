@@ -27,7 +27,7 @@ robot_localization's EKF (fusing wheel odometry with the D435i's IMU),
 sensors (lidar + depth camera, uet_amr_bringup/launch/sensors.launch.py),
 and an amr_mode_manager that starts SLAM or Nav2 and switches them at runtime
 through /amr/set_mode. Joystick and keyboard teleop plus their gate (uet_amr_teleop) are included too; the gate starts
-with teleop off (teleop_source:=none) and /amr/set_teleop selects joy/keyboard/none. teleop:=false
+with teleop off (teleop_source:=none) and /amr/set_teleop selects joy/keyboard/none. use_teleop:=false
 leaves teleop out completely. foxglove:=true also starts Foxglove Bridge (off by default). The selected mode can
 optionally start its RViz window.
 Hardware, localization, and sensors stay alive during mode changes.
@@ -36,58 +36,25 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
-PKG_DESCRIPTION = FindPackageShare('uet_amr_description')
-
 
 def generate_launch_description():
     default_map_file = PathJoinSubstitution([
-        FindPackageShare('uet_amr_navigation'), 'maps', 'warehouse.yaml'
+        FindPackageShare('uet_amr_maps'), 'maps', 'gd2', 'gd2.yaml'
     ])
 
-    xacro_file = PathJoinSubstitution([PKG_DESCRIPTION, 'urdf', 'uet_amr.xacro'])
-    controller_params_file = PathJoinSubstitution([PKG_DESCRIPTION, 'config', 'controllers.yaml'])
-
-    robot_description = {
-        'robot_description': ParameterValue(
-            Command([
-                'xacro ', xacro_file,
-                ' use_real_hardware:=true',
-                ' serial_port:=', LaunchConfiguration('serial_port'),
-                ' baud_rate:=', LaunchConfiguration('baud_rate'),
-            ]),
-            value_type=str,
-        )
-    }
-
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
-        parameters=[robot_description],
-    )
-
-    controller_manager_node = Node(
-        package='controller_manager',
-        executable='ros2_control_node',
-        parameters=[controller_params_file],
-        remappings=[('~/robot_description', '/robot_description')],
-        output='screen',
-    )
-
-    controller_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=[
-            'joint_state_broadcaster', 'diff_drive_controller',
-            '--controller-manager', '/controller_manager',
-            '--param-file', controller_params_file,
-        ],
+    control_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([FindPackageShare('uet_amr_bringup'), 'launch', 'control.launch.py'])
+        ]),
+        launch_arguments={
+            'serial_port': LaunchConfiguration('serial_port'),
+            'baud_rate': LaunchConfiguration('baud_rate'),
+        }.items()
     )
 
     ekf_localization = IncludeLaunchDescription(
@@ -95,7 +62,6 @@ def generate_launch_description():
             PathJoinSubstitution([FindPackageShare('uet_amr_localization'), 'launch', 'ekf.launch.py'])
         ]),
         launch_arguments={
-            'use_sim_time': 'false',
             'imu_topic': 'camera/camera/imu',
         }.items()
     )
@@ -111,7 +77,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindPackageShare('uet_amr_teleop'), 'launch', 'teleop.launch.py'])
         ]),
         launch_arguments={'initial_source': LaunchConfiguration('teleop_source')}.items(),
-        condition=IfCondition(LaunchConfiguration('teleop')),
+        condition=IfCondition(LaunchConfiguration('use_teleop')),
     )
 
     foxglove_bridge = Node(
@@ -127,13 +93,16 @@ def generate_launch_description():
             'best_effort_qos_topic_whitelist': ['/scan', '/nvblox_node/.*pointcloud', '/camera/.*'],
             # Not offered to Foxglove, so one click cannot saturate the link: raw/depth/theora image streams (use
             # .../image_raw/compressed), nvblox's raw Mesh and voxel-layer markers (use /nvblox_node/mesh_marker, which
-            # sends only changed blocks), the 10 Hz ESDF point clouds and the people-segmentation masks/tensors (/unet, uncompressed). Remove the pattern to get a topic back.
+            # sends only changed blocks), the 10 Hz ESDF point clouds and the people-segmentation masks/tensors
+            # (/unet, uncompressed). Remove the pattern to get a topic back.
             'topic_whitelist': [r'^(?!/nvblox_node/(mesh|tsdf_layer|tsdf_layer_marker|color_layer|color_layer_marker|'
                                 r'static_esdf_pointcloud|pessimistic_.*|back_projected_depth/.*)$)'
                                 r'(?!.*/(image_raw|image_rect_raw)$)(?!.*/(compressedDepth|theora)$)'
-                                # PeopleSemSegNet internals; the colour mask is an uncompressed Image (1.6 MB x ~22 Hz = 35 MB/s), so only its
+                                # PeopleSemSegNet internals; the colour mask is an uncompressed Image
+                                # (1.6 MB x ~22 Hz = 35 MB/s), so only its
                                 # JPEG version (/unet/colored_segmentation_mask/compressed) is offered
-                                r'(?!/unet/(?!colored_segmentation_mask/compressed$))(?!/(dnn_image_encoder|tensor_pub|tensor_sub)(/|$))(?!.*/image_tensor$).*'],
+                                r'(?!/unet/(?!colored_segmentation_mask/compressed$))'
+                                r'(?!/(dnn_image_encoder|tensor_pub|tensor_sub)(/|$))(?!.*/image_tensor$).*'],
         }],
         arguments=['--ros-args', '--log-level', 'foxglove_bridge:=warn'],  # drop per-subscription/channel INFO spam
         condition=IfCondition(LaunchConfiguration('foxglove')),
@@ -148,11 +117,8 @@ def generate_launch_description():
             'initial_mode': LaunchConfiguration('mode'),
             'initial_map': LaunchConfiguration('map'),
             'map_directory': LaunchConfiguration('map_directory'),
-            'use_rviz': LaunchConfiguration('rviz'),
-            # Keep this as a string because amr_mode_manager declares and
-            # parses the override as the strings "true"/"false".
-            'use_nvblox': ParameterValue(
-                LaunchConfiguration('use_nvblox'), value_type=str),
+            'use_rviz': LaunchConfiguration('use_rviz'),
+            # Strings because amr_mode_manager parses the override as "true"/"false".
             'use_detection': ParameterValue(
                 LaunchConfiguration('use_detection'), value_type=str),
             'use_sim_time': False,
@@ -176,19 +142,16 @@ def generate_launch_description():
             'map_directory',
             default_value='auto',
             description='Root directory for maps saved by /amr/save_map; each map gets its own subdirectory'),
-        DeclareLaunchArgument('rviz', default_value='false',
+        DeclareLaunchArgument('use_rviz', default_value='false',
                               description='Launch RViz2 alongside the hardware bringup'),
-        # UET_AMR_NVBLOX is set to true by scripts/modes/docker-dev.sh (the only place nvblox runs); off otherwise.
-        DeclareLaunchArgument('use_nvblox', default_value=EnvironmentVariable('UET_AMR_NVBLOX', default_value='false'),
-                              description='Use isaac_ros_nvblox for Nav2 costmaps; defaults to true inside docker-dev '
-                                          '(UET_AMR_NVBLOX), false elsewhere'),
         DeclareLaunchArgument('use_detection', default_value='false',
                               description='nav mode: leave people out of the nvblox map using PeopleSemSegNet '
-                                          '(needs use_nvblox and the model, see docs/isaac_ros_setup.md)'),
+                                          '(needs the model, see docs/setup.md)'),
         DeclareLaunchArgument('foxglove', default_value='false',
                               description='Start Foxglove Bridge (websocket on port 8765) for Foxglove Studio; off by default'),
-        DeclareLaunchArgument('teleop', default_value='true',
-                              description='Start the joystick and keyboard teleop nodes and the teleop gate (/amr/set_teleop); false leaves teleop out'),
+        DeclareLaunchArgument('use_teleop', default_value='true',
+                              description='Start the joystick and keyboard teleop nodes and the teleop gate '
+                                          '(/amr/set_teleop); false leaves teleop out'),
         DeclareLaunchArgument('teleop_source', default_value='none',
                               choices=['none', 'joy', 'keyboard'],
                               description='Teleop source allowed to drive at startup; none until enabled via /amr/set_teleop'),
@@ -199,9 +162,7 @@ def generate_launch_description():
                                   "'nav': run Nav2 localization (AMCL) + navigation against "
                                   "the map given by the 'map' argument."
                               )),
-        robot_state_publisher,
-        controller_manager_node,
-        controller_spawner,
+        control_launch,
         ekf_localization,
         sensors_launch,
         teleop_launch,

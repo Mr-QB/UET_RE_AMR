@@ -21,10 +21,11 @@ assignees: ''
 ## 📦 Liên quan đến Component
 - [ ] `uet_amr_navigation`
 - [ ] `uet_amr_perception`
+- [ ] `uet_amr_maps`
+- [ ] `docker` / `scripts`
 - [ ] `uet_amr_hardware`
-- [ ] `firmware/base_controller`
-- [ ] `firmware/sensor_hub`
-- [ ] `simulation`
+- [ ] `firmware/amr_hoverboard_controller`
+- [ ] `firmware/amr_uart_bridge`
 - [ ] `hardware` (PCB/CAD)
 
 ## 📋 Thông tin thêm

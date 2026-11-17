@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>uet_amr_perception</name>
+  <version>0.1.0</version>
+  <description>GPU perception for UET AMR: nvblox reconstruction and PeopleSemSegNet people masking</description>
+  <maintainer email="robotics@uet.vnu.edu.vn">Department of Robotics</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <!-- nvblox: exec-only, nvblox_nav2's costmap plugin is loaded by class name at runtime (see uet_amr_navigation/config/nav2.yaml). -->
+  <exec_depend>nvblox_ros</exec_depend>
+  <exec_depend>nvblox_nav2</exec_depend>
+  <exec_depend>nvblox_msgs</exec_depend>
+
+  <!-- People segmentation (nvblox.launch.py use_detection:=true): PeopleSemSegNet U-Net on the colour image -> mask
+       nvblox leaves out of the static map. The model is not an apt payload: run isaac_ros_peoplesemseg_models_install
+       once inside the container to download it and build the TensorRT engine (see docs/setup.md). -->
+  <exec_depend>isaac_ros_unet</exec_depend>
+  <exec_depend>isaac_ros_tensor_rt</exec_depend>
+  <exec_depend>isaac_ros_dnn_image_encoder</exec_depend>
+  <exec_depend>isaac_ros_peoplesemseg_models_install</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

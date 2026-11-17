@@ -8,9 +8,7 @@ This directory contains the electrical schematics, electrical connections, PCB l
 
 ```
 hardware/
-├── schematics/      # Schematic drawings (KiCad format)
-├── pcb/             # PCB layouts (KiCad format)
-├── cad/             # Mechanical CAD models (STEP, Fusion360 formats)
+├── udev/            # udev rules: /dev/esp32, /dev/rplidar, RealSense USB access (installed by scripts/amr setup)
 └── BOM.xlsx         # Project Bill of Materials
 ```
 
@@ -22,31 +20,14 @@ Refer to `BOM.xlsx` for a complete list of mechanical parts, fasteners, electron
 
 ---
 
-## Large Files and Git LFS
+## Controllers
 
-This repository uses Git Large File Storage (LFS) to manage large binary files such as 3D CAD assemblies and PCB models. Ensure Git LFS is installed and initialized before staging changes in this directory:
+The base uses two microcontrollers (firmware in `firmware/`):
 
-```bash
-# Initialize Git LFS in your local environment
-git lfs install
-
-# Configured tracking filters:
-# git lfs track "hardware/**/*.step"
-# git lfs track "hardware/**/*.f3d"
-# git lfs track "hardware/**/*.kicad_pcb"
-```
-
----
-
-## Printed Circuit Boards (PCBs)
-
-The robot architecture uses three dedicated microcontrollers:
-
-| Sub-system      | Microcontroller | Primary Function                           | Source Directory              |
-| --------------- | --------------- | ------------------------------------------ | ----------------------------- |
-| Base Controller | STM32F446RE     | Motor control and encoder feedback         | `firmware/base_controller`  |
-| Sensor Hub      | ESP32           | IMU and ultrasonic sensor fusion           | `firmware/sensor_hub`       |
-| Power Board     | STM32F103       | Battery management system (BMS) and relays | `firmware/power_management` |
+| Sub-system | Microcontroller | Primary Function | Source Directory |
+|---|---|---|---|
+| Motor controller | STM32F103RC | Hoverboard motor control, wheel ticks, battery/temperature feedback | `firmware/amr_hoverboard_controller` |
+| UART bridge | ESP32 | Bridges the STM32 serial link to the ROS 2 hardware interface (Protocol v2) | `firmware/amr_uart_bridge` |
 
 ---
 ## Power System
@@ -68,7 +49,7 @@ The robot is powered by a rechargeable battery pack.
 
 ### udev rules
 
-`udev/` has the host udev rules. `scripts/setup.sh` installs them in every mode.
+`udev/` has the host udev rules. `scripts/amr setup` installs them.
 
 | Device | Name | Rule |
 |---|---|---|

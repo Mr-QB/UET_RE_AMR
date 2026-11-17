@@ -1,7 +1,0 @@
-controller_manager:
-  ros__parameters:
-    use_sim_time: true
-
-diff_drive_controller:
-  ros__parameters:
-    wheel_separation: 0.304 # [m] -- measured on CAD/URDF

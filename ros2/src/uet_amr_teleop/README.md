@@ -5,8 +5,8 @@ Teleoperation for UET AMR: PS5-layout joystick and keyboard, both reaching
 
 `amr_bringup.launch.py` includes `launch/teleop.launch.py`, which starts the gate, `joy_node`, `teleop_twist_joy` and the
 keyboard node. The gate starts with source `none`, so nothing drives until you enable one with the service.
-`teleop:=false` on bringup leaves teleop out completely; `teleop_source:=joy` starts with a source already enabled.
-Without bringup (e.g. in simulation): `ros2 launch uet_amr_teleop teleop.launch.py initial_source:=keyboard`.
+`use_teleop:=false` on bringup leaves teleop out completely; `teleop_source:=joy` starts with a source already enabled.
+Without bringup: `ros2 launch uet_amr_teleop teleop.launch.py initial_source:=keyboard`.
 
 Both sources publish to `/teleop/<source>/cmd_vel_raw`; the gate forwards only the selected one. Switch at runtime with
 `uet_amr_msgs/srv/SetTeleop` (the active source is also published, latched, on `/amr/teleop_source`):

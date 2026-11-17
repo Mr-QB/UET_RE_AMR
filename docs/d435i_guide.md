@@ -1,91 +1,30 @@
-# Intel RealSense D435i SLAM & Mapping Guide
+# Intel RealSense D435i
 
-This guide provides step-by-step instructions for installing drivers, optimizing data streams, and integrating the RTAB-Map SLAM algorithm to build high-resolution 3D point cloud maps (Map Cloud) using the **Intel RealSense D435i** camera on **ROS2 Humble**.
+The D435i supplies depth + colour to nvblox and the IMU to the EKF. It must be on a **USB 3.0+ port**. Point it at
+textured, well-lit areas when mapping; blank walls and mirrors give poor depth.
 
----
+Installation is part of the image (see [setup.md](setup.md)): apt packages on x86, a source-built librealsense 2.58.4 / realsense-ros 4.58.4
+on Jetson (the kernel V4L2 backend does not work on L4T).
 
-## 1. Hardware Requirements
+## What the robot runs
 
-- **Device**: Intel RealSense D435i.
-- **Connection**: Must be connected to a **USB 3.0 port or higher**
-- **Environment**: Point the camera at well-lit areas rich in geometric features (Rich Texture) so the SLAM algorithm can extract sufficient feature tracking points. Avoid blank white walls, featureless ceilings, or highly reflective/mirror-like surfaces.
+`uet_amr_bringup/launch/depth_camera.launch.py` wraps `realsense2_camera` with:
 
----
+- depth and colour at 640x480 @ 30 Hz, `enable_sync` (without it colour lags depth by about 60 ms),
+- gyro + accel united into one IMU stream (`unite_imu_method: 2`) on `/camera/camera/imu`, bias-corrected by
+  `uet_amr_localization/imu_bias_corrector` before the EKF,
+- `align_depth` on, so `/camera/camera/aligned_depth_to_color/*` matches the colour image (needed by people segmentation).
 
-## 2. Driver and ROS2 Humble Wrapper Installation
-
-> **Running on a Jetson?** The steps below (apt `librealsense2-dkms`/`ros-humble-realsense2-camera`)
-> don't work on Jetson — see [Jetson RealSense Setup](jetson_realsense_setup.md) instead.
-
-For Ubuntu 22.04 users, ensure the following packages are installed:
+## Checks
 
 ```bash
-# Install the official Intel RealSense SDK and tools
-sudo apt-get update
-sudo apt-get install librealsense2-dkms librealsense2-utils librealsense2-dev 
-
-# Install the ROS2 Wrapper for RealSense (Humble)
-sudo apt-get install ros-humble-realsense2-camera 
-
-# Install the RTAB-Map SLAM packages for Humble
-sudo apt-get install ros-humble-rtabmap-ros 
+scripts/amr run rs-enumerate-devices                          # camera listed?
+scripts/amr run ros2 topic hz /camera/camera/aligned_depth_to_color/image_raw   # stable 15-30 Hz?
 ```
 
----
+A low rate (about 5 Hz) usually means the UDP buffer limits are not applied (run `scripts/amr setup`).
 
-## 3. IMU Calibration for Intel RealSense D435i
+## IMU calibration
 
-For accurate 3D mapping and to prevent tracking drift, ensure the camera's internal IMU is properly calibrated. Detailed step-by-step instructions and the official calibration script (`rs-imu-calibration.py`) are available directly in the [Intel RealSense SDK Repository](https://github.com/IntelRealSense/librealsense/tree/master/tools/rs-imu-calibration).
-
----
-
-## 4. Step by step Mapping Execution
-
-### Step 1: Launch the Camera
-
-Open the first terminal and launch the camera node. This configuration uses the optimal resolution for the infrared depth sensors (848x480), forces system clock synchronization (enable_sync), enables the IMU, and activates hardware post-processing filters to smooth out the point cloud:
-
-```bash
-ros2 launch realsense2_camera rs_launch.py \
-    pointcloud.enable:=true \
-    enable_gyro:=true \
-    enable_accel:=true \
-    unite_imu_method:=2 \
-    align_depth.enable:=true \
-    depth_module.depth_profile:=848x480x30 \
-    rgb_camera.color_profile:=848x480x30 \
-    enable_sync:=true \
-    clip_distance:=3.0 \
-    spatial_filter.enable:=true \
-    temporal_filter.enable:=true
-```
-
-### Step 2: Verify the Data Frequency (Recommended)
-
-Before starting the slam node, open a new terminal and verify that the camera is publishing data properly at decent framerate:
-
-```bash 
-ros2 topic hz /camera/camera/aligned_depth_to_color/image_raw
-```
-
-*Requirement: The rate should be stable between 15 - 30 FPS. If it is significantly lower (e.g., ~5 FPS), the SLAM tracking will be time out.*
-
-### Step 3: Start RTAB-Map SLAM
-
-In a new terminal, run the SLAM node configured to handle the Realsense topics:
-
-```bash
-ros2 launch rtabmap_launch rtabmap.launch.py \
-    rtabmap_args:="--delete_db_on_start --RGBD/LinearUpdate 0.0 --RGBD/AngularUpdate 0.0" \
-    rgb_topic:=/camera/camera/color/image_raw \
-    depth_topic:=/camera/camera/aligned_depth_to_color/image_raw \
-    camera_info_topic:=/camera/camera/color/camera_info \
-    frame_id:=base_footprint \
-    approx_sync:=true \
-    approx_sync_max_interval:=0.05 \
-    topic_queue_size:=100 \
-    sync_queue_size:=100 \
-    qos:=2 \
-    viz:=true
-```
-
+For accurate mapping, calibrate the internal IMU with Intel's
+[`rs-imu-calibration.py`](https://github.com/IntelRealSense/librealsense/tree/master/tools/rs-imu-calibration).

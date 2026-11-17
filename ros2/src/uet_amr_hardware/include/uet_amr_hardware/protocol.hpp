@@ -111,6 +111,14 @@ namespace protocol
         uint32_t stamp : 11;     // 256 us units, wraps (see kStampMask)
     };
 
+    // Cumulative parser counters; they survive resync() so they keep counting across port reopenings.
+    struct ParserStats
+    {
+        uint64_t packets_ok{0};         // complete packets with a valid checksum
+        uint64_t checksum_errors{0};    // complete-length packets whose checksum did not match
+        uint64_t bytes_discarded{0};    // bytes skipped while looking for a header, plus dropped corrupt packets
+    };
+
     // Byte-fed parser for slave->master feedback packets (header 0xAA, fixed
     // length kFeedbackPacketLen). After a checksum failure it rescans the
     // dropped bytes for the next header so one corrupted byte cannot swallow
@@ -125,7 +133,13 @@ namespace protocol
 
         const FeedbackPacket & packet() const {return packet_;}
 
+        const ParserStats & stats() const {return stats_;}
+
+        // Forget a half-received packet (after the port was reopened) but keep the counters.
+        void resync() {len_ = 0;}
+
     private:
+        ParserStats stats_{};
         uint8_t buf_[kFeedbackPacketLen]{};
         size_t len_{0};
         FeedbackPacket packet_{};
